@@ -25,4 +25,4 @@ export const MOBS = {
   crawler: { body: '#10151c', lift: '#1f2c3a', trail: '#ff4d1c', hot: '#ffd08a' },                            // VI Drowned Forge (steel blue-black), molten trail
   shade:   { body: '#0a0b1e', lift: '#1a1d4a', shadowRim: '#7a4420', litBody: '#2a2f6a', litEye: '#ffd08a' }, // VII Archive: dim rim = untouchable, lit = hittable
   husk:    { body: '#0e0e16', lift: '#262638', crack: '#ff8a3d', hot: '#ffd08a' },                            // VIII Ember Heart (cold near-black)
-};can
+};

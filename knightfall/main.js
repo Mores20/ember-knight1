@@ -1,11 +1,11 @@
 import { pressed, clearPressed } from './input.js';
 import * as A from './audio.js';
-import { LEVELS, TOTAL_COINS } from './level.js';
+import { LEVELS, TOTAL_COINS, PROLOGUE, EPILOGUE } from './level.js';
 import { Player, hit } from './player.js';
 import { makeEnemy } from './enemies.js';
 import { AshWarden } from './boss.js';
 import { AshKing } from './king.js';
-import { drawKnight } from './sprites.js';
+import { drawKnight, setKnight, SKIN_NAMES, SKINS } from './sprites.js';
 import { drawWarden as drawWardenSprite, drawMote } from './ashwarden.js';
 import { drawMob } from './mobs.js';
 import * as NEWMOBS from './mobsprites.js';
@@ -19,7 +19,8 @@ let g;
 
 /* ---- persistent run (S1/S9): hearts, coins and unlocks survive phases AND reloads ---- */
 const SAVE_KEY = 'emberknight.v1';
-const freshRun = () => ({ lvl: 0, hp: 2, coins: 0, time: 0, abil: { dash: false, lantern: false }, got: {}, lit: {}, cleared: LEVELS.map(() => false) });
+const freshRun = () => ({ lvl: 0, hp: 2, coins: 0, time: 0, abil: { dash: false, lantern: false }, got: {}, lit: {}, cleared: LEVELS.map(() => false),
+  skin: 'iron', emberSword: false, titled: false });
 function loadRun() {
   try {
     const s = typeof localStorage !== 'undefined' ? localStorage.getItem(SAVE_KEY) : null;
@@ -28,6 +29,8 @@ function loadRun() {
       if (r && typeof r.hp === 'number') {
         const out = { ...freshRun(), ...r, abil: { ...freshRun().abil, ...(r.abil || {}) } };
         out.cleared = LEVELS.map((_, i) => !!(Array.isArray(r.cleared) && r.cleared[i]));
+        out.emberSword = !!r.emberSword; out.titled = !!r.titled;
+        if (!SKIN_NAMES.includes(out.skin)) out.skin = 'iron';
         return out;
       }
     }
@@ -35,6 +38,7 @@ function loadRun() {
   return freshRun();
 }
 let run = loadRun();
+setKnight(run.skin, run.emberSword);
 function saveRun() { try { if (typeof localStorage !== 'undefined') localStorage.setItem(SAVE_KEY, JSON.stringify(run)); } catch (e) {} }
 const picked = (i, k) => (run.got[i] = run.got[i] || { c: [], h: [] })[k];   // per-phase pickup ledger
 
@@ -89,17 +93,29 @@ function nextPhase() {
   run.hp = g.p.hp;
   run.cleared[g.lvl] = true;                                     // unlocks this phase in the menu
   saveRun();
-  if (nx >= LEVELS.length) { g.state = 'win'; g.win = 0; g.litCount = Object.values(run.lit).reduce((n, a) => n + a.length, 0); A.sfx.win(); return; }
+  if (nx >= LEVELS.length) {
+    g.state = 'win'; g.win = 0;
+    g.litCount = Object.values(run.lit).reduce((n, a) => n + a.length, 0);
+    run.titled = true; run.emberSword = true; setKnight(run.skin, true); saveRun();   // the title and the ember sword, for good
+    A.sfx.win(); return;
+  }
   enterCard(nx);
 }
 
-/* ---- phase select (Esc): finished phases can be revisited ---- */
+/* ---- menus: the title screen, knight colours, and the phase select ---- */
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const unlocked = i => i === 0 || i === run.lvl || !!(run.cleared && run.cleared[i]);
-function toggleMenu() {
+const hasProgress = () => run.coins > 0 || run.lvl > 0 || run.abil.dash || run.abil.lantern || run.cleared.some(Boolean);
+const mainItems = () => [...(hasProgress() ? ['continue'] : []), 'new', 'colors', ...(run.cleared.some(Boolean) ? ['phases'] : [])];
+
+function openMainMenu() {
+  g.state = 'menu';
+  g.menu = { mode: 'main', sel: 0, t: 0, from: null, confirm: 0, prevSkin: run.skin };
+}
+function toggleMenu() {                                           // Esc: phase select during play
   if (g.state === 'menu') { g.state = g.menu.from || 'play'; return; }
   if (g.state !== 'play' && g.state !== 'win') return;
-  g.menu = { sel: Math.max(0, Math.min(LEVELS.length - 1, run.lvl)), t: 0, from: g.state };
+  g.menu = { mode: 'phases', sel: Math.max(0, Math.min(LEVELS.length - 1, run.lvl)), t: 0, from: g.state, confirm: 0, prevSkin: run.skin };
   g.state = 'menu';
   A.sfx.coin();
 }
@@ -110,17 +126,63 @@ function moveSel(d) {
     if (unlocked(i)) { g.menu.sel = i; A.sfx.land(); return; }
   }
 }
+function newJourney() {
+  const skin = run.skin;
+  run = { ...freshRun(), skin };
+  setKnight(run.skin, false);
+  saveRun();
+  g.story = { pages: PROLOGUE, i: 0, after: 'level0' };
+  g.state = 'story';
+}
 function updateMenu(dt) {
-  g.menu.t += dt;
-  if (pressed.left) moveSel(-1);
-  if (pressed.right) moveSel(1);
-  if (pressed.atk || pressed.ok) {
-    const i = g.menu.sel;
-    if (!unlocked(i)) { A.sfx.block(); return; }
-    A.sfx.grant();
-    loadLevel(i); saveRun();                                     // hearts, coins and the dash travel with you
+  const m = g.menu;
+  m.t += dt;
+  if (m.mode === 'main') {
+    const items = mainItems();
+    if (m.sel >= items.length) m.sel = Math.max(0, items.length - 1);
+    if (m.confirm) {
+      if (pressed.atk || pressed.ok) { newJourney(); return; }
+      if (pressed.menu) { m.confirm = 0; A.sfx.land(); }
+      return;
+    }
+    if (pressed.left) { m.sel = (m.sel + items.length - 1) % items.length; A.sfx.land(); }
+    if (pressed.right) { m.sel = (m.sel + 1) % items.length; A.sfx.land(); }
+    if (pressed.atk || pressed.ok) {
+      const a = items[m.sel];
+      if (a === 'continue') { g.state = 'play'; A.sfx.grant(); }
+      else if (a === 'new') { m.confirm = 1; A.sfx.block(); }
+      else if (a === 'colors') { m.mode = 'colors'; m.sel = Math.max(0, SKIN_NAMES.indexOf(run.skin)); m.prevSkin = run.skin; A.sfx.coin(); }
+      else if (a === 'phases') { m.mode = 'phases'; m.sel = Math.max(0, Math.min(LEVELS.length - 1, run.lvl)); A.sfx.coin(); }
+    }
+  } else if (m.mode === 'colors') {
+    if (pressed.left || pressed.right) {
+      m.sel = (m.sel + (pressed.right ? 1 : SKIN_NAMES.length - 1)) % SKIN_NAMES.length;
+      setKnight(SKIN_NAMES[m.sel], run.emberSword); A.sfx.land();
+    }
+    if (pressed.atk || pressed.ok) { run.skin = SKIN_NAMES[m.sel]; saveRun(); m.mode = 'main'; m.sel = 0; A.sfx.grant(); }
+    if (pressed.menu) { run.skin = m.prevSkin || run.skin; setKnight(run.skin, run.emberSword); m.mode = 'main'; m.sel = 0; A.sfx.land(); }
+  } else {
+    if (pressed.left) moveSel(-1);
+    if (pressed.right) moveSel(1);
+    if (pressed.menu) { m.mode = 'main'; m.sel = 0; return; }
+    if (pressed.atk || pressed.ok) {
+      const i = m.sel;
+      if (!unlocked(i)) { A.sfx.block(); return; }
+      A.sfx.grant();
+      loadLevel(i); saveRun();
+    }
   }
 }
+function updateStory() {
+  if (pressed.atk || pressed.ok || pressed.jump) {
+    g.story.i++;
+    if (g.story.i >= g.story.pages.length) {
+      const after = g.story.after; g.story = null;
+      loadLevel(0); saveRun();
+    } else A.sfx.land();
+  }
+}
+
 
 // S5: moving platforms write dx/dy so the rider can be carried; crumble platforms
 // rattle when stood on, drop out, then fade back in.
@@ -155,7 +217,8 @@ const reach = e => { const [px, py] = PAD[e.type] || [4, 4]; return { x: e.x - p
 function update(dt) {
   const p = g.p; g.t += dt; g.msg -= dt;
   if (g.state === 'menu') { updateMenu(dt); return; }
-  if (g.state === 'win') { g.win += dt; return; }
+  if (g.state === 'story') { updateStory(); return; }
+  if (g.state === 'win') { g.win += dt; if ((pressed.atk || pressed.jump) && g.win < 16) g.win = 16; return; }
   if (g.state === 'card') {                                       // between-phase card: hold, then boot next
     g.card.t += dt;
     if (g.card.t >= g.card.dur || pressed.atk || pressed.jump) loadLevel(g.card.next);
@@ -400,10 +463,11 @@ function renderCard() {                                            // S3: betwee
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = C.ink; ctx.fillRect(0, 0, VW, VH);
   const a = Math.min(1, g.card.t * 1.6), b = Math.min(1, Math.max(0, g.card.t - .5) * 2);
-  ctx.globalAlpha = a; T(g.card.title, VW / 2, 232, 30, 'center', C.ember);
-  ctx.globalAlpha = b; T(g.card.sub, VW / 2, 292, 42, 'center');
   const CL = LEVELS[g.card.next];
-  if (CL && CL.line) { ctx.globalAlpha = Math.max(0, b - .15); T(CL.line, VW / 2, 344, 17, 'center', '#cfd8ee'); }
+  ctx.globalAlpha = a; T(g.card.title, VW / 2, 200, 22, 'center', '#8f9bb8');
+  ctx.globalAlpha = b; T(g.card.sub, VW / 2, 252, 42, 'center');
+  if (CL && CL.line) { ctx.globalAlpha = Math.max(0, b - .15); T(CL.line, VW / 2, 302, 18, 'center', C.ember); }
+  if (CL && CL.lore) { ctx.globalAlpha = Math.max(0, b - .35); T(CL.lore, VW / 2, 336, 15, 'center', '#cfd8ee'); }
   ctx.globalAlpha = Math.max(0, b - .3); T('J / X  to continue', VW / 2, 400, 15, 'center', '#8f9bb8');
   ctx.globalAlpha = 1;
 }
@@ -547,6 +611,7 @@ function drawWarden(b) {
 
 function render() {
   if (g.state === 'card') return renderCard();
+  if (g.state === 'story') return renderStory();
   const p = g.p;
   let camT = Math.max(0, Math.min(g.l.w - VW, p.x - 380));
   if (g.boss && g.boss.st !== 'dormant' && g.boss.hp > 0) {       // keep the Warden in frame during the fight
@@ -749,24 +814,98 @@ function render() {
   }
   if (g.msg > 0 && g.state !== 'menu' && g.state !== 'win') { ctx.globalAlpha = Math.min(1, g.msg); T(g.l.title, VW / 2, 90, 40, 'center'); if (g.l.hint) T(g.l.hint, VW / 2, 118, 15, 'center', '#8f9bb8'); if (g.l.line) T(g.l.line, VW / 2, 142, 17, 'center', '#dfe8ff'); T(`\u2190 \u2192 / A D move    SPACE jump    J / X attack${run.abil.dash ? '    SHIFT dash' : ''}    M mute    R restart    ESC phases`, VW / 2, VH - 24, 15, 'center'); ctx.globalAlpha = 1; }
   if (g.state === 'win') {
-    ctx.fillStyle = `rgba(5,7,15,${Math.min(.88, g.win * 1.5)})`; ctx.fillRect(0, 0, VW, VH);
-    if (g.win > .25) {
+    const t = g.win;
+    ctx.fillStyle = `rgba(5,7,15,${Math.min(.9, t * 1.6)})`; ctx.fillRect(0, 0, VW, VH);
+    if (t < 3.4) {                                                 // what you kept
       const n = Math.min(26, g.litCount || 0), gap = n > 1 ? Math.min(32, (VW - 220) / n) : 0;
       const x0 = VW / 2 - (n - 1) * gap / 2;
-      for (let i = 0; i < n; i++) drawTorch(ctx, x0 + i * gap, 258, g.win > .5 + i * .07, g.t + i * .4);
-      T('THE EMBER HEART', VW / 2, 112, 38, 'center');
-      if (n) T(`${n} flame${n === 1 ? '' : 's'} kept`, VW / 2, 296, 16, 'center', '#8f9bb8');
-      if (g.win > 1.9) T('A flame kept is a flame lost.', VW / 2, 344, 20, 'center', C.ember);
-      if (g.win > 2.4) T('Share it.', VW / 2, 374, 22, 'center', C.moon);
-      if (g.win > 1.1) T(`Coins  ${run.coins} / ${TOTAL_COINS}`, VW / 2, 424, 20, 'center');
-      if (g.win > 1.3) T(`Time   ${g.time.toFixed(1)}s`, VW / 2, 452, 20, 'center');
-      if (g.win > 2.6) T('R  replay      ESC  phase select', VW / 2, 502, 16, 'center', C.ember);
+      for (let i = 0; i < n; i++) drawTorch(ctx, x0 + i * gap, 300, t > .4 + i * .07, g.t + i * .4);
+      T('THE EMBER HEART', VW / 2, 120, 34, 'center');
+      if (n) T(`${n} flame${n === 1 ? '' : 's'} kept`, VW / 2, 336, 16, 'center', '#8f9bb8');
+    }
+    if (t >= 3.0 && t < 5.2) {                                     // the soul rises
+      const k = Math.min(1, (t - 3.0) / 1.6), sy = 360 - k * 150;
+      glow(VW / 2, sy, 100, .55);
+      ctx.fillStyle = '#ffd08a'; ctx.beginPath(); ctx.arc(VW / 2, sy, 7 + Math.sin(t * 9) * 2.2, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,138,61,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(VW / 2, sy, 22, 0, 7); ctx.stroke();
+      if (t > 3.4) T('his ember soul', VW / 2, 420, 16, 'center', '#8f9bb8');
+    }
+    if (t >= 5.2 && t < 7.4) {                                     // it takes the blade
+      const k = Math.max(0, 1 - Math.abs((t - 6.0) / 1.0));
+      ctx.fillStyle = `rgba(255,208,138,${.45 * k})`; ctx.fillRect(0, 0, VW, VH);
+      T('THE BLADE CATCHES', VW / 2, 260, 26, 'center', '#ffd08a');
+      T('a king\u2019s ember, set in steel', VW / 2, 298, 16, 'center', '#cfd8ee');
+    }
+    if (t >= 7.2 && t < 11.0) {                                    // the title
+      const k = Math.min(1, (t - 7.2) * 1.4);
+      ctx.globalAlpha = k;
+      T('THE EMBER KNIGHT', VW / 2, 250, 42, 'center', C.ember);
+      T('a title, earned', VW / 2, 286, 17, 'center', '#cfd8ee');
+      ctx.globalAlpha = 1;
+      if (t > 8.4) { ctx.globalAlpha = Math.min(1, (t - 8.4) * 1.2); T('They did not call him that for the fire in his sword.', VW / 2, 342, 16, 'center', '#8f9bb8'); T('They called him that because he would not stay down.', VW / 2, 366, 16, 'center', '#8f9bb8'); ctx.globalAlpha = 1; }
+    }
+    if (t >= 10.4) {                                               // epilogue + walking away
+      const kx = 300 + Math.min(1, (t - 10.4) / 5.5) * 720;
+      drawKnight(ctx, 'run', t, 0, kx, 470, 1);
+      const a1 = Math.min(1, Math.max(0, (t - 10.4) / 1.1));
+      ctx.globalAlpha = a1; T(EPILOGUE[0], VW / 2, 150, 16, 'center', '#cfd8ee'); ctx.globalAlpha = 1;
+      const a2 = Math.min(1, Math.max(0, (t - 11.6) / 1.1));
+      ctx.globalAlpha = a2; T(EPILOGUE[1], VW / 2, 180, 16, 'center', '#cfd8ee'); ctx.globalAlpha = 1;
+      const a3 = Math.min(1, Math.max(0, (t - 12.8) / 1.2));
+      ctx.globalAlpha = a3; T(EPILOGUE[2], VW / 2, 216, 16, 'center', '#dfe8ff'); ctx.globalAlpha = 1;
+      if (t > 16) {
+        T(`Coins ${run.coins}/${TOTAL_COINS}      Time ${g.time.toFixed(1)}s`, VW / 2, 330, 16, 'center', '#8f9bb8');
+        T('R  replay      ESC  phase select', VW / 2, 366, 15, 'center', C.ember);
+      }
     }
   }
   if (g.state === 'menu') renderMenu();
 }
 
+function renderMainMenu() {
+  const m = g.menu, items = mainItems();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = 'rgba(5,7,15,.93)'; ctx.fillRect(0, 0, VW, VH);
+  T('EMBER KNIGHT', VW / 2, 128, 46, 'center', C.ember);
+  T(run.titled ? 'THE EMBER KNIGHT \u2014 a title, earned' : 'no name. no lands. a dull blade, and a refusal to stay down.', VW / 2, 160, 14, 'center', run.titled ? '#ffd08a' : '#8f9bb8');
+  const top = 250, rowH = 46;
+  const names = { continue: 'CONTINUE', new: 'NEW JOURNEY', colors: 'KNIGHT COLOURS', phases: 'PHASE SELECT' };
+  items.forEach((it, i) => {
+    const y = top + i * rowH, on = m.sel === i;
+    if (on) { ctx.fillStyle = 'rgba(255,138,61,.14)'; ctx.fillRect(VW / 2 - 190, y - 26, 380, 40); }
+    T((on ? '\u25b8 ' : '   ') + names[it], VW / 2, y, 20, 'center', on ? C.ember : C.moon);
+  });
+  if (m.confirm) {
+    ctx.fillStyle = 'rgba(5,7,15,.9)'; ctx.fillRect(VW / 2 - 280, 214, 560, 96);
+    ctx.strokeStyle = C.ember; ctx.lineWidth = 2; ctx.strokeRect(VW / 2 - 280, 214, 560, 96);
+    T('Erase your journey and start again?', VW / 2, 250, 17, 'center', '#dfe8ff');
+    T('J  yes        ESC  no', VW / 2, 284, 16, 'center', C.ember);
+  }
+  T('\u2190 \u2192  select      J / ENTER  choose', VW / 2, VH - 40, 15, 'center', '#8f9bb8');
+}
+
+function renderColors() {
+  const m = g.menu;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = 'rgba(5,7,15,.9)'; ctx.fillRect(0, 0, VW, VH);
+  T('KNIGHT COLOURS', VW / 2, 110, 30, 'center', C.ember);
+  const cols = 3, cw = 210, ch = 120, x0 = VW / 2 - (cols * cw) / 2 + cw / 2, y0 = 220;
+  SKIN_NAMES.forEach((k, i) => {
+    const gx = x0 + (i % cols) * cw, gy = y0 + Math.floor(i / cols) * ch, on = i === m.sel;
+    const sk = SKINS[k];
+    if (on) { ctx.strokeStyle = C.ember; ctx.lineWidth = 2; ctx.strokeRect(gx - 78, gy - 40, 156, 78); }
+    ctx.fillStyle = sk.a; ctx.fillRect(gx - 66, gy - 28, 26, 26);
+    ctx.fillStyle = sk.b; ctx.fillRect(gx - 66, gy - 2, 26, 12);
+    ctx.fillStyle = sk.cape; ctx.fillRect(gx - 66, gy + 10, 26, 8);
+    ctx.fillStyle = sk.rust; ctx.fillRect(gx - 40, gy + 10, 8, 8);
+    T(k.toUpperCase(), gx - 24, gy + 2, 17, 'left', on ? C.ember : C.moon);
+  });
+  T('\u2190 \u2192  preview      J / ENTER  wear it      ESC  back', VW / 2, VH - 40, 15, 'center', '#8f9bb8');
+}
+
 function renderMenu() {
+  if (g.menu.mode === 'main') return renderMainMenu();
+  if (g.menu.mode === 'colors') return renderColors();
   const n = LEVELS.length, sel = g.menu.sel;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = 'rgba(5,7,15,.93)'; ctx.fillRect(0, 0, VW, VH);
@@ -792,6 +931,26 @@ function renderMenu() {
   T('\u2190 \u2192  select      J / ENTER  begin      ESC  back', VW / 2, VH - 44, 15, 'center', '#8f9bb8');
 }
 
+function renderStory() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, VW, VH);
+  const wrap = (s, n) => {
+    const out = [], words = String(s).split(' ');
+    let ln = '';
+    for (const w of words) {
+      if ((ln + ' ' + w).trim().length > n) { if (ln) out.push(ln); ln = w; }
+      else ln = (ln ? ln + ' ' : '') + w;
+    }
+    if (ln) out.push(ln);
+    return out;
+  };
+  const lines = wrap(g.story.pages[g.story.i], 58);
+  T('EMBER KNIGHT', VW / 2, 140, 22, 'center', '#8f9bb8');
+  lines.forEach((ln, k) => T(ln, VW / 2, 248 + k * 34 - (lines.length - 1) * 17, 18, 'center', '#dfe8ff'));
+  T(`${g.story.i + 1} / ${g.story.pages.length}`, VW / 2, VH - 70, 14, 'center', '#8f9bb8');
+  T('J / ENTER  continue', VW / 2, VH - 40, 15, 'center', C.ember);
+}
+
 let last = 0;
 function frame(ts) {
   const dt = Math.min(.033, (ts - last) / 1000 || 0); last = ts;
@@ -804,7 +963,9 @@ function frame(ts) {
 }
 addEventListener('keydown', () => A.init());
 addEventListener('beforeunload', saveRun);
-loadLevel(run.lvl); requestAnimationFrame(frame);                 // resume at the saved phase
+loadLevel(run.lvl);                                                  // build the world behind the title
+openMainMenu(); requestAnimationFrame(frame);                        // the title screen, not straight into play
 
 // test hook for the headless harness (no runtime cost, never drawn)
-export const dbg = { get g() { return g; }, get run() { return run; }, loadLevel, enterCard, nextPhase, save: saveRun };
+export const dbg = { get g() { return g; }, get run() { return run; }, loadLevel, enterCard, nextPhase, save: saveRun,
+  start: () => { g.state = 'play'; }, setKnight, SKINS, openMainMenu, newJourney };

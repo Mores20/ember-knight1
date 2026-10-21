@@ -10,10 +10,11 @@
 // solids   = static, plus { kind: 'crumble' } and { kind: 'move', x0, y0, ax, ay, sp, ph }
 
 const PHASE1 = {
-  title: 'EMBER KNIGHT',
+  title: 'THE EMBER ROAD',
   style: 'road',
   name: 'THE EMBER ROAD',
   line: 'The last torch on the road still burns. Follow it.',
+  lore: 'Every torch on this road was lit by someone who did not make it further.',
   spawn: [80, 386],
   w: 3400, h: 640,
   vscroll: false,
@@ -53,6 +54,7 @@ const PHASE2 = {
   style: 'crypt',
   name: 'THE SUNKEN CRYPT',
   line: 'The fallen knights kept their embers. Light them.',
+  lore: 'The fallen kept their embers. The order still tends them, though no one remembers the order.',
   spawn: [80, 386],
   w: 3600, h: 640,
   vscroll: false,
@@ -108,6 +110,7 @@ const PHASE3 = {
   style: 'tower',
   name: 'THE BELL TOWER',
   line: 'The bell has been silent since the ash came. Climb.',
+  lore: 'The bell has rung once since the ash: the day the King sealed himself in.',
   spawn: [150, 2266],
   w: 2200, h: 2400,
   vscroll: true,
@@ -186,6 +189,7 @@ const PHASE4 = {
   style: 'throne',
   name: 'THE THRONE',
   line: 'The Warden guarded the Hearth to keep the flame out. Only the flame can pass.',
+  lore: 'The Warden stayed loyal. He was told the flame had to be kept out.',
   spawn: [120, 386],
   w: 2400, h: 540,
   vscroll: false,
@@ -231,6 +235,7 @@ const PHASE5 = {
   theme: 4,
   name: 'THE ASHEN GARDENS',
   line: 'Ash falls like snow. Something is still growing here.',
+  lore: 'The gardens were the King\u2019s gift. Something in the ash is making them grow again.',
   spawn: [80, 386],
   w: 3000, h: 540,
   vscroll: false,
@@ -286,6 +291,7 @@ const PHASE6 = {
   theme: 5,
   name: 'THE DROWNED FORGE',
   line: 'This is where the flame was drowned in iron.',
+  lore: 'They drowned the flame in iron here, and the iron has been burning ever since.',
   spawn: [200, 2266],
   w: 2200, h: 2400,
   vscroll: true,
@@ -345,6 +351,7 @@ const PHASE7 = {
   theme: 6,
   name: 'THE SILENT ARCHIVE',
   line: 'The King wrote it all down: he never meant to smother it.',
+  lore: 'His handwriting, in the margin: \u201cI did not mean to smother it.\u201d',
   reveal: 'His hand is on every page. He was trying to save it.',
   spawn: [80, 386],
   w: 2600, h: 640,
@@ -397,6 +404,7 @@ const PHASE8 = {
   theme: 7,
   name: 'THE EMBER HEART',
   line: 'A flame kept is a flame lost. Share it.',
+  lore: 'He is still trying to keep it. That is the whole of it.',
   spawn: [120, 386],
   w: 1600, h: 540,
   vscroll: false,
@@ -423,6 +431,18 @@ const PHASE8 = {
   gate: { x: 1420, y: 330, w: 90, h: 90 },
   cps: [[120, 420], [260, 420]],
 };
+
+// The road in: three cards before the first level of a new journey.
+export const PROLOGUE = [
+  'They called it the Ember Heart \u2014 a hearth that never died, and a kingdom that never slept.',
+  'The boy who would be the Ember Knight grew up on its warmth. No name. No lands. A dull blade, and a refusal to stay down.',
+  'Then the ash came. The King who kept the flame walked into the dark to save it. He is still in there.',
+];
+export const EPILOGUE = [
+  'The hearth caught again. The gardens came back in the spring.',
+  'The bell rang twice.',
+  'He walked on \u2014 no name, no lands, a sword full of fire, and the same refusal to stay down.',
+];
 
 export const LEVELS = [PHASE1, PHASE2, PHASE3, PHASE4, PHASE5, PHASE6, PHASE7, PHASE8];
 export const TOTAL_COINS = LEVELS.reduce((n, l) => n + l.coins.length, 0);
