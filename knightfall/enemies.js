@@ -156,7 +156,7 @@ export class Hexer {
     g.hexOrbs ??= [];
     for (const a of [-.24, 0, .24]) {
       g.hexOrbs.push({ x: sx, y: sy, vx: Math.cos(base + a) * 155, vy: Math.sin(base + a) * 155,
-        hex: this.hex, dmg: this.dmg, dur, t: 3.6, spin: 0 });
+        hex: this.hex, dmg: this.dmg, dur, t: 3.6, spin: 0, pierce: this.pierce || 0 });
     }
     sfx.ember();
   }

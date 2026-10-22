@@ -30,7 +30,7 @@ export class AshKing {
     this.tx = d.x; this.closeT = 0; this.streak = 0; this.sinceBolt = 0;
     this.drops = []; this.snares = []; this.rings = []; this.burns = []; this.bolts = [];
     this.erupts = []; this.grasps = []; this.meteors = [];
-    this.comboed = 0; this.casts = 0; this.fireLit = 0; this.summon = 0;
+    this.chained = 0; this.casts = 0; this.fireLit = 0; this.summon = 0;
   }
   get alive() { return this.hp > 0; }
   box() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
@@ -42,7 +42,7 @@ export class AshKing {
     this.tx = this.x0; this.closeT = 0; this.streak = 0; this.sinceBolt = 0;
     this.drops = []; this.snares = []; this.rings = []; this.burns = []; this.bolts = [];
     this.erupts = []; this.grasps = []; this.meteors = [];
-    this.comboed = 0; this.casts = 0; this.fireLit = 0; this.summon = 0;
+    this.chained = 0; this.casts = 0; this.fireLit = 0; this.summon = 0;
   }
 
   /* ---- geometry ---- */
@@ -120,16 +120,17 @@ export class AshKing {
     this.st = 'act'; this.t = 0; this.casts++;
     if (this.atk === 'meteor' && g.l.solids.filter(s => s.oneway && !s.off).length <= 2) this.atk = 'rain';
     if (this.atk === 'rain') {
-      const n = 3 + (ph >= 2 ? 1 : 0) + (ph === 3 ? 1 : 0);
-      const spread = [0, -120, 120, -240, 240];
+      const n = ph === 3 ? 7 : ph === 2 ? 5 : 3;
+      const spread = [0, -120, 120, -240, 240, -360, 360];
       for (let i = 0; i < n; i++) {
         const x = clamp(px + (spread[i] ?? (i - n / 2) * 120) * (ph === 3 ? 1.1 : 1), 70, g.l.w - 70);
         this.drops.push({ x, y: 96, delay: .82, vy: 0, surf: this.surfaceUnder(g, x), live: 0 });
       }
       sfx.ember();
     } else if (this.atk === 'snare') {
-      for (let i = 0; i < 3; i++) {
-        const x = clamp(px + (i - 1) * 92 + (Math.random() - .5) * 26, 70, g.l.w - 70);
+      const pools = ph === 3 ? 5 : ph === 2 ? 4 : 3;
+      for (let i = 0; i < pools; i++) {
+        const x = clamp(px + (i - (pools - 1) / 2) * 92 + (Math.random() - .5) * 26, 70, g.l.w - 70);
         this.snares.push({ x, y: this.surfaceUnder(g, x), delay: .45 + i * .07, life: 1.5, armed: 0 });
       }
       sfx.ember();
@@ -138,7 +139,9 @@ export class AshKing {
       const sx = this.x + this.w / 2 + this.dir * 26, sy = this.y + 38;
       const heavy = !twin && this.streak >= 3;                // three unparried: give them a slower one
       const sp = heavy ? 185 : 250, r = heavy ? 14 : 10;
-      const shots = twin ? [{ dx: -20, t: 0 }, { dx: 70, t: .3 }] : [{ dx: 0, t: 0 }];
+      const shots = [];
+      if (twin) { const n = ph === 3 ? 4 : ph === 2 ? 3 : 2; for (let k = 0; k < n; k++) shots.push({ dx: -40 + k * 40, t: k * .26 }); }
+      else shots.push({ dx: 0, t: 0 });
       for (const sh of shots) {
         const tx = px + sh.dx, ty = p.y + p.h * .45, d = Math.hypot(tx - sx, ty - sy) || 1;
         this.bolts.push({ x: sx, y: sy, vx: (tx - sx) / d * sp, vy: (ty - sy) / d * sp, r, heavy, life: 4 + sh.t, reflected: 0, spin: 0, delay: sh.t });
@@ -146,7 +149,7 @@ export class AshKing {
       this.streak++; this.sinceBolt = 0;
       sfx.ember();
     } else if (this.atk === 'erupt') {
-      const n = ph === 3 ? 4 : 3;
+      const n = ph === 3 ? 6 : ph === 2 ? 4 : 3;
       for (let i = 0; i < n; i++) {
         const x = clamp(px + (i - (n - 1) / 2) * 118, 70, g.l.w - 70);
         this.erupts.push({ x, surf: this.surfaceUnder(g, x), delay: .55 + i * .16, t: 0, life: .38 });
@@ -157,8 +160,11 @@ export class AshKing {
       this.grasps.push({ x, y: this.surfaceUnder(g, x), delay: .7, t: 0, life: .55 });
       sfx.ember();
     } else if (this.atk === 'meteor') {
-      const x = clamp(px, 90, g.l.w - 90);
-      this.meteors.push({ x, y: 70, delay: .7, vy: 0, surf: this.surfaceUnder(g, x), t: 0 });
+      const n = ph === 3 ? 3 : ph === 2 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const x = clamp(px + (i - (n - 1) / 2) * 170, 90, g.l.w - 90);
+        this.meteors.push({ x, y: 70, delay: .7, vy: 0, surf: this.surfaceUnder(g, x), t: 0 });
+      }
       sfx.ember();
     } else if (this.atk === 'burn') {
       const ledge = this.pickLedge(p, g);
@@ -175,14 +181,14 @@ export class AshKing {
       }
       g.shake(10); sfx.boom();
     }
-    this.cool = ph === 3 ? .4 : ph === 2 ? .65 : .9;
+    this.cool = ph === 3 ? .32 : ph === 2 ? .65 : .9;
     this.closeT = 0;
   }
 
   /* ---- the ward ---- */
   stun(g, dur) {
     if (this.st === 'stun' || this.st === 'dead' || this.st === 'gone' || this.st === 'dormant' || this.st === 'rise' || this.st === 'enrage') return;
-    this.st = 'stun'; this.t = 0; this.stunT = dur; this.vy = 0; this.comboed = 0;
+    this.st = 'stun'; this.t = 0; this.stunT = dur; this.vy = 0; this.chained = 0;
     this.drops = []; this.snares = []; this.burns = []; this.bolts = [];   // a clean punish window
     this.rings = []; this.erupts = []; this.grasps = []; this.meteors = [];
     g.shake(9); sfx.boom();
@@ -352,16 +358,19 @@ export class AshKing {
     if (this.st === 'enrage') {
       this.y += ((this.hover - this.h) - this.y) * Math.min(1, dt * 3.2);
       if (ph === 3 && !this.fireLit) this.lightArena(g);
-      if (this.summon && this.t > .45) {                         // a caster answers the call
+      if (this.summon && this.t > .45) {                         // two casters answer: one at each side
         this.summon = 0;
-        if (!g.enemies.some(e => e.summoned && !e.dead)) {
-          const hx = clamp(this.x + (this.dir > 0 ? -130 : 130), 130, g.l.w - 130);
-          g.enemies.push(new Hexer({ x: hx, y: 240, x0: hx - 150, x1: hx + 150, hp: 3, dmg: 1, summoned: 1 }));
+        const live = g.enemies.filter(e => e.summoned && !e.dead);
+        for (const sx of [430, g.l.w - 430]) {
+          if (live.length >= 2) break;
+          if (live.some(e => Math.abs((e.x + e.w / 2) - sx) < 240)) continue;
+          g.enemies.push(new Hexer({ x: sx, y: 240, x0: sx - 120, x1: sx + 120, hp: 3, dmg: 1, summoned: 1, pierce: 1 }));
+          live.push(g.enemies[g.enemies.length - 1]);
           g.shake(7); sfx.wake();
-          for (let i = 0; i < 16; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 110; g.parts.push({ x: hx + 11, y: 256, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, l: .55, col: '#8f9bb8' }); }
+          for (let i = 0; i < 16; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 110; g.parts.push({ x: sx + 11, y: 256, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, l: .55, col: '#8f9bb8' }); }
         }
       }
-      if (this.t > 1.2) { this.st = 'idle'; this.t = 0; this.cool = .45; this.pickTarget(p); this.comboed = 0; }
+      if (this.t > 1.2) { this.st = 'idle'; this.t = 0; this.cool = .45; this.pickTarget(p); this.chained = 0; }
       return;
     }
     if (this.st === 'stun') {
@@ -379,7 +388,7 @@ export class AshKing {
     if (this.st === 'recover') {
       const ty = this.hover - this.h;
       this.y += (ty - this.y) * Math.min(1, dt * 5.5);
-      if (this.t > (this.y < ty - 6 ? .5 : .3)) { this.st = 'idle'; this.t = 0; this.cool = .4; this.pickTarget(p); this.puff(g); this.comboed = 0; }
+      if (this.t > (this.y < ty - 6 ? .5 : .3)) { this.st = 'idle'; this.t = 0; this.cool = .4; this.pickTarget(p); this.puff(g); this.chained = 0; }
       return;
     }
 
@@ -399,14 +408,14 @@ export class AshKing {
     } else if (this.st === 'act') {
       if (this.t >= .32) {
         const chance = ph === 3 ? .75 : ph === 2 ? .45 : 0;    // brutal: chains in phase 2 and 3
-        if (!this.comboed && this.atk !== 'repulse' && Math.random() < chance) {
-          this.comboed = 1;
+        const maxChain = ph === 3 ? 2 : 1;
+        if (this.chained < maxChain && this.atk !== 'repulse' && Math.random() < chance) {
+          this.chained++;
           this.pickAtk(p);
-          const next = this.atk;
-          this.start(next, p);
+          this.start(this.atk, p);
           this.wind += .1;                                     // the follow-up is a touch slower to read
         } else {
-          this.comboed = 0;
+          this.chained = 0;
           this.st = 'recover'; this.t = 0;
         }
       }

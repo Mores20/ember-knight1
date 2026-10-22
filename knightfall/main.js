@@ -289,7 +289,7 @@ function update(dt) {
       p.debuffs[o.hex] = Math.max(p.debuffs[o.hex] || 0, o.dur);
       A.sfx.block(); spark(o.x, o.y, 8, o.hex === 'snuff' ? '#cfd8ee' : '#ffd479'); g.shake(3);
     }
-    for (const s of g.l.solids) if (!s.pass && !s.off && hit(ob, s)) { o.done = 1; break; }
+    if (!o.pierce) for (const s of g.l.solids) if (!s.pass && !s.off && hit(ob, s)) { o.done = 1; break; }   // summons pierce platforms
   }
   g.hexOrbs = g.hexOrbs.filter(o => !o.done);
   if (g.boss) { g.boss.parry(p, g); g.boss.update(dt, p, g); }

@@ -44,8 +44,8 @@ const PHASE1 = {
     { type: 'bat', x0: 350, x1: 700, y0: 230, ay: 25, sp: .5, ph: 0 },
     { type: 'bat', x0: 1520, x1: 1960, y0: 230, ay: 110, sp: 1.3, ph: 0 },
     { type: 'bat', x0: 1620, x1: 2060, y0: 240, ay: 100, sp: 1.3, ph: 3.14 },
-    { type: 'goblin', x: 1700, y: 390, x0: 1620, x1: 1900, hp: 1 },
-    { type: 'goblin', x: 2000, y: 390, x0: 1900, x1: 2100, hp: 1 },
+    { type: 'goblin', x: 2350, y: 390, x0: 2280, x1: 2440, hp: 1 },
+    { type: 'goblin', x: 3000, y: 390, x0: 2900, x1: 3100, hp: 1 },
     { type: 'bat', x0: 2350, x1: 2750, y0: 230, ay: 90, sp: 1.2, ph: 1.0 },
   ],
   gate: { x: 3110, y: 170, w: 80, h: 90 },
@@ -101,7 +101,7 @@ const PHASE2 = {
     { type: 'bat', x0: 1240, x1: 1620, y0: 250, ay: 55, sp: 1.0, ph: 0 },    // phase 1 timing,
     { type: 'bat', x0: 1520, x1: 1980, y0: 235, ay: 95, sp: 1.25, ph: 2.2 }, // now in the dark
     { type: 'bat', x0: 1300, x1: 1780, y0: 225, ay: 40, sp: .65, ph: 4.1 },
-    { type: 'shield', x: 1500, y: 388, x0: 1440, x1: 1640, hp: 2 },
+    { type: 'shield', x: 2700, y: 388, x0: 2620, x1: 2820, hp: 2 },
     { type: 'goblin', x: 400, y: 390, x0: 330, x1: 520, hp: 1 },
     { type: 'bat', x0: 2200, x1: 2500, y0: 250, ay: 60, sp: 1.1, ph: 1.3 },
   ],
@@ -138,7 +138,7 @@ const PHASE3 = {
     { x: 700, y: 1600, w: 350, h: 20 },                        // 3: dash ledge C (safe, open sky above)
     { x: 1020, y: 1690, w: 250, h: 18 },                       // 4: practice safety floor
     { x: 1250, y: 1600, w: 300, h: 20 },                       // landing D
-    { x: 1850, y: 1600, w: 300, h: 20 },                       // 5: landing E (300px gap)
+    { x: 1815, y: 1600, w: 335, h: 20 },                       // 5: landing E (was 300px; dash is shorter now)
     { x: 2000, y: 1520, w: 150, h: 18 },                       // 6: the switchback climb
     { x: 1940, y: 1440, w: 150, h: 18 },
     { x: 1880, y: 1360, w: 150, h: 18 },                       // S3: high checkpoint
@@ -327,7 +327,7 @@ const PHASE6 = {
     { x: 1000, y: 1820, w: 260, h: 20 },                        // landing, first checkpoint
     { kind: 'move', x0: 1000, y0: 1700, w: 130, h: 18, ax: 0, ay: 110, sp: 1.6, ph: 1.57 }, // lift
     { x: 1200, y: 1600, w: 300, h: 20 },                        // the long shelf
-    { x: 1800, y: 1600, w: 300, h: 20 },                        // 300px dash gap
+    { x: 1720, y: 1600, w: 380, h: 20 },                        // 220px dash gap
     { x: 1950, y: 1520, w: 150, h: 18 },
     { kind: 'move', x0: 1650, y0: 1440, w: 140, h: 18, ax: 150, ay: 0, sp: 1.5, ph: 2.4 },
     { x: 1300, y: 1360, w: 220, h: 20 },
@@ -353,9 +353,9 @@ const PHASE6 = {
     { type: 'crawler', x: 1870, y: 1580, x0: 1830, x1: 2050, hp: 2 },
     { type: 'bat', x0: 900, x1: 1250, y0: 1720, ay: 50, sp: 1.1, ph: 0 },
     { type: 'bat', x0: 1150, x1: 1500, y0: 1460, ay: 45, sp: 1.2, ph: 2.2 },
-    { type: 'bat', x0: 500, x1: 800, y0: 2100, ay: 45, sp: 1.0, ph: 1.4 },
-    { type: 'bat', x0: 1400, x1: 1700, y0: 1350, ay: 50, sp: 1.15, ph: 3.3 },
-    { type: 'bat', x0: 1750, x1: 2050, y0: 1750, ay: 40, sp: .95, ph: 4.4 },
+    { type: 'crawler', x: 420, y: 2280, x0: 200, x1: 600, hp: 2 },
+    { type: 'crawler', x: 1380, y: 1580, x0: 1300, x1: 1480, hp: 2 },
+    { type: 'crawler', x: 880, y: 1180, x0: 820, x1: 1120, hp: 2 },
   ],
   gate: { x: 1000, y: 1110, w: 90, h: 90 },
   cps: [[200, 2300]],
@@ -410,8 +410,8 @@ const PHASE7 = {
     { type: 'shade', x: 2440, y: 388, x0: 2380, x1: 2520, hp: 2 },
     { type: 'bat', x0: 900, x1: 1200, y0: 250, ay: 40, sp: 1.1, ph: 0 },
     { type: 'bat', x0: 1500, x1: 1800, y0: 230, ay: 45, sp: 1.2, ph: 2.4 },
-    { type: 'shade', x: 1500, y: 388, x0: 1420, x1: 1600, hp: 2 },
-    { type: 'shade', x: 2650, y: 388, x0: 2580, x1: 2750, hp: 2 },
+    { type: 'shade', x: 500, y: 388, x0: 420, x1: 600, hp: 2 },
+    { type: 'shade', x: 1350, y: 388, x0: 1300, x1: 1400, hp: 2 },
     { type: 'bat', x0: 1800, x1: 2100, y0: 230, ay: 45, sp: 1.1, ph: 3.1 },
     { type: 'hexer', x: 900, y: 300, hp: 3 },
     { type: 'hexer', x: 2000, y: 300, hp: 3 },

@@ -1,6 +1,6 @@
 import { keys, pressed } from './input.js';
 import { sfx } from './audio.js';
-const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 620, DASH_T = .22;
+const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 480, DASH_VG = 403, DASH_T = .22;
 export const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export class Player {
   constructor() { this.w = 22; this.h = 34; this.hp = 3; this.reset(80, 386); }
@@ -33,7 +33,7 @@ export class Player {
     }
     if (pressed.dash && this.dashT <= 0 && this.dashCd <= 0 && !this.dashUsed && g.abil.dash && !heavy) {
       this.dashT = DASH_T; this.dashCd = .4; this.dashUsed = true; // one surge per airtime
-      this.vx = this.face * DASH_V;                                // vy is kept: dashing at apex carries furthest
+      this.vx = this.face * (this.ground ? DASH_VG : DASH_V);       // vy is kept: dashing at apex carries furthest
       sfx.dash();
     }
     this.coyote = this.ground ? .1 : this.coyote - dt;            // coyote time
