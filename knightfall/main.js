@@ -16,6 +16,7 @@ import { THEMES, POP } from './themes.js';
 import { drawSolid, drawTorch, drawCoin, drawHeartPickup, drawSpikes, SWATCH } from './tiles.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d'), VW = 960, VH = 540;
+const GAME_VERSION = '1.0.0';
 const BAR = 34, BARB = 18, SH = VH;                   // status strips cut into the 960x540 frame
 const BOT = VH - BARB;                                // nothing important below this line
 const C = { bg: '#0b1021', stone: '#232a3f', stone2: '#2f3750', moon: '#dfe8ff', ember: '#ff8a3d', ink: '#05070f', rim: 'rgba(255,138,61,.55)' };
@@ -195,7 +196,17 @@ function update(dt) {
   const p = g.p; g.t += dt; g.msg -= dt;
   if (g.state === 'menu') { menu.update(dt); return; }
   if (g.state === 'story') { updateStory(dt); return; }
-  if (g.state === 'win') { g.win += dt; if ((pressed.atk || pressed.jump) && g.win < 16.8) g.win = 16.8; return; }
+  if (g.state === 'win') {
+    g.win += dt;
+    if ((pressed.atk || pressed.jump) && g.win < 16.8) g.win = 16.8;   // skip to the epilogue
+    if (g.win > 27 || ((pressed.ok || pressed.atk || pressed.jump) && g.win >= 24)) { g.state = 'credits'; g.credT = 0; }
+    return;
+  }
+  if (g.state === 'credits') {
+    g.credT += dt;
+    if (g.credT > .9 && (pressed.ok || pressed.atk)) { syncMenu(); g.state = 'menu'; hits.length = 0; }
+    return;
+  }
   if (g.state === 'card') {                                       // between-phase card: hold, then boot next
     g.card.t += dt;
     if (g.card.t >= g.card.dur || ((pressed.atk || pressed.jump) && g.card.t > .6)) loadLevel(g.card.next);
@@ -824,8 +835,29 @@ function render() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, VW, SH);             // the surround is part of the screen
   if (g.state === 'card') renderCard();
   else if (g.state === 'story') renderStory();
+  else if (g.state === 'credits') renderCredits();
   else renderWorld();
   drawStrips();
+}
+
+// A screen of its own once the ending has finished playing.
+function renderCredits() {
+  const t = g.credT || 0;
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
+  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, VW, VH);
+  ctx.globalAlpha = .5;
+  ctx.fillStyle = C.moon; for (const [x, y, z] of stars) ctx.fillRect(x, y, z, z);
+  ctx.globalAlpha = 1;
+  glow(VW / 2, 176, 110, .3 + Math.sin(t * 3) * .05);
+  drawKing(ctx, 'fx', Math.floor(t * 8) % 2, VW / 2, 214, 1, { scale: 2 });   // the flame, kept
+  T('EMBER KNIGHT', VW / 2, 116, 20, 'center', '#8f9bb8');
+  T('MORE TO COME', VW / 2, 292, 40, 'center', C.ember);
+  T(`v${GAME_VERSION} \u2014 this is only the first version`, VW / 2, 330, 16, 'center', '#8f9bb8');
+  T('created by LumpiaN#1', VW / 2, 376, 19, 'center', '#cfd8ee');
+  T('thank you for playing', VW / 2, 406, 19, 'center', '#8f9bb8');
+  T('ENTER  return to the title        R  replay the last phase', VW / 2, 478, 13, 'center', '#4a5578');
+  const a = Math.min(1, t / .9);
+  if (a < 1) { ctx.fillStyle = `rgba(5,7,15,${1 - a})`; ctx.fillRect(0, 0, VW, VH); }
 }
 
 function renderWorld() {
