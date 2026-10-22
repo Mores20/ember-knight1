@@ -1,10 +1,12 @@
-import { pressed, clearPressed } from './input.js';
+import { pressed, clearPressed, hits } from './input.js';
 import * as A from './audio.js';
 import { LEVELS, TOTAL_COINS, PROLOGUE, EPILOGUE } from './level.js';
 import { Player, hit } from './player.js';
 import { makeEnemy } from './enemies.js';
 import { AshWarden } from './boss.js';
 import { AshKing } from './king.js';
+import { createMenu } from './menu.js';
+import * as SND from './sound.js';
 import { drawKing } from './ashking.js';
 import { drawKnight, setKnight, SKIN_NAMES, SKINS } from './sprites.js';
 import { drawWarden as drawWardenSprite, drawMote } from './ashwarden.js';
@@ -44,6 +46,7 @@ function saveRun() { try { if (typeof localStorage !== 'undefined') localStorage
 const picked = (i, k) => (run.got[i] = run.got[i] || { c: [], h: [] })[k];   // per-phase pickup ledger
 
 function loadLevel(i) {
+  SND.stopMusic();
   run.lvl = Math.max(0, Math.min(LEVELS.length - 1, i | 0));
   const L = LEVELS[run.lvl], gotC = picked(run.lvl, 'c'), gotH = picked(run.lvl, 'h');
   const litSet = run.lit[run.lvl] = run.lit[run.lvl] || [];      // torches you lit stay lit across reloads
@@ -62,6 +65,7 @@ function loadLevel(i) {
     coins: l.coins.map(([x, y], k) => ({ x, y, k, got: gotC.includes(k) ? 1 : 0 })),
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: gotH.includes(k) ? 1 : 0 })),
     sigil: l.sigil ? { ...l.sigil, got: run.abil.dash ? 1 : 0 } : null,   // already earned stays earned
+    bossCue: 0, bossPhaseCue: 1, bossPrev: null,
     grant: 0, grantKind: 'dash', boss: l.king ? new AshKing(l.king) : l.boss ? new AshWarden(l.boss) : null, sealT: 0, slain: 0,
     lamps: [], sparks: [], arrows: [], lamp: run.abil.lantern ? 3 : 0, wind: l.wind || [],
     tide: l.tide ? { y: l.tide.y0 } : null, tideT: l.tide ? 5 : 2, trails: [],
@@ -103,76 +107,33 @@ function nextPhase() {
   enterCard(nx);
 }
 
-/* ---- menus: the title screen, knight colours, and the phase select ---- */
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
-const unlocked = i => i === 0 || i === run.lvl || !!(run.cleared && run.cleared[i]);
-const hasProgress = () => run.coins > 0 || run.lvl > 0 || run.abil.dash || run.abil.lantern || run.cleared.some(Boolean);
-const mainItems = () => [...(hasProgress() ? ['continue'] : []), 'new', 'colors', ...(run.cleared.some(Boolean) ? ['phases'] : [])];
-
-function openMainMenu() {
-  g.state = 'menu';
-  g.menu = { mode: 'main', sel: 0, t: 0, from: null, confirm: 0, prevSkin: run.skin };
-}
-function toggleMenu() {                                           // Esc: phase select during play
-  if (g.state === 'menu') { g.state = g.menu.from || 'play'; return; }
-  if (g.state !== 'play' && g.state !== 'win') return;
-  g.menu = { mode: 'phases', sel: Math.max(0, Math.min(LEVELS.length - 1, run.lvl)), t: 0, from: g.state, confirm: 0, prevSkin: run.skin };
-  g.state = 'menu';
-  A.sfx.coin();
-}
-function moveSel(d) {
-  const n = LEVELS.length;
-  for (let k = 1; k <= n; k++) {
-    const i = ((g.menu.sel + d * k) % n + n) % n;
-    if (unlocked(i)) { g.menu.sel = i; A.sfx.land(); return; }
-  }
+/* ---- menus: menu.js owns the title screen, phases, colours, controls and new-game confirm ---- */
+const hasProgress = () => run.time > 0 || run.coins > 0 || run.lvl > 0 || run.abil.dash || run.abil.lantern || run.cleared.some(Boolean);
+const menu = createMenu({
+  save: null,
+  audio: {
+    move: () => A.sfx.land(), select: () => A.sfx.coin(), back: () => A.sfx.block(),
+    toggleMute: () => { A.toggle(); SND.setMuted(A.isMuted()); syncMenu(); },
+    isMuted: () => A.isMuted(),
+  },
+  onAction: a => menuAction(a),
+});
+function syncMenu() { menu.setSave(hasProgress() ? { level: run.lvl, cleared: run.cleared, skin: run.skin } : null); }
+function menuAction(a) {
+  if (a.type === 'continue') { g.state = 'play'; A.sfx.grant(); }
+  else if (a.type === 'new') newJourney();
+  else if (a.type === 'phase') { loadLevel(a.index); g.state = 'play'; saveRun(); syncMenu(); }
+  else if (a.type === 'color') { run.skin = SKIN_NAMES[a.index] || 'iron'; setKnight(run.skin, run.emberSword); saveRun(); syncMenu(); }
 }
 function newJourney() {
   const skin = run.skin;
   run = { ...freshRun(), skin };
   setKnight(run.skin, false);
+  SND.stopMusic();
   saveRun();
+  syncMenu();
   g.story = { pages: PROLOGUE, i: 0, after: 'level0' };
   g.state = 'story';
-}
-function updateMenu(dt) {
-  const m = g.menu;
-  m.t += dt;
-  if (m.mode === 'main') {
-    const items = mainItems();
-    if (m.sel >= items.length) m.sel = Math.max(0, items.length - 1);
-    if (m.confirm) {
-      if (pressed.atk || pressed.ok) { newJourney(); return; }
-      if (pressed.menu) { m.confirm = 0; A.sfx.land(); }
-      return;
-    }
-    if (pressed.left) { m.sel = (m.sel + items.length - 1) % items.length; A.sfx.land(); }
-    if (pressed.right) { m.sel = (m.sel + 1) % items.length; A.sfx.land(); }
-    if (pressed.atk || pressed.ok) {
-      const a = items[m.sel];
-      if (a === 'continue') { g.state = 'play'; A.sfx.grant(); }
-      else if (a === 'new') { m.confirm = 1; A.sfx.block(); }
-      else if (a === 'colors') { m.mode = 'colors'; m.sel = Math.max(0, SKIN_NAMES.indexOf(run.skin)); m.prevSkin = run.skin; A.sfx.coin(); }
-      else if (a === 'phases') { m.mode = 'phases'; m.sel = Math.max(0, Math.min(LEVELS.length - 1, run.lvl)); A.sfx.coin(); }
-    }
-  } else if (m.mode === 'colors') {
-    if (pressed.left || pressed.right) {
-      m.sel = (m.sel + (pressed.right ? 1 : SKIN_NAMES.length - 1)) % SKIN_NAMES.length;
-      setKnight(SKIN_NAMES[m.sel], run.emberSword); A.sfx.land();
-    }
-    if (pressed.atk || pressed.ok) { run.skin = SKIN_NAMES[m.sel]; saveRun(); m.mode = 'main'; m.sel = 0; A.sfx.grant(); }
-    if (pressed.menu) { run.skin = m.prevSkin || run.skin; setKnight(run.skin, run.emberSword); m.mode = 'main'; m.sel = 0; A.sfx.land(); }
-  } else {
-    if (pressed.left) moveSel(-1);
-    if (pressed.right) moveSel(1);
-    if (pressed.menu) { m.mode = 'main'; m.sel = 0; return; }
-    if (pressed.atk || pressed.ok) {
-      const i = m.sel;
-      if (!unlocked(i)) { A.sfx.block(); return; }
-      A.sfx.grant();
-      loadLevel(i); saveRun();
-    }
-  }
 }
 function updateStory() {
   if (pressed.atk || pressed.ok || pressed.jump) {
@@ -209,6 +170,7 @@ function tickSolids(dt) {
 }
 const spark = (x, y, n, col) => { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 160; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, l: .5 + Math.random() * .3, col }); } };
 const respawn = () => { const p = g.p; p.reset(g.cp[0], g.cp[1] - p.h); p.inv = 1.5; g.shake(6); if (g.boss) g.boss.reset();
+  SND.stopMusic(); g.bossCue = 0; g.bossPhaseCue = 1; g.bossPrev = null;
   if (g.tide) { g.tide.y = Math.min(g.l.tide.y0, g.cp[1] + 280); g.tideT = 2; } };   // VI: the tide drops back under you
 // Enemy hurtboxes reach slightly past the drawn body so swings feel generous.
 // Contact damage keeps the tight box, so nothing hurts you from further away.
@@ -217,7 +179,7 @@ const reach = e => { const [px, py] = PAD[e.type] || [4, 4]; return { x: e.x - p
 
 function update(dt) {
   const p = g.p; g.t += dt; g.msg -= dt;
-  if (g.state === 'menu') { updateMenu(dt); return; }
+  if (g.state === 'menu') { menu.update(dt); return; }
   if (g.state === 'story') { updateStory(); return; }
   if (g.state === 'win') { g.win += dt; if ((pressed.atk || pressed.jump) && g.win < 16) g.win = 16; return; }
   if (g.state === 'card') {                                       // between-phase card: hold, then boot next
@@ -294,6 +256,21 @@ function update(dt) {
     if (hit(p, e) && !(e.type === 'wisp' && e.scared)) p.hurt(e.x + e.w / 2, g);
   }
   if (g.boss) { g.boss.parry(p, g); g.boss.update(dt, p, g); }
+  if (g.boss) {                                                   // recorded cues: theme, tells, phases, death
+    const b = g.boss, king = b.sheet === 'king', prev = g.bossPrev || {};
+    if (b.st !== 'dormant' && !g.bossCue) {
+      g.bossCue = 1;
+      SND.sting(king ? 'kingIntro' : 'wardenIntro', .6);
+      SND.music(king ? 'kingMusic' : 'wardenMusic');
+    }
+    if (b.st === 'wind' && prev.st !== 'wind') SND.sting(king ? 'kingAttack' : 'wardenAttack', .5);
+    if (king && b.phase > (g.bossPhaseCue || 1)) {
+      g.bossPhaseCue = b.phase;
+      SND.sting(b.phase === 3 ? 'kingPhase3' : 'kingPhase2');
+    }
+    if (b.hp <= 0 && (prev.hp || 1) > 0) { SND.stopMusic(); SND.sting(king ? 'kingDeath' : 'wardenDeath', .65); }
+    g.bossPrev = { st: b.st, hp: b.hp };
+  }
 
   /* ---- Ember Lantern ---- */
   if (g.lanternSigil && !g.lanternSigil.got && hit(p, { x: g.lanternSigil.x - 12, y: g.lanternSigil.y - 12, w: 24, h: 24 })) {
@@ -879,76 +856,7 @@ function render() {
       }
     }
   }
-  if (g.state === 'menu') renderMenu();
-}
-
-function renderMainMenu() {
-  const m = g.menu, items = mainItems();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = 'rgba(5,7,15,.93)'; ctx.fillRect(0, 0, VW, VH);
-  T('EMBER KNIGHT', VW / 2, 128, 46, 'center', C.ember);
-  T(run.titled ? 'THE EMBER KNIGHT \u2014 a title, earned' : 'no name. no lands. a dull blade, and a refusal to stay down.', VW / 2, 160, 14, 'center', run.titled ? '#ffd08a' : '#8f9bb8');
-  const top = 250, rowH = 46;
-  const names = { continue: 'CONTINUE', new: 'NEW JOURNEY', colors: 'KNIGHT COLOURS', phases: 'PHASE SELECT' };
-  items.forEach((it, i) => {
-    const y = top + i * rowH, on = m.sel === i;
-    if (on) { ctx.fillStyle = 'rgba(255,138,61,.14)'; ctx.fillRect(VW / 2 - 190, y - 26, 380, 40); }
-    T((on ? '\u25b8 ' : '   ') + names[it], VW / 2, y, 20, 'center', on ? C.ember : C.moon);
-  });
-  if (m.confirm) {
-    ctx.fillStyle = 'rgba(5,7,15,.9)'; ctx.fillRect(VW / 2 - 280, 214, 560, 96);
-    ctx.strokeStyle = C.ember; ctx.lineWidth = 2; ctx.strokeRect(VW / 2 - 280, 214, 560, 96);
-    T('Erase your journey and start again?', VW / 2, 250, 17, 'center', '#dfe8ff');
-    T('J  yes        ESC  no', VW / 2, 284, 16, 'center', C.ember);
-  }
-  T('\u2190 \u2192  select      J / ENTER  choose', VW / 2, VH - 40, 15, 'center', '#8f9bb8');
-}
-
-function renderColors() {
-  const m = g.menu;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = 'rgba(5,7,15,.9)'; ctx.fillRect(0, 0, VW, VH);
-  T('KNIGHT COLOURS', VW / 2, 110, 30, 'center', C.ember);
-  const cols = 3, cw = 210, ch = 120, x0 = VW / 2 - (cols * cw) / 2 + cw / 2, y0 = 220;
-  SKIN_NAMES.forEach((k, i) => {
-    const gx = x0 + (i % cols) * cw, gy = y0 + Math.floor(i / cols) * ch, on = i === m.sel;
-    const sk = SKINS[k];
-    if (on) { ctx.strokeStyle = C.ember; ctx.lineWidth = 2; ctx.strokeRect(gx - 78, gy - 40, 156, 78); }
-    ctx.fillStyle = sk.a; ctx.fillRect(gx - 66, gy - 28, 26, 26);
-    ctx.fillStyle = sk.b; ctx.fillRect(gx - 66, gy - 2, 26, 12);
-    ctx.fillStyle = sk.cape; ctx.fillRect(gx - 66, gy + 10, 26, 8);
-    ctx.fillStyle = sk.rust; ctx.fillRect(gx - 40, gy + 10, 8, 8);
-    T(k.toUpperCase(), gx - 24, gy + 2, 17, 'left', on ? C.ember : C.moon);
-  });
-  T('\u2190 \u2192  preview      J / ENTER  wear it      ESC  back', VW / 2, VH - 40, 15, 'center', '#8f9bb8');
-}
-
-function renderMenu() {
-  if (g.menu.mode === 'main') return renderMainMenu();
-  if (g.menu.mode === 'colors') return renderColors();
-  const n = LEVELS.length, sel = g.menu.sel;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = 'rgba(5,7,15,.93)'; ctx.fillRect(0, 0, VW, VH);
-  T('SELECT PHASE', VW / 2, 92, 30, 'center', C.ember);
-  const top = 150, rowH = Math.min(72, Math.floor((VH - 236) / n));
-  for (let i = 0; i < n; i++) {
-    const y = top + i * rowH, on = sel === i, open = unlocked(i);
-    const done = !!(run.cleared && run.cleared[i]), cur = i === run.lvl;
-    const x0 = 168, wd = VW - 336;
-    if (on && open) {
-      ctx.fillStyle = 'rgba(255,138,61,.13)'; ctx.fillRect(x0, y - 27, wd, 56);
-      ctx.strokeStyle = C.ember; ctx.lineWidth = 2; ctx.strokeRect(x0, y - 27, wd, 56);
-    }
-    ctx.globalAlpha = open ? 1 : .3;
-    ctx.fillStyle = SWATCH[LEVELS[i].style] || C.stone; ctx.fillRect(x0 + 14, y - 9, 18, 18);
-    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.strokeRect(x0 + 14, y - 9, 18, 18);
-    T(`${ROMAN[i]}   ${LEVELS[i].name}`, x0 + 46, y + 7, 21, 'left', on && open ? C.ember : C.moon);
-    if (done) T('\u2713', x0 + wd - 20, y + 7, 22, 'right', C.ember);
-    else if (!open) T('LOCKED', x0 + wd - 20, y + 5, 14, 'right', '#8f9bb8');
-    else if (cur) T('CURRENT', x0 + wd - 20, y + 5, 13, 'right', '#8f9bb8');
-    ctx.globalAlpha = 1;
-  }
-  T('\u2190 \u2192  select      J / ENTER  begin      ESC  back', VW / 2, VH - 44, 15, 'center', '#8f9bb8');
+  if (g.state === 'menu') menu.draw(ctx);
 }
 
 function renderStory() {
@@ -974,18 +882,23 @@ function renderStory() {
 let last = 0;
 function frame(ts) {
   const dt = Math.min(.033, (ts - last) / 1000 || 0); last = ts;
-  if (pressed.menu) { toggleMenu(); pressed.menu = false; }
-  if (pressed.restart) { if (g.state !== 'card') loadLevel(g.lvl); pressed.restart = false; }
-  if (pressed.mute) { A.toggle(); pressed.mute = false; }
+  if (g.state === 'menu') {
+    while (hits.length) menu.key(hits.shift());
+  } else {
+    hits.length = 0;
+    if (pressed.menu) { syncMenu(); g.state = 'menu'; hits.length = 0; pressed.menu = false; }
+    if (pressed.restart) { if (g.state !== 'card') loadLevel(g.lvl); pressed.restart = false; }
+    if (pressed.mute) { A.toggle(); SND.setMuted(A.isMuted()); pressed.mute = false; }
+  }
   if (g.stopT > 0) g.stopT -= dt;                                  // hit-stop: freeze, keep buffered input
   else { update(dt); clearPressed(); }
   render(); requestAnimationFrame(frame);
 }
 addEventListener('keydown', () => A.init());
 addEventListener('beforeunload', saveRun);
-loadLevel(run.lvl);                                                  // build the world behind the title
-openMainMenu(); requestAnimationFrame(frame);                        // the title screen, not straight into play
+loadLevel(run.lvl); syncMenu(); g.state = 'menu';                    // menu.js draws the title screen
+requestAnimationFrame(frame);
 
 // test hook for the headless harness (no runtime cost, never drawn)
 export const dbg = { get g() { return g; }, get run() { return run; }, loadLevel, enterCard, nextPhase, save: saveRun,
-  start: () => { g.state = 'play'; }, setKnight, SKINS, openMainMenu, newJourney };
+  start: () => { g.state = 'play'; }, setKnight, SKINS, menu, menuAction, syncMenu, newJourney, SND };
