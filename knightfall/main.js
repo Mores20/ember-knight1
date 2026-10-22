@@ -629,6 +629,43 @@ function drawWarden(b) {
       glow((fire.x0 + fire.x1) / 2, fire.y - 8, 60, .18);
     }
   }
+  for (const e of b.erupts || []) {                                // eruption: the floor breaks in a line
+    if (e.delay > 0) {
+      ctx.fillStyle = `rgba(255,110,40,${.18 + .18 * Math.abs(Math.sin(g.t * 14))})`;
+      ctx.fillRect(e.x - 15, e.surf - 4, 30, 4);
+      ctx.strokeStyle = 'rgba(255,170,90,.55)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(e.x - 9, e.surf - 3); ctx.lineTo(e.x - 5, e.surf - 9); ctx.lineTo(e.x, e.surf - 3);
+      ctx.lineTo(e.x + 5, e.surf - 9); ctx.lineTo(e.x + 9, e.surf - 3); ctx.stroke();
+    } else {
+      const k = Math.max(0, Math.min(1, e.t / e.life)), h = 6 + 60 * Math.sin(Math.PI * k);
+      ctx.fillStyle = '#ff5a24'; ctx.fillRect(e.x - 12, e.surf - h, 24, h);
+      ctx.fillStyle = '#ffd479'; ctx.fillRect(e.x - 5, e.surf - h, 10, h);
+      glow(e.x, e.surf - h * .5, 40, .35);
+    }
+  }
+  for (const gr of b.grasps || []) {                                // ash grasp: an outline closes, then a hand
+    const armed = gr.delay <= 0;
+    ctx.fillStyle = `rgba(18,8,24,${armed ? .45 : .22 + .12 * Math.abs(Math.sin(g.t * 12))})`;
+    ctx.fillRect(gr.x - 22, gr.y - 5, 44, 5);
+    if (armed) {
+      const h = 46 * Math.sin(Math.PI * Math.min(1, gr.t / (gr.life * .7)));
+      ctx.strokeStyle = '#cfd8ee'; ctx.lineWidth = 3;
+      for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(gr.x + i * 9, gr.y); ctx.lineTo(gr.x + i * 13, gr.y - h); ctx.stroke(); }
+      glow(gr.x, gr.y - h * .5, 26, .18);
+    }
+  }
+  for (const me of b.meteors || []) {                               // a heavy ember with a ledge's name on it
+    ctx.strokeStyle = `rgba(255,120,40,${.35 + .3 * Math.abs(Math.sin(g.t * 10))})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(me.x - 20, me.surf - 3); ctx.lineTo(me.x + 20, me.surf - 3); ctx.stroke();
+    if (me.delay <= 0) {
+      glow(me.x, me.y, 46, .5);
+      ctx.fillStyle = '#ff8a3d'; ctx.beginPath(); ctx.arc(me.x, me.y, 12, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ffd479'; ctx.beginPath(); ctx.arc(me.x - 2, me.y - 2, 5, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,150,70,.5)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(me.x, me.y - 28); ctx.lineTo(me.x, me.y - 10); ctx.stroke();
+    }
+  }
+
   for (const bolt of b.bolts || []) {                              // Ember Bolt: swing it home
     glow(bolt.x, bolt.y, bolt.reflected ? 46 : bolt.heavy ? 40 : 26, bolt.reflected ? .55 : .4);
     ctx.save(); ctx.translate(bolt.x, bolt.y); ctx.rotate(bolt.spin || 0);
@@ -750,6 +787,8 @@ function renderWorld() {
     camT = Math.max(0, Math.min(g.l.w - VW, mid - VW / 2));
     camT = Math.max(camT, bx + 130 - VW);                          // and never let him slip off the edge
     camT = Math.min(camT, bx - 130);
+    camT = Math.max(camT, p.x + p.w + 90 - VW);                    // but the player matters more
+    camT = Math.min(camT, p.x - 90);
     camT = Math.max(0, Math.min(g.l.w - VW, camT));
   }
   g.cam.x += (camT - g.cam.x) * .12;
