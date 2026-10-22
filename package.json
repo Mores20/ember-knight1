@@ -1,0 +1,48 @@
+{
+  "name": "ember-knight",
+  "productName": "Ember Knight",
+  "version": "1.0.0",
+  "description": "Ember Knight - a hand-built pixel platformer",
+  "author": "LumpiaN#1",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "app/main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.lumpian.emberknight",
+    "productName": "Ember Knight",
+    "asar": true,
+    "files": [
+      "index.html",
+      "knightfall/**/*",
+      "app/**/*",
+      "!knightfall/mob-sheets/**"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Ember-Knight-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

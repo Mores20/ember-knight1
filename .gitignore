@@ -1,5 +1,7 @@
-.env
+﻿.env
 _shot.html
 node_modules/
+dist/
 Thumbs.db
 .desktop.ini
+_icon.html
