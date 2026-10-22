@@ -67,6 +67,7 @@ export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}
       if (Math.random() < dt * 14) embers.push({ x: 430 + (Math.random() - .5) * 6, y: GY - 62, vx: (Math.random() - .5) * 14, vy: -26 - Math.random() * 24, l: 1.4 });
       for (const e of embers) { e.x += e.vx * dt; e.y += e.vy * dt; e.l -= dt; } while (embers.length && embers[0].l <= 0) embers.shift();
     },
+    screenName() { return screen; },
     key(code) {
       const up = code === 'ArrowUp' || code === 'KeyW', dn = code === 'ArrowDown' || code === 'KeyS', ok = code === 'Enter' || code === 'Space' || code === 'KeyJ', back = code === 'Escape' || code === 'Backspace';
       if (code === 'KeyM') { audio.toggleMute?.(); return true; }
@@ -88,8 +89,8 @@ export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}
       } else if (ok || back) { audio.back?.(); go('main'); return true; }
       return false;
     },
-    draw(ctx) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+    draw(ctx, dy = 0) {
+      ctx.setTransform(1, 0, 0, 1, 0, dy); ctx.imageSmoothingEnabled = false;
       const th = THEMES[0], g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, th.sky); g.addColorStop(1, th.sky2); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = '#e4ecff'; for (const [x, y, z] of stars) { ctx.globalAlpha = .3 + .5 * Math.abs(Math.sin(t * .8 + x)); ctx.fillRect(x, y, z, z); } ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'lighter'; const mg = ctx.createRadialGradient(560, 110, 20, 560, 110, 170); mg.addColorStop(0, 'rgba(180,200,255,.28)'); mg.addColorStop(1, 'rgba(180,200,255,0)'); ctx.fillStyle = mg; ctx.fillRect(380, -60, 360, 340); ctx.globalCompositeOperation = 'source-over';
@@ -107,7 +108,7 @@ export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}
         const it = mainItems(); it.forEach((m, i) => { const y = 264 + i * 33, on = i === sel;
           if (on) flame(ctx, 86, y - 2, 1.5, t + i); T(ctx, m.label, 112, y, 26, m.off ? '#4a5578' : on ? '#e4ecff' : '#8f9bb8'); });
       } else if (screen === 'phases') {
-        panel(ctx, 'SELECT PHASE', 262);
+        panel(ctx, 'SELECT PHASE', 246);
         THEMES.forEach((th2, i) => { const y = 296 + i * 24 + 14, on = i === sel, lock = !unlocked(i);
           if (on) R(ctx, 'rgba(127,227,255,.14)', 68, y - 17, 414, 22);
           R(ctx, th2.sky2, 80, y - 12, 8, 12); R(ctx, th2.stone, 90, y - 12, 8, 12); R(ctx, th2.accent, 100, y - 12, 8, 12);
@@ -128,7 +129,7 @@ export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}
       } else {
         panel(ctx, 'START OVER?', 150); T(ctx, 'Your saved progress will be erased.', 84, 312, 16, '#8f9bb8'); T(ctx, 'ENTER  yes, start over', 84, 352, 16, '#e4ecff'); T(ctx, 'ESC    keep my save', 84, 380, 16, '#e4ecff');
       }
-      T(ctx, screen === 'main' ? '\u2191\u2193 SELECT    ENTER CONFIRM    M MUTE' : 'ENTER / ESC  BACK', W / 2, H - 18, 13, '#4a5578', 'center');
+
       if (fade < 1) { ctx.fillStyle = `rgba(5,7,15,${1 - fade})`; ctx.fillRect(0, 0, W, H); }
     },
   };

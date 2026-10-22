@@ -16,6 +16,8 @@ import { THEMES, POP } from './themes.js';
 import { drawSolid, drawTorch, drawCoin, drawHeartPickup, drawSpikes, SWATCH } from './tiles.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d'), VW = 960, VH = 540;
+const BAR = 34, BARB = 18, SH = VH;                   // status strips cut into the 960x540 frame
+const BOT = VH - BARB;                                // nothing important below this line
 const C = { bg: '#0b1021', stone: '#232a3f', stone2: '#2f3750', moon: '#dfe8ff', ember: '#ff8a3d', ink: '#05070f', rim: 'rgba(255,138,61,.55)' };
 const stars = Array.from({ length: 60 }, (_, i) => [(i * 137.5) % VW, (i * 53.3) % 300, i % 3 + 1]);
 let g;
@@ -437,12 +439,12 @@ function darken() {
     dctx.fillStyle = gr; dctx.fillRect(sx - r, sy - r, r * 2, r * 2);
   }
   dctx.globalCompositeOperation = 'source-over'; dctx.globalAlpha = 1;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(darkCv, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, BAR); ctx.drawImage(darkCv, 0, 0);
   for (const [x, y, r] of near) glow(x - c.x, y - c.y, r * .7, .16 * g.dark);            // warm pooled light
 }
 
 function renderCard() {                                            // S3: between-phase card
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
   ctx.fillStyle = C.ink; ctx.fillRect(0, 0, VW, VH);
   const a = Math.min(1, g.card.t * 1.6), b = Math.min(1, Math.max(0, g.card.t - .5) * 2);
   const CL = LEVELS[g.card.next];
@@ -666,9 +668,80 @@ function drawWarden(b) {
   }
 }
 
+/* ---- the status strips: everything that used to float over the arena ---- */
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+function drawStrips() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#04060c'; ctx.fillRect(0, 0, VW, BAR); ctx.fillRect(0, BOT, VW, BARB);
+  ctx.fillStyle = 'rgba(255,138,61,.30)'; ctx.fillRect(0, BAR - 1, VW, 1);
+  ctx.fillStyle = 'rgba(255,138,61,.16)'; ctx.fillRect(0, BOT, VW, 1);
+  const playing = g.state === 'play', p = g.p;
+  const midY = 22, botY = VH - 5;
+
+  if (playing) {
+    for (let i = 0; i < 3; i++) {
+      heart(22 + i * 25, 16, 16);
+      if (i < p.hp) { ctx.fillStyle = C.moon; ctx.fill(); }
+      else { ctx.strokeStyle = '#39415c'; ctx.lineWidth = 1.6; ctx.stroke(); }
+    }
+    ctx.fillStyle = '#f2eac0'; ctx.beginPath(); ctx.arc(112, 16, 6, 0, 7); ctx.fill();
+    T(`x ${run.coins}/${TOTAL_COINS}`, 124, midY, 13, 'left', '#cfd8ee');
+    let ax = 224;
+    if (run.abil.dash) {                                             // one surge per airtime
+      ctx.strokeStyle = p.dashUsed ? '#39415c' : C.ember; ctx.lineWidth = 2.5;
+      for (let i = 0; i < 2; i++) { const x = ax + i * 8; ctx.beginPath(); ctx.moveTo(x, 11); ctx.lineTo(x + 6, 17); ctx.lineTo(x, 23); ctx.stroke(); }
+      ax += 26;
+    }
+    if (run.abil.lantern) {                                          // three sparks of light
+      for (let i = 0; i < 3; i++) {
+        const on = i < g.lamp, x = ax + i * 13;
+        ctx.fillStyle = on ? POP.lantern : '#2a3348'; ctx.fillRect(x, 11, 8, 12);
+        ctx.fillStyle = on ? '#ffd84a' : '#39415c'; ctx.fillRect(x + 2, 13, 4, 7);
+      }
+    }
+    const tm = g.time;
+    T(`${String(tm / 60 | 0).padStart(2, '0')}:${(tm % 60).toFixed(1).padStart(4, '0')}`, VW - 18, midY, 15, 'right', '#cfd8ee');
+    if (A.isMuted()) T('M', VW - 78, 13, 10, 'right', '#5d6a8a');
+  } else {
+    T('EMBER KNIGHT', 18, midY, 12, 'left', '#5d6a8a');
+  }
+
+  if (playing && g.boss && g.boss.st !== 'dormant' && g.boss.hp > 0) {   // boss bar, in the frame
+    const n = g.boss.max, bw = Math.min(340, n * 24), bx = VW / 2 - bw / 2;
+    T((g.boss.title || 'THE ASH WARDEN') + (g.boss.phase > 1 ? '  ' + ['', 'I', 'II', 'III'][g.boss.phase] : ''), VW / 2, 12, 10, 'center', C.ember);
+    for (let i = 0; i < n; i++) {
+      const w = (bw - (n - 1) * 3) / n;
+      ctx.fillStyle = i < g.boss.hp ? (g.boss.phase === 2 ? '#ff2d00' : '#ff4d1c') : '#2a3348';
+      ctx.fillRect(bx + i * (w + 3), 19, w, 6);
+    }
+  } else if (playing) {
+    T(LEVELS[g.lvl].name, VW / 2, midY, 12, 'center', '#4a5578');
+  }
+
+  const rom = ROMAN[g.lvl] || '';
+  if (playing) T(`${rom} \u00b7 ${LEVELS[g.lvl].name}`, 18, botY, 11, 'left', '#5d6a8a');
+  T(playing
+    ? '\u2190 \u2192 MOVE   SPACE JUMP   J ATTACK   SHIFT DASH   E LANTERN   M MUTE   R RESTART   ESC MENU'
+    : g.state === 'menu' ? (menu.screenName() === 'main' ? '\u2191\u2193 SELECT   ENTER CONFIRM   M MUTE' : 'ENTER / ESC  BACK')
+      : g.state === 'win' ? '' : 'A FLAME KEPT IS A FLAME LOST',
+    VW / 2, botY, 11, 'center', '#4a5578');
+  if (playing) {
+    const cpT = g.l.torches.filter(t => t.cp);
+    if (cpT.length) T(`TORCHES ${cpT.filter(t => t.lit).length}/${cpT.length}`, VW - 18, botY, 11, 'right', '#5d6a8a');
+    else if (run.titled) T('THE EMBER KNIGHT', VW - 18, botY, 11, 'right', C.ember);
+  }
+}
+
 function render() {
-  if (g.state === 'card') return renderCard();
-  if (g.state === 'story') return renderStory();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, VW, SH);             // the surround is part of the screen
+  if (g.state === 'card') renderCard();
+  else if (g.state === 'story') renderStory();
+  else renderWorld();
+  drawStrips();
+}
+
+function renderWorld() {
   const p = g.p;
   let camT = Math.max(0, Math.min(g.l.w - VW, p.x - 380));
   if (g.boss && g.boss.st !== 'dormant' && g.boss.hp > 0) {       // keep the boss in frame during the fight
@@ -682,7 +755,7 @@ function render() {
   g.cam.x += (camT - g.cam.x) * .12;
   const ty = g.l.vscroll ? Math.max(0, Math.min(g.l.h - VH, p.y - 270)) : 0;   // S4: climb only when the level says so
   g.cam.y += (ty - g.cam.y) * .12;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
   const th = g.l.theme != null ? THEMES[g.l.theme] : null;
   const sky = ctx.createLinearGradient(0, 0, 0, VH); sky.addColorStop(0, th ? th.sky : C.bg); sky.addColorStop(1, th ? th.sky2 : '#18203f');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
@@ -692,7 +765,7 @@ function render() {
   ctx.fillStyle = '#e8efff'; ctx.beginPath(); ctx.arc(mx, 110, 34, 0, 7); ctx.fill();
   ridge(.25, '#0f1730', 330, 100, 240); ridge(.5, '#131c3a', 400, 70, 170);
 
-  ctx.setTransform(1, 0, 0, 1, -g.cam.x + (Math.random() - .5) * g.shk * 2, -g.cam.y + (Math.random() - .5) * g.shk * 2);
+  ctx.setTransform(1, 0, 0, 1, -g.cam.x + (Math.random() - .5) * g.shk * 2, BAR - g.cam.y + (Math.random() - .5) * g.shk * 2);
   for (const s of g.l.solids) {
     if (s.off) continue;                                           // crumbled away
     const rx = s.st === 'shake' ? (Math.random() - .5) * 3 : 0;    // rattle while it gives way
@@ -811,45 +884,14 @@ function render() {
   for (const q of g.parts) { ctx.globalAlpha = Math.min(1, q.l * 2); ctx.fillStyle = q.col; ctx.fillRect(q.x, q.y, 3, 3); } ctx.globalAlpha = 1;
   if (g.dark > .01) darken();                                      // S7: torchlight only
 
-  ctx.setTransform(1, 0, 0, 1, 0, 0);                              // HUD
-  for (let i = 0; i < 3; i++) { heart(30 + i * 30, 18, 22); if (i < p.hp) { ctx.fillStyle = C.moon; ctx.fill(); } else { ctx.strokeStyle = '#4a5578'; ctx.lineWidth = 2; ctx.stroke(); } }
-  ctx.fillStyle = '#f2eac0'; ctx.beginPath(); ctx.arc(30, 62, 8, 0, 7); ctx.fill();
-  T(`x ${run.coins}/${TOTAL_COINS}`, 46, 68, 18);
-  const cpT = g.l.torches.filter(t => t.cp);                        // Crypt: torch-checkpoint tally
-  if (cpT.length) {
-    const lit = cpT.filter(t => t.lit).length;
-    ctx.fillStyle = lit ? C.ember : '#4a5578';
-    ctx.beginPath(); ctx.moveTo(30, 84); ctx.quadraticCurveTo(37, 92, 30, 98); ctx.quadraticCurveTo(23, 92, 30, 84); ctx.fill();
-    T(`x ${lit}/${cpT.length}`, 46, 96, 18, 'left', lit ? C.moon : '#8f9bb8');
-  }
-  const tm = g.time; T(`${String(tm / 60 | 0).padStart(2, '0')}:${(tm % 60).toFixed(1).padStart(4, '0')}`, VW - 24, 36, 20, 'right');
-  if (A.isMuted()) T('MUTED', VW - 24, 60, 14, 'right', '#8f9bb8');
-  if (run.abil.dash) {                                             // earned: dash charge chevrons
-    ctx.strokeStyle = p.dashUsed ? '#3a4257' : C.ember; ctx.lineWidth = 2.5;
-    for (let i = 0; i < 2; i++) { const x = 26 + i * 8; ctx.beginPath(); ctx.moveTo(x, 108); ctx.lineTo(x + 6, 116); ctx.lineTo(x, 124); ctx.stroke(); }
-  }
-  if (run.abil.lantern) {                                          // lantern charges
-    for (let i = 0; i < 3; i++) {
-      const on = i < g.lamp;
-      ctx.fillStyle = on ? POP.lantern : '#3a4257'; ctx.fillRect(26 + i * 12, 134, 8, 10);
-      ctx.fillStyle = on ? '#ffd84a' : '#2a3348'; ctx.fillRect(28 + i * 12, 136, 4, 6);
-    }
-  }
+  // HUD lives in the status strips now: see drawStrips()
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);                            // overlays are screen space, not world space
   if (g.grant > 0) {                                               // teaching banner, on the safe ledge
     ctx.globalAlpha = Math.min(1, g.grant / .5) * Math.min(1, (3.6 - g.grant) * 2.5);
     ctx.fillStyle = 'rgba(5,7,15,.72)'; ctx.fillRect(VW / 2 - 250, 166, 500, 76);
     T(g.grantKind === 'lantern' ? 'EMBER LANTERN' : 'EMBER DASH', VW / 2, 205, 32, 'center', C.ember);
     T(g.grantKind === 'lantern' ? 'E \u2014 throw a spark of light' : 'SHIFT \u2014 one surge per jump', VW / 2, 232, 16, 'center');
     ctx.globalAlpha = 1;
-  }
-  if (g.boss && g.boss.st !== 'dormant' && g.boss.hp > 0) {         // boss health
-    const n = g.boss.max, bw = Math.min(360, n * 26), bx = VW / 2 - bw / 2, by = 30;
-    T((g.boss.title || 'ASH WARDEN') + (g.boss.phase > 1 ? '  ' + ['', 'I', 'II', 'III'][g.boss.phase] : ''), VW / 2, 20, 13, 'center', C.ember);
-    for (let i = 0; i < n; i++) {
-      const w = (bw - (n - 1) * 3) / n;
-      ctx.fillStyle = i < g.boss.hp ? (g.boss.phase === 2 ? '#ff2d00' : '#ff4d1c') : '#2a3348';
-      ctx.fillRect(bx + i * (w + 3), by + 4, w, 7);
-    }
   }
   if (g.boss && g.boss.st === 'enrage') {
     ctx.globalAlpha = Math.min(1, g.boss.t * 2) * Math.min(1, (1.3 - g.boss.t) * 3);
@@ -873,7 +915,7 @@ function render() {
     T('THE WAY IS OPEN', VW / 2, 198, 16, 'center');
     ctx.globalAlpha = 1;
   }
-  if (g.msg > 0 && g.state !== 'menu' && g.state !== 'win') { ctx.globalAlpha = Math.min(1, g.msg); T(g.l.title, VW / 2, 90, 40, 'center'); if (g.l.hint) T(g.l.hint, VW / 2, 118, 15, 'center', '#8f9bb8'); if (g.l.line) T(g.l.line, VW / 2, 142, 17, 'center', '#dfe8ff'); T(`\u2190 \u2192 / A D move    SPACE jump    J / X attack${run.abil.dash ? '    SHIFT dash' : ''}    M mute    R restart    ESC phases`, VW / 2, VH - 24, 15, 'center'); ctx.globalAlpha = 1; }
+  if (g.msg > 0 && g.state !== 'menu' && g.state !== 'win' && !(g.boss && g.boss.st !== 'dormant')) { ctx.globalAlpha = Math.min(1, g.msg); T(g.l.title, VW / 2, 90, 40, 'center'); if (g.l.hint) T(g.l.hint, VW / 2, 118, 15, 'center', '#8f9bb8'); if (g.l.line) T(g.l.line, VW / 2, 142, 17, 'center', '#dfe8ff'); ctx.globalAlpha = 1; }
   if (g.state === 'win') {
     const t = g.win;
     ctx.fillStyle = `rgba(5,7,15,${Math.min(.9, t * 1.6)})`; ctx.fillRect(0, 0, VW, VH);
@@ -919,11 +961,11 @@ function render() {
       }
     }
   }
-  if (g.state === 'menu') menu.draw(ctx);
+  if (g.state === 'menu') menu.draw(ctx, BAR);
 }
 
 function renderStory() {
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
   ctx.fillStyle = C.ink; ctx.fillRect(0, 0, VW, VH);
   const wrap = (s, n) => {
     const out = [], words = String(s).split(' ');
@@ -939,7 +981,7 @@ function renderStory() {
   T('EMBER KNIGHT', VW / 2, 140, 22, 'center', '#8f9bb8');
   lines.forEach((ln, k) => T(ln, VW / 2, 248 + k * 34 - (lines.length - 1) * 17, 18, 'center', '#dfe8ff'));
   T(`${g.story.i + 1} / ${g.story.pages.length}`, VW / 2, VH - 70, 14, 'center', '#8f9bb8');
-  T('J / ENTER  continue', VW / 2, VH - 40, 15, 'center', C.ember);
+  T('J / ENTER  continue', VW / 2, VH - 56, 15, 'center', C.ember);
 }
 
 let last = 0;

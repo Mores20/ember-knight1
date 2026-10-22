@@ -1,7 +1,43 @@
-    <!doctype html>
+<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Ember Knight</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{margin:0;height:100%;background:#05070f;display:grid;place-items:center}
-canvas{width:min(100vw,177.78vh);aspect-ratio:16/9;background:#0b1021}</style></head>
-<body><canvas id="c" width="960" height="540"></canvas>
-<script type="module" src="knightfall/main.js"></script></body></html>
+<style>
+  :root { --ember:#ff8a3d; --steel:#2a3348; }
+  html,body{margin:0;height:100%;overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 45%, #0a1120 0%, #06090f 55%, #03040a 100%);}
+  body{display:grid;place-items:center;font-family:"Courier New",monospace}
+  .case{position:relative;padding:10px 10px 7px;background:#05070f;border:2px solid var(--steel);
+        box-shadow:0 0 0 1px #010204, 0 24px 70px rgba(0,0,0,.85), 0 0 90px rgba(255,120,40,.10);}
+  .case::before,.case::after{content:"";position:absolute;width:16px;height:16px;border:2px solid var(--ember);opacity:.5}
+  .case::before{left:-3px;top:-3px;border-right:0;border-bottom:0}
+  .case::after{right:-3px;bottom:-3px;border-left:0;border-top:0}
+  .plaque{display:flex;justify-content:space-between;gap:12px;padding:7px 2px 1px;
+          font-size:11px;letter-spacing:.22em;color:#7d8aa8}
+  .plaque b{color:#ffb066;font-weight:700}
+  .screen{position:relative;line-height:0;background:#0b1021;outline:1px solid #10151f}
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+  .scan,.vig{position:absolute;inset:0;pointer-events:none}
+  .scan{background:repeating-linear-gradient(to bottom,rgba(0,0,0,.25) 0 1px,rgba(0,0,0,0) 1px 4px);opacity:.16}
+  .vig{box-shadow:inset 0 0 70px rgba(0,0,0,.55), inset 0 0 4px rgba(0,0,0,.9)}
+</style></head>
+<body>
+<div class="case">
+  <div class="screen" id="scr"><canvas id="c" width="960" height="540"></canvas><div class="scan"></div><div class="vig"></div></div>
+  <div class="plaque"><b>EMBER KNIGHT</b><span>A FLAME KEPT IS A FLAME LOST</span></div>
+</div>
+<script type="module" src="knightfall/main.js"></script>
+<script>
+  (function () {
+    const cv = document.getElementById('c'), scr = document.getElementById('scr');
+    function fit() {                                   // whole-pixel scaling: crisp, and bars on odd screens
+      const availW = innerWidth - 46, availH = innerHeight - 80;
+      const fit = Math.min(availW / 960, availH / 540), whole = Math.floor(fit);
+      const s = Math.max(.2, whole >= 2 ? whole : fit);   // whole pixels when we can, otherwise fill the window
+      scr.style.width = Math.round(960 * s) + 'px';
+      scr.style.height = Math.round(540 * s) + 'px';
+      cv.style.width = '100%'; cv.style.height = '100%';
+    }
+    addEventListener('resize', fit); addEventListener('orientationchange', fit); fit();
+  })();
+</script>
+</body></html>
