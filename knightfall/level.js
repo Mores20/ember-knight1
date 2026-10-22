@@ -408,16 +408,22 @@ const PHASE8 = {
   spawn: [120, 386],
   w: 1600, h: 540,
   vscroll: false,
-  hint: 'The Ash King. Orange means he is about to strike.',
+  hint: 'His bolts come home. Break the ward, then strike.',
   darkZones: [],
-  lights: [],
+  lights: [[700, 412, 120]],
+  braziers: [[400, 272], [1085, 272]],                          // lit when the hall goes dark (phase 3)
   hazards: [],
   solids: [
     { x: -240, y: -200, w: 40, h: 900 },
     { x: 1560, y: -200, w: 40, h: 900 },
     { x: 0, y: 420, w: 1600, h: 120 },
-    { x: 250, y: 330, w: 150, h: 18 },
-    { x: 1180, y: 330, w: 150, h: 18 },
+    // ledges: one-way, so you can jump up through them and fight on two levels
+    { x: 150, y: 340, w: 180, h: 16, oneway: 1 },
+    { x: 500, y: 340, w: 170, h: 16, oneway: 1 },
+    { x: 880, y: 340, w: 180, h: 16, oneway: 1 },
+    { x: 1240, y: 340, w: 160, h: 16, oneway: 1 },
+    { x: 330, y: 272, w: 140, h: 16, oneway: 1 },
+    { x: 1010, y: 272, w: 150, h: 16, oneway: 1 },
   ],
   torches: [
     { x: 100, y: 420, lit: 1 },
@@ -427,7 +433,7 @@ const PHASE8 = {
           [900, 385], [1100, 385], [1300, 385], [1450, 385], [1520, 385]],
   hearts: [[230, 385]],                                        // one heart, right before the throne
   enemies: [],
-  king: { x: 1080, y: 328, wake: 640, hp: 24 },
+  king: { x: 1080, y: 328, wake: 640, hp: 24, anchors: [300, 620, 990, 1330] },
   gate: { x: 1420, y: 330, w: 90, h: 90 },
   cps: [[120, 420], [260, 420]],
 };

@@ -474,17 +474,17 @@ function kingAnim(b) {
   const loop = (s, n, fps) => [s, Math.floor(b.t * fps) % n];
   switch (b.st) {
     case 'dormant': case 'rise': return ['idle', 0];
-    case 'idle': return b.moving ? loop('walk', 4, 8) : loop('idle', 2, 2);
+    case 'idle': return loop('idle', 2, 2);                      // he floats; walk frames would read as stomping
     case 'enrage': return b.phase === 3 ? ['snuff', Math.min(3, Math.floor(b.t / 1.2 * 4))] : ['rage', Math.min(2, Math.floor(b.t / 1.2 * 3))];
     case 'wind': {
       const k = Math.min(1, b.t / (b.wind || 1));
-      if (b.atk === 'volley') return ['volley_wind', Math.min(2, Math.floor(k * 3))];
-      if (b.atk === 'charge') return ['charge_wind', Math.min(1, Math.floor(k * 2))];
-      return ['cleave_wind', Math.min(2, Math.floor(k * 3))];
+      if (b.atk === 'repulse') return ['cleave_wind', Math.min(2, Math.floor(k * 3))];
+      return ['volley_wind', Math.min(2, Math.floor(k * 3))];     // any spell: the sceptre gathers
     }
-    case 'act': return ['cleave_slam', Math.min(1, Math.floor(b.t / (b.act || .3) * 2))];
+    case 'act': return b.atk === 'repulse' ? ['cleave_slam', Math.min(1, Math.floor(b.t / .32 * 2))] : ['volley_throw', 0];
     case 'volley': return ['volley_throw', 0];
     case 'charge': return loop('charge', 3, 10);
+    case 'recover': return loop('rest', 2, 2);
     case 'rest': return loop('rest', 2, 2);
     case 'stun': return loop('stun', 2, 6);
     case 'dead': case 'gone': return ['dead', Math.min(4, Math.floor(b.t / 2.2 * 5))];
@@ -565,8 +565,8 @@ function drawWarden(b) {
   else { const fr = wardenFrame(b); drawWardenSprite(ctx, fr[0], fr[1], cx, fy, b.dir, fr[2]); }
   ctx.globalAlpha = 1;
 
-  if (b.st === 'wind' && b.atk === 'volley') {                     // gathering embers in the off hand
-    const n = b.phase === 2 ? 4 : 3;
+  if (b.st === 'wind' && b.atk !== 'repulse') {                    // any spell: the sceptre gathers them
+    const n = b.phase === 3 ? 5 : b.phase === 2 ? 4 : 3;
     for (let i = 0; i < n; i++) {
       const aa = g.t * 7 + i * 6.283 / n, r = 15 + Math.sin(g.t * 9 + i) * 3;
       const ox = cx + b.dir * 34 + Math.cos(aa) * r, oy = b.y + 12 + Math.sin(aa) * r * .6;
@@ -583,7 +583,62 @@ function drawWarden(b) {
     }
   }
 
-  for (const s of b.shots) {                                       // ember spikes: lobbed, or sent home
+  /* ---- the King's spells, drawn in world space ---- */
+  for (const drop of b.drops || []) {                              // ember rain: the ring you must leave
+    const down = drop.delay <= 0;
+    ctx.strokeStyle = down ? 'rgba(255,220,150,.9)' : `rgba(255,170,80,${.35 + .45 * Math.abs(Math.sin(g.t * 12))})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(drop.x - 26, drop.surf - 3); ctx.lineTo(drop.x + 26, drop.surf - 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(drop.x - 18, drop.surf - 8); ctx.lineTo(drop.x + 18, drop.surf - 8); ctx.stroke();
+    if (!down) {                                                   // a standing shimmer marks the column
+      const colH = 24 + 10 * Math.abs(Math.sin(g.t * 6 + drop.x));
+      ctx.strokeStyle = 'rgba(255,150,70,.4)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(drop.x, drop.surf - 10); ctx.lineTo(drop.x, drop.surf - 10 - colH); ctx.stroke();
+    }
+    if (down) {
+      glow(drop.x, drop.y, 26, .5);
+      ctx.fillStyle = '#ffd479'; ctx.fillRect(drop.x - 3, drop.y - 8, 6, 12);
+      ctx.fillStyle = '#ff8a3d'; ctx.fillRect(drop.x - 1, drop.y - 4, 2, 8);
+    }
+  }
+  for (const sn of b.snares || []) {                               // snare pools: standing here pins you
+    const w = 46;
+    ctx.fillStyle = sn.armed ? 'rgba(255,110,50,.55)' : 'rgba(255,90,40,.28)';
+    ctx.fillRect(sn.x - w / 2, sn.y - 4, w, 6);
+    for (let i = 0; i < 4; i++) {
+      const ox = -w / 2 + 7 + i * 12, h = 4 + Math.abs(Math.sin(g.t * 8 + i * 1.7)) * (sn.armed ? 12 : 4);
+      ctx.fillStyle = '#ff8a3d'; ctx.fillRect(sn.x + ox, sn.y - 4 - h, 3, h);
+    }
+  }
+  for (const ring of b.rings || []) {                              // the shove
+    ctx.strokeStyle = `rgba(255,150,80,${.75 * (1 - ring.t / ring.life)})`; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(ring.x, ring.y, ring.r, 0, 7); ctx.stroke();
+  }
+  for (const fire of b.burns || []) {                              // a ledge set alight
+    if (fire.delay > 0) {
+      ctx.strokeStyle = `rgba(255,190,110,${.4 + .4 * Math.abs(Math.sin(g.t * 14))})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fire.x0, fire.y - 2); ctx.lineTo(fire.x1, fire.y - 2); ctx.stroke();
+    } else {
+      for (let x = fire.x0; x < fire.x1; x += 12) {
+        const h = 7 + Math.abs(Math.sin(g.t * 9 + x * .27)) * 15;
+        ctx.fillStyle = '#ff4d1c'; ctx.fillRect(x, fire.y - h, 9, h);
+        ctx.fillStyle = '#ffd479'; ctx.fillRect(x + 3, fire.y - h * .6, 4, h * .6);
+      }
+      glow((fire.x0 + fire.x1) / 2, fire.y - 8, 60, .18);
+    }
+  }
+  for (const bolt of b.bolts || []) {                              // Ember Bolt: swing it home
+    glow(bolt.x, bolt.y, bolt.reflected ? 46 : bolt.heavy ? 40 : 26, bolt.reflected ? .55 : .4);
+    ctx.save(); ctx.translate(bolt.x, bolt.y); ctx.rotate(bolt.spin || 0);
+    ctx.fillStyle = bolt.reflected ? '#fff6e0' : bolt.heavy ? '#ff5a24' : '#ff8a3d';
+    ctx.strokeStyle = bolt.reflected ? '#ffd479' : '#ffc08a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, bolt.r, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,240,200,.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, bolt.r + 3.5, .4, 2.6); ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const s of b.shots || []) {                                 // ember spikes: lobbed, or sent home
     ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.spin || 0);
     ctx.fillStyle = s.reflected ? '#fff6e0' : '#ff7a33';
     ctx.strokeStyle = s.reflected ? '#ffd479' : '#ffb066'; ctx.lineWidth = 1.5;
@@ -600,7 +655,7 @@ function drawWarden(b) {
       ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * .03, s.y - s.vy * .03); ctx.stroke();
     }
   }
-  for (const w of b.waves) {                                       // ground shockwave: jump it
+  for (const w of b.waves || []) {                                 // ground shockwave: jump it
     const n = 3, sp = w.w / n;
     ctx.fillStyle = '#ff4d1c'; ctx.strokeStyle = '#ffb066'; ctx.lineWidth = 1.5;
     for (let i = 0; i < n; i++) {
@@ -616,9 +671,13 @@ function render() {
   if (g.state === 'story') return renderStory();
   const p = g.p;
   let camT = Math.max(0, Math.min(g.l.w - VW, p.x - 380));
-  if (g.boss && g.boss.st !== 'dormant' && g.boss.hp > 0) {       // keep the Warden in frame during the fight
-    const mid = p.x + (g.boss.x + g.boss.w / 2 - p.x) * .45;
+  if (g.boss && g.boss.st !== 'dormant' && g.boss.hp > 0) {       // keep the boss in frame during the fight
+    const bx = g.boss.x + g.boss.w / 2;
+    const mid = p.x + (bx - p.x) * .45;
     camT = Math.max(0, Math.min(g.l.w - VW, mid - VW / 2));
+    camT = Math.max(camT, bx + 130 - VW);                          // and never let him slip off the edge
+    camT = Math.min(camT, bx - 130);
+    camT = Math.max(0, Math.min(g.l.w - VW, camT));
   }
   g.cam.x += (camT - g.cam.x) * .12;
   const ty = g.l.vscroll ? Math.max(0, Math.min(g.l.h - VH, p.y - 270)) : 0;   // S4: climb only when the level says so
