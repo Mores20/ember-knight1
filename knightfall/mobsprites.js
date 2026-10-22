@@ -107,13 +107,62 @@ function husk(st, i) {
   return c;
 }
 
-const DRAW = { archer, wisp, crawler, shade, husk };
+// ---- V-VIII: Ash Hexer — floating hooded caster. Its spells apply debuffs instead of damage.
+// Orb tells: Smother = orange, Heavy Hex = flickering orange, Snuff Hex = pale. 'bolt' = the three projectiles, 'icons' = HUD debuff badges.
+function hexer(st, i) {
+  const c = cell(), B = M.hexer, PALE2 = B.pale;
+  const robe = (b, lean = 0) => {
+    R(c, B.body, 11 + lean, 14 + b, 10, 7); R(c, B.body, 10 + lean, 20 + b, 12, 7);
+    R(c, B.body, 10 + lean, 27 + b, 2, 2); R(c, B.body, 14 + lean, 27 + b, 2, 3); R(c, B.body, 18 + lean, 27 + b, 3, 2);
+    R(c, B.body, 12 + lean, 6 + b, 9, 9); R(c, B.body, 13 + lean, 4 + b, 6, 2); R(c, B.body, 11 + lean, 2 + b, 5, 2); R(c, B.body, 8 + lean, 1 + b, 4, 2);
+    R(c, B.body, 20 + lean, 16 + b, 5, 3); R(c, B.lift, 11 + lean, 14 + b, 2, 13); R(c, B.lift, 12 + lean, 6 + b, 2, 8); R(c, B.lift, 24 + lean, 16 + b, 2, 2);
+  };
+  const eyes = (b, lean = 0, col = X.eye) => { R(c, col, 15 + lean, 10 + b, 2, 1); R(c, col, 18 + lean, 10 + b, 2, 1); };
+  const staff = (x, top, tilt, orbCol, r = 2) => { for (let y = top + 3; y < 30; y++) R(c, WOODL, x + Math.round(tilt * (1 - (y - top) / (30 - top))), y); disc(c, orbCol, x + tilt, top, r); if (r > 1) R(c, B.orbLift, x + tilt - 1, top - 1); };
+  const wisps = k => { R(c, PALE, 12 + k * 3, 31); R(c, PALE, 19 - k * 2, 30); R(c, PALE, 16 + k, 31); };
+  const dither = (par, y0 = 0) => { for (let y = y0; y < N; y++) for (let x = 0; x < N; x++) if (((x + y) & 1) === par) c[y * N + x] = 0; };
+  const smoke = (r, n) => { for (let k = 0; k < n; k++) { const a = k * 6.283 / n + r; R(c, PALE, 16 + Math.cos(a) * r, 18 + Math.sin(a) * r * .8); } };
+  if (st === 'idle') { robe(i); rim(c, [B.body, B.lift], X.rim); eyes(i); staff(26, 6 + i, 0, B.orb); wisps(i); return c; }
+  if (st.startsWith('cast')) {
+    const kind = st.slice(5), col = kind === 'snuff' ? PALE2 : X.eye;
+    if (i === 0) { robe(0); rim(c, [B.body, B.lift], X.rim); eyes(0, 0, kind === 'snuff' ? PALE2 : X.hot); staff(26, 6, 0, col, 3); ring(c, col, 26, 6, 5); if (kind === 'heavy') R(c, B.body, 25, 5, 2, 2); }
+    else if (i === 1) { robe(0, 1); rim(c, [B.body, B.lift], X.rim); eyes(0, 1, col === PALE2 ? PALE2 : X.hot); staff(24, 7, 5, col, 3);
+      if (kind === 'smother') { R(c, col, 30, 6, 2, 3); R(c, PALE, 31, 10); R(c, PALE, 30, 4); } else { R(c, col, 28, 14, 4, 1); R(c, kind === 'snuff' ? PALE2 : X.hot, 29, 14, 2, 1); } }
+    else { robe(0); rim(c, [B.body, B.lift], X.rim); eyes(0); staff(26, 6, 0, B.orb); R(c, col, 28, 4); R(c, col, 24, 3); wisps(1); }
+    return c;
+  }
+  if (st === 'blink') {
+    if (i === 1) { smoke(9, 12); smoke(5, 8); R(c, X.eye, 15, 16, 2, 1); R(c, X.eye, 18, 16, 2, 1); return c; }
+    robe(0); rim(c, [B.body, B.lift], X.rim); eyes(0); staff(26, 6, 0, B.orb); dither(i ? 0 : 1); smoke(i ? 6 : 9, 10); return c;
+  }
+  if (st === 'die') {
+    if (i === 0) { robe(4, -1); rim(c, [B.body, B.lift], X.rim); eyes(4, -1); line(c, WOODL, 24, 22, 30, 28); disc(c, B.orb, 30, 28, 2); }
+    else if (i === 1) { R(c, B.body, 8, 25, 16, 5); R(c, B.body, 10, 22, 12, 3); R(c, B.body, 13, 20, 6, 2); R(c, B.body, 18, 18, 5, 2); R(c, B.lift, 10, 22, 2, 8); rim(c, [B.body, B.lift], X.rim); disc(c, B.orb, 27, 29, 1); }
+    else { R(c, B.orb, 9, 27, 14, 3); R(c, B.orb, 12, 25, 8, 2); R(c, B.lift, 17, 23, 5, 2); dither(1, 25); R(c, X.eye, 16, 28); R(c, PALE, 8, 24); R(c, PALE, 21, 22); R(c, PALE, 13, 21); }
+    return c;
+  }
+  if (st === 'bolt') {
+    if (i === 0) { for (const [x, y, r] of [[12, 16, 5], [18, 13, 4], [19, 19, 4]]) ring(c, X.rim, x, y, r + 1); for (const [x, y, r] of [[12, 16, 5], [18, 13, 4], [19, 19, 4]]) { disc(c, B.body, x, y, r); R(c, B.lift, x - 2, y - 2, 2, 1); } R(c, PALE, 6, 12); R(c, PALE, 24, 21); R(c, PALE, 22, 8); }
+    else if (i === 1) { for (let x = 6; x <= 26; x++) { const h = Math.round(3 * Math.sqrt(Math.max(0, 1 - ((x - 16) / 10) ** 2))); R(c, B.body, x, 16 - h, 1, 2 * h + 1); } rim(c, [B.body], X.rim); R(c, X.eye, 10, 16, 12, 1); R(c, X.hot, 14, 16, 5, 1); R(c, X.eye, 3, 15, 2, 1); R(c, X.eye, 1, 17, 2, 1); }
+    else { disc(c, B.body, 18, 16, 4); ring(c, PALE2, 18, 16, 5); R(c, PALE2, 17, 15, 2, 2); for (let x = 3; x < 13; x++) R(c, PALE2, x, 15 + (x % 3), 1, 1); }
+    return c;
+  }
+  // icons: 12x12 HUD badges with an orange rim: slow cloud, heavy arrow, snuffed candle
+  R(c, X.body, 10, 10, 12, 12); for (const [x, y, w, h] of [[10, 10, 12, 1], [10, 21, 12, 1], [10, 10, 1, 12], [21, 10, 1, 12]]) R(c, X.rim, x, y, w, h);
+  if (i === 0) { R(c, PALE2, 12, 15, 8, 3); R(c, PALE2, 14, 13, 4, 2); R(c, PALE2, 13, 18, 2, 1); R(c, PALE2, 17, 18, 2, 1); }
+  else if (i === 1) { R(c, PALE2, 15, 12, 2, 5); R(c, PALE2, 13, 16, 6, 1); R(c, PALE2, 14, 17, 4, 1); R(c, PALE2, 15, 18, 2, 1); R(c, PALE2, 12, 19, 8, 1); }
+  else { R(c, PALE2, 15, 16, 2, 5); R(c, PALE2, 16, 14, 1, 2); R(c, X.eye, 13, 12); R(c, X.eye, 18, 12); R(c, X.eye, 14, 13, 4, 1); R(c, X.eye, 13, 14); R(c, X.eye, 18, 14); }
+  return c;
+}
+
+const DRAW = { archer, wisp, crawler, shade, husk, hexer };
 export const MOB_STATES = { archer: { idle: 2, draw: 3, shoot: 1 }, wisp: { float: 4, burst: 3, scared: 2 }, crawler: { crawl: 4, trail: 3 },
-  shade: { shadow: 3, lit: 3, strike: 2 }, husk: { idle: 2, walk: 4, cleave_wind: 2, cleave: 1, charge: 2 } };
+  shade: { shadow: 3, lit: 3, strike: 2 }, husk: { idle: 2, walk: 4, cleave_wind: 2, cleave: 1, charge: 2 },
+  hexer: { idle: 2, cast_smother: 3, cast_heavy: 3, cast_snuff: 3, blink: 3, die: 3, bolt: 3, icons: 3 } };
 // Anchor inside the cell: feet-centre for walkers, centre for the floating wisp.
-export const ANCHOR = { archer: [16, 31], wisp: [16, 15], crawler: [16, 31], shade: [16, 31], husk: [16, 31] };
+export const ANCHOR = { archer: [16, 31], wisp: [16, 15], crawler: [16, 31], shade: [16, 31], husk: [16, 31], hexer: [16, 31] };
 const BODY = { archer: [M.archer.body, M.archer.lift], wisp: [M.wisp.body, M.wisp.lift], crawler: [M.crawler.body, M.crawler.lift],
-  shade: [M.shade.body, M.shade.lift, M.shade.litBody, LITLIFT], husk: [M.husk.body, M.husk.lift] };
+  shade: [M.shade.body, M.shade.lift, M.shade.litBody, LITLIFT], husk: [M.husk.body, M.husk.lift], hexer: [M.hexer.body, M.hexer.lift] };
 // mob, state, frame index, { flash } -> Uint32Array(32*32) packed RGBA. flash: body tones -> #ffe0c4 for the hit frame.
 export function frame(mob, st, i = 0, o = {}) {
   const c = DRAW[mob](st, i);
@@ -134,6 +183,14 @@ export function buildAll(o = {}) {
 // ---- browser helpers
 const toCanvas = (u32, w = N, h = N) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(u32.buffer, u32.byteOffset, u32.byteLength), w, h), 0, 0); return cv; };
 export const sheetCanvas = (mob, o) => { const s = mob ? buildSheet(mob, o) : buildAll(o); return toCanvas(s.data, s.w, s.h); };
+const iconCache = {};
+// A 12x12 debuff badge from the hexer's icons row, blitted cleanly at any scale.
+export function drawBadge(ctx, i, x, y, s = 1) {
+  iconCache[i] ??= toCanvas(frame('hexer', 'icons', i));
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(iconCache[i], 10, 10, 12, 12, x, y, 12 * s, 12 * s);
+  ctx.restore();
+}
 const cache = {};
 // Draw at 2x; (cx, cy) is the anchor from ANCHOR (feet for walkers, centre for the wisp). face = -1 mirrors.
 export function drawMob(ctx, mob, st, i, cx, cy, face = 1, o = {}) {

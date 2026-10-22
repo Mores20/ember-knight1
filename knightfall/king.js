@@ -1,5 +1,6 @@
 import { hit } from './player.js';
 import { sfx } from './audio.js';
+import { Hexer } from './enemies.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const FLOOR = 420;
@@ -29,7 +30,7 @@ export class AshKing {
     this.tx = d.x; this.closeT = 0; this.streak = 0; this.sinceBolt = 0;
     this.drops = []; this.snares = []; this.rings = []; this.burns = []; this.bolts = [];
     this.erupts = []; this.grasps = []; this.meteors = [];
-    this.comboed = 0; this.casts = 0; this.fireLit = 0;
+    this.comboed = 0; this.casts = 0; this.fireLit = 0; this.summon = 0;
   }
   get alive() { return this.hp > 0; }
   box() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
@@ -41,7 +42,7 @@ export class AshKing {
     this.tx = this.x0; this.closeT = 0; this.streak = 0; this.sinceBolt = 0;
     this.drops = []; this.snares = []; this.rings = []; this.burns = []; this.bolts = [];
     this.erupts = []; this.grasps = []; this.meteors = [];
-    this.comboed = 0; this.casts = 0; this.fireLit = 0;
+    this.comboed = 0; this.casts = 0; this.fireLit = 0; this.summon = 0;
   }
 
   /* ---- geometry ---- */
@@ -212,8 +213,8 @@ export class AshKing {
       this.hp = 0; this.st = 'dead'; this.t = 0; this.vy = 0;
       this.drops = []; this.snares = []; this.burns = []; this.bolts = []; this.rings = [];
       this.erupts = []; this.grasps = []; this.meteors = [];
-    } else if (this.phase === 1 && this.hp <= this.max * 2 / 3) { this.phase = 2; this.st = 'enrage'; this.t = 0; }
-    else if (this.phase === 2 && this.hp <= this.max / 3) { this.phase = 3; this.st = 'enrage'; this.t = 0; }
+    } else if (this.phase === 1 && this.hp <= this.max * 2 / 3) { this.phase = 2; this.st = 'enrage'; this.t = 0; this.summon = 1; }
+    else if (this.phase === 2 && this.hp <= this.max / 3) { this.phase = 3; this.st = 'enrage'; this.t = 0; this.summon = 1; }
     return 1;
   }
   lightArena(g) {
@@ -351,6 +352,15 @@ export class AshKing {
     if (this.st === 'enrage') {
       this.y += ((this.hover - this.h) - this.y) * Math.min(1, dt * 3.2);
       if (ph === 3 && !this.fireLit) this.lightArena(g);
+      if (this.summon && this.t > .45) {                         // a caster answers the call
+        this.summon = 0;
+        if (!g.enemies.some(e => e.summoned && !e.dead)) {
+          const hx = clamp(this.x + (this.dir > 0 ? -130 : 130), 130, g.l.w - 130);
+          g.enemies.push(new Hexer({ x: hx, y: 240, x0: hx - 150, x1: hx + 150, hp: 3, dmg: 1, summoned: 1 }));
+          g.shake(7); sfx.wake();
+          for (let i = 0; i < 16; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 110; g.parts.push({ x: hx + 11, y: 256, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, l: .55, col: '#8f9bb8' }); }
+        }
+      }
       if (this.t > 1.2) { this.st = 'idle'; this.t = 0; this.cool = .45; this.pickTarget(p); this.comboed = 0; }
       return;
     }

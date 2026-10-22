@@ -44,6 +44,9 @@ const PHASE1 = {
     { type: 'bat', x0: 350, x1: 700, y0: 230, ay: 25, sp: .5, ph: 0 },
     { type: 'bat', x0: 1520, x1: 1960, y0: 230, ay: 110, sp: 1.3, ph: 0 },
     { type: 'bat', x0: 1620, x1: 2060, y0: 240, ay: 100, sp: 1.3, ph: 3.14 },
+    { type: 'goblin', x: 1700, y: 390, x0: 1620, x1: 1900, hp: 1 },
+    { type: 'goblin', x: 2000, y: 390, x0: 1900, x1: 2100, hp: 1 },
+    { type: 'bat', x0: 2350, x1: 2750, y0: 230, ay: 90, sp: 1.2, ph: 1.0 },
   ],
   gate: { x: 3110, y: 170, w: 80, h: 90 },
   cps: [[80, 420], [1150, 420], [2260, 420]],                 // respawn points
@@ -98,6 +101,9 @@ const PHASE2 = {
     { type: 'bat', x0: 1240, x1: 1620, y0: 250, ay: 55, sp: 1.0, ph: 0 },    // phase 1 timing,
     { type: 'bat', x0: 1520, x1: 1980, y0: 235, ay: 95, sp: 1.25, ph: 2.2 }, // now in the dark
     { type: 'bat', x0: 1300, x1: 1780, y0: 225, ay: 40, sp: .65, ph: 4.1 },
+    { type: 'shield', x: 1500, y: 388, x0: 1440, x1: 1640, hp: 2 },
+    { type: 'goblin', x: 400, y: 390, x0: 330, x1: 520, hp: 1 },
+    { type: 'bat', x0: 2200, x1: 2500, y0: 250, ay: 60, sp: 1.1, ph: 1.3 },
   ],
   gate: { x: 3300, y: 330, w: 80, h: 90 },
   cps: [[80, 420], [2150, 420]],
@@ -175,6 +181,8 @@ const PHASE3 = {
     { type: 'bat', x0: 1460, x1: 1670, y0: 1320, ay: 50, sp: .9, ph: 2.4 },
     { type: 'bat', x0: 1420, x1: 1710, y0: 1270, ay: 30, sp: 1.3, ph: 4.1 },
     { type: 'shield', x: 700, y: 1168, x0: 620, x1: 800, hp: 2 },             // guard duty on the ledge
+    { type: 'bat', x0: 380, x1: 620, y0: 950, ay: 40, sp: 1.1, ph: 1.2 },
+    { type: 'bat', x0: 950, x1: 1200, y0: 1620, ay: 45, sp: 1.05, ph: 3.0 },
   ],
   sigil: { x: 900, y: 1470 },                                 // the ember dash, earned here
   bell: true,                                                 // the tower's name hangs over its door
@@ -220,6 +228,9 @@ const PHASE4 = {
     { type: 'bat', x0: 560, x1: 820, y0: 300, ay: 40, sp: 1.1, ph: 0 },
     { type: 'bat', x0: 700, x1: 940, y0: 330, ay: 50, sp: .9, ph: 2.2 },
     { type: 'goblin', x: 940, y: 390, x0: 880, x1: 1040, hp: 1 },
+    { type: 'goblin', x: 700, y: 390, x0: 620, x1: 820, hp: 1 },
+    { type: 'bat', x0: 1100, x1: 1350, y0: 300, ay: 60, sp: 1.0, ph: 1.5 },
+    { type: 'bat', x0: 300, x1: 600, y0: 280, ay: 40, sp: 1.15, ph: 3.2 },
   ],
   boss: { x: 1900, y: 344, wake: 1350, hp: 16 },               // the Ash Warden
   throne: { x: 2120, y: 300, w: 120, h: 120 },
@@ -273,6 +284,10 @@ const PHASE5 = {
     { type: 'wisp', x: 940, y: 290 },
     { type: 'wisp', x: 1520, y: 250 },
     { type: 'wisp', x: 2080, y: 310 },
+    { type: 'archer', x: 2400, y: 298, hp: 2 },
+    { type: 'wisp', x: 1200, y: 280 },
+    { type: 'wisp', x: 2300, y: 300 },
+    { type: 'hexer', x: 1750, y: 300, hp: 3 },
   ],
   wind: [
     { x: 860, w: 620, dir: 1, on: 2.2, off: 3.2, force: 105, ph: 0 },
@@ -338,6 +353,9 @@ const PHASE6 = {
     { type: 'crawler', x: 1870, y: 1580, x0: 1830, x1: 2050, hp: 2 },
     { type: 'bat', x0: 900, x1: 1250, y0: 1720, ay: 50, sp: 1.1, ph: 0 },
     { type: 'bat', x0: 1150, x1: 1500, y0: 1460, ay: 45, sp: 1.2, ph: 2.2 },
+    { type: 'bat', x0: 500, x1: 800, y0: 2100, ay: 45, sp: 1.0, ph: 1.4 },
+    { type: 'bat', x0: 1400, x1: 1700, y0: 1350, ay: 50, sp: 1.15, ph: 3.3 },
+    { type: 'bat', x0: 1750, x1: 2050, y0: 1750, ay: 40, sp: .95, ph: 4.4 },
   ],
   gate: { x: 1000, y: 1110, w: 90, h: 90 },
   cps: [[200, 2300]],
@@ -392,6 +410,11 @@ const PHASE7 = {
     { type: 'shade', x: 2440, y: 388, x0: 2380, x1: 2520, hp: 2 },
     { type: 'bat', x0: 900, x1: 1200, y0: 250, ay: 40, sp: 1.1, ph: 0 },
     { type: 'bat', x0: 1500, x1: 1800, y0: 230, ay: 45, sp: 1.2, ph: 2.4 },
+    { type: 'shade', x: 1500, y: 388, x0: 1420, x1: 1600, hp: 2 },
+    { type: 'shade', x: 2650, y: 388, x0: 2580, x1: 2750, hp: 2 },
+    { type: 'bat', x0: 1800, x1: 2100, y0: 230, ay: 45, sp: 1.1, ph: 3.1 },
+    { type: 'hexer', x: 900, y: 300, hp: 3 },
+    { type: 'hexer', x: 2000, y: 300, hp: 3 },
   ],
   gate: { x: 2420, y: 330, w: 90, h: 90 },
   cps: [[80, 420], [1100, 420]],

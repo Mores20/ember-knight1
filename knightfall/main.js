@@ -71,7 +71,7 @@ function loadLevel(i) {
     sigil: l.sigil ? { ...l.sigil, got: run.abil.dash ? 1 : 0 } : null,   // already earned stays earned
     bossCue: 0, bossPhaseCue: 1, bossPrev: null,
     grant: 0, grantKind: 'dash', boss: l.king ? new AshKing(l.king) : l.boss ? new AshWarden(l.boss) : null, sealT: 0, slain: 0,
-    lamps: [], sparks: [], arrows: [], lamp: run.abil.lantern ? 3 : 0, wind: l.wind || [],
+    lamps: [], sparks: [], arrows: [], hexOrbs: [], lamp: run.abil.lantern ? 3 : 0, wind: l.wind || [],
     tide: l.tide ? { y: l.tide.y0 } : null, tideT: l.tide ? 5 : 2, trails: [],
     switches: (l.switches || []).map(s => ({ ...s, on: 0 })), reveal: 0, revealShown: 0,
     lanternSigil: l.lantern ? { ...l.lantern, got: run.abil.lantern ? 1 : 0 } : null,
@@ -183,6 +183,7 @@ const respawn = () => { const p = g.p; p.reset(g.cp[0], g.cp[1] - p.h); p.inv = 
     g.l.darkZones = LEVELS[g.lvl].darkZones;                   // the snuff dies with him: no dark hall after a death
     g.l.lights = (LEVELS[g.lvl].lights || []).map(v => v.slice());   // and no stacked brazier lights
   }
+  g.hexOrbs.length = 0; g.enemies = g.enemies.filter(e => !e.summoned);   // a summon never survives your death
   stopMusic(); g.bossCue = 0; g.bossPhaseCue = 1; g.bossPrev = null;
   if (g.tide) { g.tide.y = Math.min(g.l.tide.y0, g.cp[1] + 280); g.tideT = 2; } };   // VI: the tide drops back under you
 // Enemy hurtboxes reach slightly past the drawn body so swings feel generous.
@@ -241,7 +242,12 @@ function update(dt) {
       t.lit = 1; run.lit[g.lvl].push(t.i); saveRun(); A.sfx.torch();   // light = checkpoint
       spark(t.x, t.y - 56, 12, C.ember); g.shake(2);
     }
-    for (const e of g.enemies) if (!p.hits.has(e) && hit(s, reach(e))) {
+    const cold = p.debuffs.snuff > 0;                            // a snuffed blade cannot bite
+    for (const o of g.hexOrbs) {                                 // but it can still pop a hex orb
+      if (o.done || !hit(s, { x: o.x - 8, y: o.y - 8, w: 16, h: 16 })) continue;
+      o.done = 1; A.sfx.parry(); spark(o.x, o.y, 8, '#ffd479'); g.stop(.03);
+    }
+    for (const e of g.enemies) if (!cold && !p.hits.has(e) && hit(s, reach(e))) {
       p.hits.add(e);
       if (e.type === 'shade' && !e.lit) continue;                  // shades only take steel inside light
       if (e.blocking && e.blocking(p.face)) {                    // shield up: clang, no damage
@@ -251,23 +257,41 @@ function update(dt) {
       const dead = e.hit(p.face);
       g.stop(.08); g.shake(5); A.sfx.hit(); spark(e.x + e.w / 2, e.y + e.h / 2, dead ? 18 : 8, C.ember);
       if (dead) { e.dead = 1; A.sfx.kill(); }
+      if (e.type === 'hexer' && !dead && e.hp <= 0) A.sfx.kill();
     }
-    if (g.boss) {
+    if (g.boss && !cold) {
       const r = g.boss.takeHit(s);
       if (r === 2) {                                            // the kite shield eats it
         A.sfx.block(); g.stop(.04); g.shake(2);
         spark(g.boss.x + g.boss.w / 2 + g.boss.dir * 10, g.boss.y + 36, 5, '#c9d4f0');
       } else if (r === 1) {                                     // the Warden has hyper-armour: no flinch
         A.sfx.hit(); g.stop(.06); g.shake(5); spark(g.boss.x + g.boss.w / 2, g.boss.y + 34, 10, C.ember);
-        if (!g.boss.alive) { g.slain = 3.4; g.shake(16); A.sfx.bossDie(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 34, 44, C.ember); }
+        if (!g.boss.alive) {
+          g.slain = 3.4; g.shake(16); A.sfx.bossDie(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 34, 44, C.ember);
+          g.enemies = g.enemies.filter(e => !e.summoned);         // the summoned mage goes with him
+        }
       }
     }
   }
   g.enemies = g.enemies.filter(e => !e.dead);
   for (const e of g.enemies) {
     e.update(dt, p, g);
-    if (hit(p, e) && !(e.type === 'wisp' && e.scared)) p.hurt(e.x + e.w / 2, g);
+    if (hit(p, e) && !(e.type === 'wisp' && e.scared) && !(e.type === 'hexer' && e.st === 'blink')) p.hurt(e.x + e.w / 2, g);
   }
+  for (const o of g.hexOrbs) {                                     // hex orbs: a debuff, and the summon chips a heart
+    o.spin = (o.spin || 0) + dt * 6;
+    o.t -= dt; o.x += o.vx * dt; o.y += o.vy * dt;
+    if (o.t <= 0) { o.done = 1; continue; }
+    const ob = { x: o.x - 7, y: o.y - 7, w: 14, h: 14 };
+    if (p.inv <= 0 && hit(p, ob)) {
+      o.done = 1;
+      if (o.dmg) p.hurt(o.x, g);
+      p.debuffs[o.hex] = Math.max(p.debuffs[o.hex] || 0, o.dur);
+      A.sfx.block(); spark(o.x, o.y, 8, o.hex === 'snuff' ? '#cfd8ee' : '#ffd479'); g.shake(3);
+    }
+    for (const s of g.l.solids) if (!s.pass && !s.off && hit(ob, s)) { o.done = 1; break; }
+  }
+  g.hexOrbs = g.hexOrbs.filter(o => !o.done);
   if (g.boss) { g.boss.parry(p, g); g.boss.update(dt, p, g); }
   if (g.boss) {                                                   // recorded cues: theme, tells, phases, death
     const b = g.boss, king = b.sheet === 'king', prev = g.bossPrev || {};
@@ -409,6 +433,13 @@ function drawEnemy(e) {
     NEWMOBS.drawMob(ctx, 'crawler', 'crawl', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else if (e.type === 'wisp') {
     NEWMOBS.drawMob(ctx, 'wisp', e.scared ? 'scared' : 'float', Math.floor(e.t * 8), e.x + e.w / 2, e.y + e.h / 2, e.dir, flash);
+  } else if (e.type === 'hexer') {
+    const st = e.dying > 0 ? 'die' : e.st === 'cast' ? 'cast_' + e.hex : e.st;
+    const n = e.dying > 0 ? Math.min(2, Math.floor((1 - e.dying / .45) * 3))
+      : e.st === 'cast' ? Math.min(2, Math.floor(e.stT / .3))
+      : e.st === 'blink' ? Math.min(2, Math.floor(e.bT / .14))
+      : Math.floor(e.t * 3) % 2;
+    NEWMOBS.drawMob(ctx, 'hexer', st, n, e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else if (e.type === 'bat') {
     const face = Math.cos(e.t * e.sp + e.ph) >= 0 ? 1 : -1;
     drawMob(ctx, 'bat', 'fly', Math.floor(e.t * 14 + e.ph * 3), e.x + e.w / 2, e.y + e.h / 2, face, flash);
@@ -425,7 +456,7 @@ const darkCv = document.createElement('canvas'); darkCv.width = VW; darkCv.heigh
 const dctx = darkCv.getContext('2d');
 function darken() {
   const p = g.p, c = g.cam, px = p.x + p.w / 2, py = p.y + p.h / 2;
-  const vis = x => x > c.x - 280 && x < c.x + VW + 280, lights = [[px, py, 122]];
+  const vis = x => x > c.x - 280 && x < c.x + VW + 280, lights = [[px, py, g.p.debuffs.smother > 0 ? 62 : 122]];
   for (const t of g.l.torches) if (t.lit && vis(t.x)) lights.push([t.x, t.y - 56, 165]);
   for (const l of g.lamps) if (vis(l.x)) lights.push([l.x, l.y, 150]);
   for (const w of g.switches) if (w.on && vis(w.x)) lights.push([w.x, w.y - 30, 175]);
@@ -772,9 +803,19 @@ function drawStrips() {
       : g.state === 'win' ? '' : 'A FLAME KEPT IS A FLAME LOST',
     VW / 2, botY, 11, 'center', '#4a5578');
   if (playing) {
-    const cpT = g.l.torches.filter(t => t.cp);
-    if (cpT.length) T(`TORCHES ${cpT.filter(t => t.lit).length}/${cpT.length}`, VW - 18, botY, 11, 'right', '#5d6a8a');
-    else if (run.titled) T('THE EMBER KNIGHT', VW - 18, botY, 11, 'right', C.ember);
+    const db = p.debuffs || {};
+    const live = ['smother', 'heavy', 'snuff'].filter(k => db[k] > 0);
+    if (live.length) {                                             // active hexes take the right corner
+      live.forEach((k, i) => {
+        const bx = VW - 22 - (live.length - i) * 40 + 12;
+        NEWMOBS.drawBadge(ctx, k === 'smother' ? 0 : k === 'heavy' ? 1 : 2, bx, BOT + 3, 1.2);
+        T(`${Math.ceil(db[k])}`, bx + 17, VH - 5, 9, 'left', '#8f9bb8');
+      });
+    } else {
+      const cpT = g.l.torches.filter(t => t.cp);
+      if (cpT.length) T(`TORCHES ${cpT.filter(t => t.lit).length}/${cpT.length}`, VW - 18, botY, 11, 'right', '#5d6a8a');
+      else if (run.titled) T('THE EMBER KNIGHT', VW - 18, botY, 11, 'right', C.ember);
+    }
   }
 }
 
@@ -921,6 +962,15 @@ function renderWorld() {
     for (let k = 0; k < 8; k++) glow(((g.t * 60 + k * 271) % (g.l.w + 200)) - 100, ty + 12, 70, .18);
   }
   for (const e of g.enemies) drawEnemy(e);
+  for (const o of g.hexOrbs) {                                     // a hex orb in flight
+    const col = o.hex === 'snuff' ? '#cfd8ee' : '#ff8a3d';
+    glow(o.x, o.y, 24, .3);
+    ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.spin || 0);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 6, 0, 7); ctx.stroke();
+    ctx.fillStyle = col; ctx.fillRect(-3, -3, 6, 6);
+    ctx.fillStyle = o.hex === 'snuff' ? '#eef3ff' : '#ffd479'; ctx.fillRect(-1, -1, 2, 2);
+    ctx.restore();
+  }
   for (const a of g.arrows) {                                      // bolts, hot once reflected
     const d = Math.hypot(a.vx, a.vy) || 1, ux = a.vx / d, uy = a.vy / d;
     ctx.strokeStyle = a.reflected ? '#fff2b0' : '#ffb066'; ctx.lineWidth = 2;
