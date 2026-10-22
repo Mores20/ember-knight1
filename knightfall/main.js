@@ -177,7 +177,12 @@ function tickSolids(dt) {
   }
 }
 const spark = (x, y, n, col) => { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 160; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, l: .5 + Math.random() * .3, col }); } };
-const respawn = () => { const p = g.p; p.reset(g.cp[0], g.cp[1] - p.h); p.inv = 1.5; g.shake(6); if (g.boss) g.boss.reset();
+const respawn = () => { const p = g.p; p.reset(g.cp[0], g.cp[1] - p.h); p.inv = 1.5; g.shake(6);
+  if (g.boss) {
+    g.boss.reset();
+    g.l.darkZones = LEVELS[g.lvl].darkZones;                   // the snuff dies with him: no dark hall after a death
+    g.l.lights = (LEVELS[g.lvl].lights || []).map(v => v.slice());   // and no stacked brazier lights
+  }
   stopMusic(); g.bossCue = 0; g.bossPhaseCue = 1; g.bossPrev = null;
   if (g.tide) { g.tide.y = Math.min(g.l.tide.y0, g.cp[1] + 280); g.tideT = 2; } };   // VI: the tide drops back under you
 // Enemy hurtboxes reach slightly past the drawn body so swings feel generous.

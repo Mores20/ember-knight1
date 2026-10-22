@@ -1,6 +1,6 @@
 import { keys, pressed } from './input.js';
 import { sfx } from './audio.js';
-const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 620, DASH_T = .24;
+const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 620, DASH_T = .22;
 export const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export class Player {
   constructor() { this.w = 22; this.h = 34; this.hp = 3; this.reset(80, 386); }
@@ -25,7 +25,7 @@ export class Player {
     if (this.dashT > 0) this.dashT -= dt;                         // mid-surge: hold speed, no acceleration
     else {
       if (this.kb > 0) this.kb -= dt;
-      else { const d = dir * MAXV * (this.swing > 0 ? .6 : 1) - this.vx, a = ACC * dt; this.vx += Math.abs(d) < a ? d : Math.sign(d) * a; }
+      else { const d = dir * MAXV * (this.swing > 0 ? .6 : 1) - this.vx, a = ACC * (this.ground && this.dashCd > 0 ? 2.4 : 1) * dt; this.vx += Math.abs(d) < a ? d : Math.sign(d) * a; }
       if (dir && this.swing <= 0) this.face = dir;
     }
     if (pressed.dash && this.dashT <= 0 && this.dashCd <= 0 && !this.dashUsed && g.abil.dash) {
