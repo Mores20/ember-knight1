@@ -1,5 +1,6 @@
 // Tiny WebAudio chiptune: square/triangle blips, noise hits, and a looping arpeggio.
-let ac, out, muted = false, step = 0;
+// The arpeggio is background only: a boss theme can switch it off so the recorded music has the room.
+let ac, out, muted = false, step = 0, jingle = true;
 export const isMuted = () => muted;
 export function init() {
   if (!ac) {
@@ -27,11 +28,13 @@ function noise(d, v = .3) {
 }
 const ARP = [220, 262, 330, 392, 330, 262, 247, 294], BASS = [110, 110, 98, 98];
 function music() {
-  if (!ac || muted || document.hidden) return;
+  if (!ac || muted || !jingle || document.hidden) return;
   const i = step++;
   tone(ARP[i % 8], .12, 'triangle', .16);
   if (i % 4 === 0) tone(BASS[(i >> 2) % 4], .5, 'square', .08);
 }
+export const setJingle = on => { jingle = !!on; };
+export const jingleOn = () => jingle;
 export const sfx = {
   jump: () => tone(260, .16, 'square', .3, 420),
   land: () => noise(.05, .12),

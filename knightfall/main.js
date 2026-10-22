@@ -45,8 +45,10 @@ setKnight(run.skin, run.emberSword);
 function saveRun() { try { if (typeof localStorage !== 'undefined') localStorage.setItem(SAVE_KEY, JSON.stringify(run)); } catch (e) {} }
 const picked = (i, k) => (run.got[i] = run.got[i] || { c: [], h: [] })[k];   // per-phase pickup ledger
 
+const stopMusic = () => { SND.stopMusic(); A.setJingle(true); };   // back to the chiptune when no boss owns the room
+
 function loadLevel(i) {
-  SND.stopMusic();
+  stopMusic();
   run.lvl = Math.max(0, Math.min(LEVELS.length - 1, i | 0));
   const L = LEVELS[run.lvl], gotC = picked(run.lvl, 'c'), gotH = picked(run.lvl, 'h');
   const litSet = run.lit[run.lvl] = run.lit[run.lvl] || [];      // torches you lit stay lit across reloads
@@ -94,6 +96,7 @@ function enterCard(next, title, sub) {
   g.card = { t: 0, dur: 2.4, next, title: title || `PHASE ${next + 1}`, sub: sub || LEVELS[next].name };
 }
 function nextPhase() {
+  stopMusic();
   const nx = g.lvl + 1;
   run.hp = g.p.hp;
   run.cleared[g.lvl] = true;                                     // unlocks this phase in the menu
@@ -129,7 +132,7 @@ function newJourney() {
   const skin = run.skin;
   run = { ...freshRun(), skin };
   setKnight(run.skin, false);
-  SND.stopMusic();
+  stopMusic();
   saveRun();
   syncMenu();
   g.story = { pages: PROLOGUE, i: 0, after: 'level0' };
@@ -170,7 +173,7 @@ function tickSolids(dt) {
 }
 const spark = (x, y, n, col) => { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 160; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, l: .5 + Math.random() * .3, col }); } };
 const respawn = () => { const p = g.p; p.reset(g.cp[0], g.cp[1] - p.h); p.inv = 1.5; g.shake(6); if (g.boss) g.boss.reset();
-  SND.stopMusic(); g.bossCue = 0; g.bossPhaseCue = 1; g.bossPrev = null;
+  stopMusic(); g.bossCue = 0; g.bossPhaseCue = 1; g.bossPrev = null;
   if (g.tide) { g.tide.y = Math.min(g.l.tide.y0, g.cp[1] + 280); g.tideT = 2; } };   // VI: the tide drops back under you
 // Enemy hurtboxes reach slightly past the drawn body so swings feel generous.
 // Contact damage keeps the tight box, so nothing hurts you from further away.
@@ -262,13 +265,14 @@ function update(dt) {
       g.bossCue = 1;
       SND.sting(king ? 'kingIntro' : 'wardenIntro', .6);
       SND.music(king ? 'kingMusic' : 'wardenMusic');
+      A.setJingle(!SND.playing());                              // the recorded theme takes over: no chiptune under it
     }
     if (b.st === 'wind' && prev.st !== 'wind') SND.sting(king ? 'kingAttack' : 'wardenAttack', .5);
     if (king && b.phase > (g.bossPhaseCue || 1)) {
       g.bossPhaseCue = b.phase;
       SND.sting(b.phase === 3 ? 'kingPhase3' : 'kingPhase2');
     }
-    if (b.hp <= 0 && (prev.hp || 1) > 0) { SND.stopMusic(); SND.sting(king ? 'kingDeath' : 'wardenDeath', .65); }
+    if (b.hp <= 0 && (prev.hp || 1) > 0) { stopMusic(); SND.sting(king ? 'kingDeath' : 'wardenDeath', .65); }
     g.bossPrev = { st: b.st, hp: b.hp };
   }
 
