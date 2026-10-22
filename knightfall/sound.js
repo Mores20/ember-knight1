@@ -16,9 +16,12 @@ const MUSIC_VOL = .3;
 const cache = {};
 let muted = false, cur = null;
 const ok = () => typeof Audio !== 'undefined';
+// Resolve next to this module, not the page: index.html lives at the server root while the game is in
+// knightfall/, and a bare 'sound/x.mp3' would ask the root for /sound/x.mp3 and 404.
+export const srcFor = k => (FILES[k] ? new URL(FILES[k], import.meta.url).href : '');
 function get(k) {
   if (!ok() || !FILES[k]) return null;
-  if (!cache[k]) { const a = new Audio(FILES[k]); a.preload = 'auto'; cache[k] = a; }
+  if (!cache[k]) { const a = new Audio(srcFor(k)); a.preload = 'auto'; cache[k] = a; }
   return cache[k];
 }
 export function preload() { if (ok()) for (const k in FILES) get(k); }
@@ -50,3 +53,4 @@ export function setMuted(m) {
 }
 export const isMuted = () => muted;
 export const playing = () => cur;
+export const clip = k => cache[k] || null;                 // the cached element, for tests
