@@ -5,6 +5,7 @@ import { Player, hit } from './player.js';
 import { makeEnemy } from './enemies.js';
 import { AshWarden } from './boss.js';
 import { AshKing } from './king.js';
+import { drawKing } from './ashking.js';
 import { drawKnight, setKnight, SKIN_NAMES, SKINS } from './sprites.js';
 import { drawWarden as drawWardenSprite, drawMote } from './ashwarden.js';
 import { drawMob } from './mobs.js';
@@ -487,6 +488,29 @@ function drawThrone(t) {                                           // the empty 
 }
 
 // The Ash Warden. Everything he is about to do is painted orange first.
+// Ash King: game state -> [sprite row, frame index]
+function kingAnim(b) {
+  const loop = (s, n, fps) => [s, Math.floor(b.t * fps) % n];
+  switch (b.st) {
+    case 'dormant': case 'rise': return ['idle', 0];
+    case 'idle': return b.moving ? loop('walk', 4, 8) : loop('idle', 2, 2);
+    case 'enrage': return b.phase === 3 ? ['snuff', Math.min(3, Math.floor(b.t / 1.2 * 4))] : ['rage', Math.min(2, Math.floor(b.t / 1.2 * 3))];
+    case 'wind': {
+      const k = Math.min(1, b.t / (b.wind || 1));
+      if (b.atk === 'volley') return ['volley_wind', Math.min(2, Math.floor(k * 3))];
+      if (b.atk === 'charge') return ['charge_wind', Math.min(1, Math.floor(k * 2))];
+      return ['cleave_wind', Math.min(2, Math.floor(k * 3))];
+    }
+    case 'act': return ['cleave_slam', Math.min(1, Math.floor(b.t / (b.act || .3) * 2))];
+    case 'volley': return ['volley_throw', 0];
+    case 'charge': return loop('charge', 3, 10);
+    case 'rest': return loop('rest', 2, 2);
+    case 'stun': return loop('stun', 2, 6);
+    case 'dead': case 'gone': return ['dead', Math.min(4, Math.floor(b.t / 2.2 * 5))];
+    default: return loop('idle', 2, 2);
+  }
+}
+
 // game state -> [sprite row, frame index, draw options]
 function wardenFrame(b) {
   const o = { phase2: b.phase === 2, flash: b.flash > 0 };
@@ -555,12 +579,9 @@ function drawWarden(b) {
   }
 
   if (!dead && b.st !== 'dormant') glow(cx, fy - 44, b.phase === 2 ? 88 : 66, b.phase === 2 ? .24 : .14);
-  const fr = wardenFrame(b);                                        // the pixel sprite does the body
   ctx.globalAlpha = b.st === 'rise' ? .25 + .75 * Math.min(1, b.t / 1.1) : 1;
-  const sc = b.scale || 1;
-  if (sc !== 1) { ctx.save(); ctx.translate(cx, fy); ctx.scale(sc, sc); ctx.translate(-cx, -fy); }
-  drawWardenSprite(ctx, fr[0], fr[1], cx, fy, b.dir, fr[2]);
-  if (sc !== 1) ctx.restore();
+  if (b.sheet === 'king') drawKing(ctx, ...kingAnim(b), cx, fy, b.dir, { phase: b.phase, flash: b.flash > 0, scale: 3 });
+  else { const fr = wardenFrame(b); drawWardenSprite(ctx, fr[0], fr[1], cx, fy, b.dir, fr[2]); }
   ctx.globalAlpha = 1;
 
   if (b.st === 'wind' && b.atk === 'volley') {                     // gathering embers in the off hand
@@ -826,8 +847,7 @@ function render() {
     if (t >= 3.0 && t < 5.2) {                                     // the soul rises
       const k = Math.min(1, (t - 3.0) / 1.6), sy = 360 - k * 150;
       glow(VW / 2, sy, 100, .55);
-      ctx.fillStyle = '#ffd08a'; ctx.beginPath(); ctx.arc(VW / 2, sy, 7 + Math.sin(t * 9) * 2.2, 0, 7); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,138,61,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(VW / 2, sy, 22, 0, 7); ctx.stroke();
+      drawKing(ctx, 'fx', Math.floor(t * 8) % 2, VW / 2, sy + 74, 1, { scale: 2 });   // the flame he swallowed, freed
       if (t > 3.4) T('his ember soul', VW / 2, 420, 16, 'center', '#8f9bb8');
     }
     if (t >= 5.2 && t < 7.4) {                                     // it takes the blade

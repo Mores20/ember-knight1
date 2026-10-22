@@ -15,7 +15,7 @@ export class AshKing {
     this.x0 = d.x; this.y0 = d.y; this.x = d.x; this.y = d.y;
     this.wake = d.wake ?? 560;
     this.max = d.hp || 24; this.hp = this.max;
-    this.title = 'THE ASH KING'; this.scale = 1.5;
+    this.title = 'THE ASH KING'; this.sheet = 'king';
     this.dir = -1; this.st = 'dormant'; this.t = 0; this.cool = 1;
     this.atk = null; this.wind = 0; this.flash = 0; this.iframe = 0;
     this.shots = []; this.waves = [];
