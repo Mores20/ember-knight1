@@ -77,7 +77,7 @@ function loadLevel(i) {
     lanternSigil: l.lantern ? { ...l.lantern, got: run.abil.lantern ? 1 : 0 } : null,
     parts: [], cam: { x: Math.max(0, Math.min(l.w - VW, p.x - 380)), y: camY }, shk: 0, stopT: 0, t: 0, cp: l.cps[0],
     style: l.style || 'road',
-    state: 'play', time: 0, msg: 5, win: 0, card: null, dark: 0,
+    state: 'play', time: 0, msg: 7.5, win: 0, card: null, dark: 0,
     shake: n => { g.shk = Math.max(g.shk, n); }, stop: t => { g.stopT = Math.max(g.stopT, t); } };
   g.lightAt = lightAt;
 }
@@ -95,7 +95,7 @@ function lightAt(x, y) {
 // between-phase card (S3): holds the old screen dark, then boots the next level
 function enterCard(next, title, sub) {
   g.state = 'card';
-  g.card = { t: 0, dur: 2.4, next, title: title || `PHASE ${next + 1}`, sub: sub || LEVELS[next].name };
+  g.card = { t: 0, dur: 7.0, next, title: title || `PHASE ${next + 1}`, sub: sub || LEVELS[next].name };   // long enough to read the lore
 }
 function nextPhase() {
   stopMusic();
@@ -118,6 +118,7 @@ const menu = createMenu({
   save: null,
   audio: {
     move: () => A.sfx.land(), select: () => A.sfx.coin(), back: () => A.sfx.block(),
+    swing: () => A.sfx.swing(), kill: () => A.sfx.kill(),   // the menu diorama's quiet fight
     toggleMute: () => { A.toggle(); SND.setMuted(A.isMuted()); syncMenu(); },
     isMuted: () => A.isMuted(),
   },
@@ -137,14 +138,16 @@ function newJourney() {
   stopMusic();
   saveRun();
   syncMenu();
-  g.story = { pages: PROLOGUE, i: 0, after: 'level0' };
+  g.story = { pages: PROLOGUE, i: 0, after: 'level0', t: 0 };
   g.state = 'story';
 }
-function updateStory() {
+function updateStory(dt) {
+  g.story.t += dt;                                                 // one second to read before a key can skip
+  if (g.story.t < 1) return;
   if (pressed.atk || pressed.ok || pressed.jump) {
-    g.story.i++;
+    g.story.i++; g.story.t = 0;
     if (g.story.i >= g.story.pages.length) {
-      const after = g.story.after; g.story = null;
+      g.story = null;
       loadLevel(0); saveRun();
     } else A.sfx.land();
   }
@@ -185,11 +188,11 @@ const reach = e => { const [px, py] = PAD[e.type] || [4, 4]; return { x: e.x - p
 function update(dt) {
   const p = g.p; g.t += dt; g.msg -= dt;
   if (g.state === 'menu') { menu.update(dt); return; }
-  if (g.state === 'story') { updateStory(); return; }
-  if (g.state === 'win') { g.win += dt; if ((pressed.atk || pressed.jump) && g.win < 16) g.win = 16; return; }
+  if (g.state === 'story') { updateStory(dt); return; }
+  if (g.state === 'win') { g.win += dt; if ((pressed.atk || pressed.jump) && g.win < 16.8) g.win = 16.8; return; }
   if (g.state === 'card') {                                       // between-phase card: hold, then boot next
     g.card.t += dt;
-    if (g.card.t >= g.card.dur || pressed.atk || pressed.jump) loadLevel(g.card.next);
+    if (g.card.t >= g.card.dur || ((pressed.atk || pressed.jump) && g.card.t > .6)) loadLevel(g.card.next);
     return;
   }
   g.time += dt; run.time += dt;
@@ -452,7 +455,8 @@ function renderCard() {                                            // S3: betwee
   ctx.globalAlpha = b; T(g.card.sub, VW / 2, 252, 42, 'center');
   if (CL && CL.line) { ctx.globalAlpha = Math.max(0, b - .15); T(CL.line, VW / 2, 302, 18, 'center', C.ember); }
   if (CL && CL.lore) { ctx.globalAlpha = Math.max(0, b - .35); T(CL.lore, VW / 2, 336, 15, 'center', '#cfd8ee'); }
-  ctx.globalAlpha = Math.max(0, b - .3); T('J / X  to continue', VW / 2, 400, 15, 'center', '#8f9bb8');
+  ctx.globalAlpha = Math.min(1, Math.max(0, (g.card.t - 1.2) * 1.5));   // the prompt waits a beat, so a held key cannot skip
+  T('J / X  to continue', VW / 2, 400, 15, 'center', '#8f9bb8'); ctx.globalAlpha = 1;
   ctx.globalAlpha = 1;
 }
 
@@ -958,43 +962,43 @@ function renderWorld() {
   if (g.state === 'win') {
     const t = g.win;
     ctx.fillStyle = `rgba(5,7,15,${Math.min(.9, t * 1.6)})`; ctx.fillRect(0, 0, VW, VH);
-    if (t < 3.4) {                                                 // what you kept
+    if (t < 5.0) {                                                 // what you kept
       const n = Math.min(26, g.litCount || 0), gap = n > 1 ? Math.min(32, (VW - 220) / n) : 0;
       const x0 = VW / 2 - (n - 1) * gap / 2;
       for (let i = 0; i < n; i++) drawTorch(ctx, x0 + i * gap, 300, t > .4 + i * .07, g.t + i * .4);
       T('THE EMBER HEART', VW / 2, 120, 34, 'center');
       if (n) T(`${n} flame${n === 1 ? '' : 's'} kept`, VW / 2, 336, 16, 'center', '#8f9bb8');
     }
-    if (t >= 3.0 && t < 5.2) {                                     // the soul rises
-      const k = Math.min(1, (t - 3.0) / 1.6), sy = 360 - k * 150;
+    if (t >= 5.0 && t < 8.2) {                                     // the soul rises
+      const k = Math.min(1, (t - 5.0) / 2.4), sy = 360 - k * 150;
       glow(VW / 2, sy, 100, .55);
       drawKing(ctx, 'fx', Math.floor(t * 8) % 2, VW / 2, sy + 74, 1, { scale: 2 });   // the flame he swallowed, freed
-      if (t > 3.4) T('his ember soul', VW / 2, 420, 16, 'center', '#8f9bb8');
+      if (t > 5.8) T('his ember soul', VW / 2, 420, 16, 'center', '#8f9bb8');
     }
-    if (t >= 5.2 && t < 7.4) {                                     // it takes the blade
-      const k = Math.max(0, 1 - Math.abs((t - 6.0) / 1.0));
+    if (t >= 8.2 && t < 11.6) {                                    // it takes the blade
+      const k = Math.max(0, 1 - Math.abs((t - 9.0) / 1.4));
       ctx.fillStyle = `rgba(255,208,138,${.45 * k})`; ctx.fillRect(0, 0, VW, VH);
       T('THE BLADE CATCHES', VW / 2, 260, 26, 'center', '#ffd08a');
       T('a king\u2019s ember, set in steel', VW / 2, 298, 16, 'center', '#cfd8ee');
     }
-    if (t >= 7.2 && t < 11.0) {                                    // the title
-      const k = Math.min(1, (t - 7.2) * 1.4);
+    if (t >= 11.4 && t < 16.4) {                                   // the title
+      const k = Math.min(1, (t - 11.4) * 1.4);
       ctx.globalAlpha = k;
       T('THE EMBER KNIGHT', VW / 2, 250, 42, 'center', C.ember);
       T('a title, earned', VW / 2, 286, 17, 'center', '#cfd8ee');
       ctx.globalAlpha = 1;
-      if (t > 8.4) { ctx.globalAlpha = Math.min(1, (t - 8.4) * 1.2); T('They did not call him that for the fire in his sword.', VW / 2, 342, 16, 'center', '#8f9bb8'); T('They called him that because he would not stay down.', VW / 2, 366, 16, 'center', '#8f9bb8'); ctx.globalAlpha = 1; }
+      if (t > 13.4) { ctx.globalAlpha = Math.min(1, (t - 13.4) * 1.2); T('They did not call him that for the fire in his sword.', VW / 2, 342, 16, 'center', '#8f9bb8'); T('They called him that because he would not stay down.', VW / 2, 366, 16, 'center', '#8f9bb8'); ctx.globalAlpha = 1; }
     }
-    if (t >= 10.4) {                                               // epilogue + walking away
-      const kx = 300 + Math.min(1, (t - 10.4) / 5.5) * 720;
+    if (t >= 16.8) {                                               // epilogue + walking away
+      const kx = 300 + Math.min(1, (t - 16.8) / 5.5) * 720;
       drawKnight(ctx, 'run', t, 0, kx, 470, 1);
-      const a1 = Math.min(1, Math.max(0, (t - 10.4) / 1.1));
+      const a1 = Math.min(1, Math.max(0, (t - 16.8) / 1.8));
       ctx.globalAlpha = a1; T(EPILOGUE[0], VW / 2, 150, 16, 'center', '#cfd8ee'); ctx.globalAlpha = 1;
-      const a2 = Math.min(1, Math.max(0, (t - 11.6) / 1.1));
+      const a2 = Math.min(1, Math.max(0, (t - 19.0) / 1.8));
       ctx.globalAlpha = a2; T(EPILOGUE[1], VW / 2, 180, 16, 'center', '#cfd8ee'); ctx.globalAlpha = 1;
-      const a3 = Math.min(1, Math.max(0, (t - 12.8) / 1.2));
+      const a3 = Math.min(1, Math.max(0, (t - 21.2) / 1.8));
       ctx.globalAlpha = a3; T(EPILOGUE[2], VW / 2, 216, 16, 'center', '#dfe8ff'); ctx.globalAlpha = 1;
-      if (t > 16) {
+      if (t > 23.8) {
         T(`Coins ${run.coins}/${TOTAL_COINS}      Time ${g.time.toFixed(1)}s`, VW / 2, 330, 16, 'center', '#8f9bb8');
         T('R  replay      ESC  phase select', VW / 2, 366, 15, 'center', C.ember);
       }
@@ -1020,7 +1024,8 @@ function renderStory() {
   T('EMBER KNIGHT', VW / 2, 140, 22, 'center', '#8f9bb8');
   lines.forEach((ln, k) => T(ln, VW / 2, 248 + k * 34 - (lines.length - 1) * 17, 18, 'center', '#dfe8ff'));
   T(`${g.story.i + 1} / ${g.story.pages.length}`, VW / 2, VH - 70, 14, 'center', '#8f9bb8');
-  T('J / ENTER  continue', VW / 2, VH - 56, 15, 'center', C.ember);
+  const ready = Math.min(1, Math.max(0, (g.story.t - 1) * 2));       // the prompt waits until the page has settled
+  ctx.globalAlpha = ready; T('J / ENTER  continue', VW / 2, VH - 56, 15, 'center', C.ember); ctx.globalAlpha = 1;
 }
 
 let last = 0;

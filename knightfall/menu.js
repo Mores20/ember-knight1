@@ -5,6 +5,7 @@
 // save (optional): { level: 0-based index, cleared: [bool x8] (array or {0:true,...}), skin }. No save -> CONTINUE is greyed out.
 import { THEMES, FLAME, POP } from './themes.js';
 import { drawKnight, setKnight, SKIN_NAMES, SKINS } from './sprites.js';
+import { drawMob } from './mobs.js';
 const W = 960, H = 540, GY = 440, FONT = n => `bold ${n}px "Courier New",monospace`;
 const GLYPH = {
   E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'], M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
@@ -59,13 +60,107 @@ export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}
   }
   function panel(ctx, title, h) { R(ctx, 'rgba(5,7,15,.82)', 60, 236, 430, h); R(ctx, '#2f3750', 60, 236, 430, 2); R(ctx, '#2f3750', 60, 236 + h - 2, 430, 2); T(ctx, title, 84, 268, 20, '#7fe3ff'); }
 
+  /* ---- the diorama: he paces in front of the castle, something comes for him, he puts it down ---- */
+  const scene = { st: 'rest', t: 0, kx: 780, face: -1, tx: 780, wait: 1.6, waveT: 0, nextWave: 6,
+    wave: 0, mob: null, queue: null, parts: [], kills: 0, hitDone: 0, walked: 0 };
+  function burst(x, y, col, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.283, sp = 40 + Math.random() * 130;
+      scene.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50, l: .45 + Math.random() * .3, col });
+    }
+  }
+  function spawnWave() {
+    const k = scene;
+    k.waveT = 0; k.nextWave = 12 + Math.random() * 4; k.walked = 0; k.wave++;
+    const bat = k.wave % 3 === 0;
+    k.mob = bat ? { kind: 'bat', x: 990, y: 300, i: 0, face: -1, dying: 0 }
+      : { kind: 'goblin', x: 990, y: GY, i: 0, face: -1, dying: 0 };
+    if (k.wave % 5 === 0) k.queue = { kind: 'goblin', x: 990, y: GY, i: 0, face: -1, dying: 0 };
+    k.st = 'rest'; k.t = 0;
+  }
+  function sceneUpdate(dt) {
+    const k = scene;
+    k.t += dt; k.waveT += dt;
+    for (const q of k.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 320 * dt; q.l -= dt; }
+    k.parts = k.parts.filter(q => q.l > 0);
+
+    if (k.st === 'attack') {                                     // the swing connects at its apex
+      const u = Math.min(1, k.t / .3);
+      if (!k.hitDone && u >= .45 && k.mob && k.mob.dying <= 0) {
+        k.hitDone = 1; k.mob.dying = .3; k.kills++;
+        audio.kill?.();
+        const my = k.mob.y - (k.mob.kind === 'bat' ? 4 : 26);
+        burst(k.mob.x, my, '#ffb066', 12); burst(k.mob.x, my, '#8f9bb8', 4);
+      }
+      if (u >= 1) { k.st = 'rest'; k.t = 0; k.wait = .5; }
+      return;
+    }
+
+    if (k.mob) {
+      const m = k.mob;
+      if (m.dying > 0) {
+        m.dying -= dt;
+        if (m.dying <= 0) {
+          if (k.queue) { k.mob = k.queue; k.queue = null; }      // a pair: the next one steps in
+          else { k.mob = null; k.st = 'rest'; k.t = 0; k.wait = 2.4 + Math.random() * 2.2; k.hitDone = 0; }
+        }
+        return;
+      }
+      const side = m.x > k.kx ? 1 : -1;                         // stop on the side they came from
+      const tx = k.kx + (m.kind === 'bat' ? 10 : side * 92);
+      const ty = m.kind === 'bat' ? GY - 66 : GY;
+      const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1;
+      const sp = m.kind === 'bat' ? 105 : 54;
+      if (d > 4) { m.x += dx / d * sp * dt; m.y += dy / d * sp * dt; }
+      m.i += dt * (m.kind === 'bat' ? 12 : 8);
+      m.face = k.kx < m.x ? -1 : 1;
+      if (Math.abs(m.x - k.kx) < 100) { k.st = 'attack'; k.t = 0; k.hitDone = 0; k.face = m.face; audio.swing?.(); }
+      return;
+    }
+
+    if (k.st === 'walk') {
+      const d = k.tx - k.kx;
+      if (Math.abs(d) < 3) { k.kx = k.tx; k.st = 'rest'; k.t = 0; k.wait = 1.3; k.walked = 1; }
+      else { k.kx += Math.sign(d) * 62 * dt; k.face = Math.sign(d); }
+      return;
+    }
+
+    if (k.t < k.wait) return;
+    if (k.waveT >= k.nextWave) { spawnWave(); return; }
+    if (!k.walked) { k.st = 'walk'; k.t = 0; k.tx = 670 + Math.random() * 210; return; }
+    k.t = 0; k.wait = .5;
+  }
+  function sceneDraw(ctx) {
+    const k = scene;
+    if (k.mob) {                                                 // the mob stands behind the knight
+      const m = k.mob;
+      ctx.save(); ctx.translate(m.x, m.y);                        // drawMob is already 2x: the goblin reads one head shorter
+      ctx.globalAlpha = m.dying > 0 ? Math.max(0, m.dying / .3) : 1;
+      drawMob(ctx, m.kind, m.kind === 'bat' ? 'swoop' : 'walk', Math.floor(m.i), 0, 0, m.face, { flash: m.dying > .24 });
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+    const anim = k.st === 'attack' ? 'attack' : k.st === 'walk' ? 'run' : 'idle';
+    const u = k.st === 'attack' ? Math.min(.999, k.t / .3) : 0;
+    ctx.save(); ctx.translate(k.kx, GY); ctx.scale(1.5, 1.5);
+    drawKnight(ctx, anim, t, u, 0, 0, k.face);
+    ctx.restore();
+    if (k.st === 'attack' && k.t > .06 && k.t < .22) {           // the slash
+      ctx.strokeStyle = 'rgba(255,205,140,.8)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(k.kx + k.face * 22, GY - 64); ctx.lineTo(k.kx + k.face * 74, GY - 24); ctx.stroke();
+    }
+    for (const q of k.parts) { ctx.globalAlpha = Math.min(1, q.l * 2.5); ctx.fillStyle = q.col; ctx.fillRect(q.x, q.y, 2.5, 2.5); }
+    ctx.globalAlpha = 1;
+  }
+
   return {
     setSave(s) { save = s; if (screen === 'main') sel = Math.max(0, firstOn()); },
+    sceneInfo() { return { st: scene.st, x: scene.kx, kills: scene.kills, mob: scene.mob ? scene.mob.kind : null }; },
     update(dt) {
       t += dt; fade = Math.min(1, fade + dt * 1.6);
       for (const a of ash) { a.y += a.v * dt; a.x -= a.v * .35 * dt; if (a.y > H) { a.y = -4; a.x = Math.random() * (W + 80); } if (a.x < -4) a.x = W; }
       if (Math.random() < dt * 14) embers.push({ x: 430 + (Math.random() - .5) * 6, y: GY - 62, vx: (Math.random() - .5) * 14, vy: -26 - Math.random() * 24, l: 1.4 });
       for (const e of embers) { e.x += e.vx * dt; e.y += e.vy * dt; e.l -= dt; } while (embers.length && embers[0].l <= 0) embers.shift();
+      sceneUpdate(dt);
     },
     screenName() { return screen; },
     key(code) {
@@ -99,7 +194,7 @@ export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}
       R(ctx, th.stone, 0, GY, W, H - GY); R(ctx, th.stoneLit, 0, GY, W, 3); for (let y = GY + 16; y < H; y += 18) R(ctx, '#232a3f', 0, y, W, 2);
       const fg = ctx.createLinearGradient(0, GY, 0, H); fg.addColorStop(0, 'rgba(5,7,15,0)'); fg.addColorStop(1, 'rgba(5,7,15,.85)'); ctx.fillStyle = fg; ctx.fillRect(0, GY, W, H - GY);
       R(ctx, '#3a4262', 427, GY - 50, 6, 50); R(ctx, '#232a3f', 421, GY - 54, 18, 6); glow(ctx, 430, GY - 66, 110, .3 + Math.sin(t * 9) * .04); flame(ctx, 430, GY - 52, 2, t);
-      ctx.save(); ctx.translate(540, GY); ctx.scale(1.5, 1.5); drawKnight(ctx, 'idle', t, 0, 0, 0, 1); ctx.restore();
+      sceneDraw(ctx);
       for (const a of ash) { ctx.globalAlpha = .5; R(ctx, '#8f9bb8', a.x, a.y, a.s, a.s); } ctx.globalAlpha = 1;
       for (const e of embers) { ctx.globalAlpha = Math.max(0, e.l / 1.4); R(ctx, FLAME.mid, e.x, e.y, 2, 2); } ctx.globalAlpha = 1;
       word(ctx, 'EMBER', 70, 46, 9); word(ctx, 'KNIGHT', 70, 124, 9); flame(ctx, 400, 100, 2.6, t + 1);
