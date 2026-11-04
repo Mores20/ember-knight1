@@ -10,7 +10,8 @@
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win portable",
+    "test": "node tools/harness.mjs"
   },
   "build": {
     "appId": "com.lumpian.emberknight",

@@ -75,6 +75,12 @@ for fullscreen.
 
 Rebuild `dist/` after changing the game — the exe bundles everything.
 
+## Development
+
+[`PROJECT.md`](PROJECT.md) is the full reference: architecture, level format, the art and audio
+pipelines, how to add a phase/mob/boss/ability, and the gotchas. `npm test` runs the headless suite
+(62 checks, about a second).
+
 ## Credits
 
 Created by **LumpiaN#1**. Thanks for playing.
