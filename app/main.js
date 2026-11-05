@@ -9,6 +9,7 @@ const os = require('node:os');
 const ROOT = path.join(__dirname, '..');
 const VERSION = require(path.join(ROOT, 'package.json')).version;
 const SMOKE = process.argv.includes('--smoke');
+const V2 = process.argv.includes('--v2');
 const STATE_FILE = path.join(app.getPath('userData'), 'window.json');
 
 const TYPES = {
@@ -89,7 +90,7 @@ function createWindow() {
   });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://local/')) e.preventDefault(); });
   win.on('close', () => { if (!SMOKE) remember(win); });
-  win.loadURL('app://local/index.html');
+  win.loadURL(V2 ? 'app://local/v2.html' : 'app://local/index.html');
   return win;
 }
 

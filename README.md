@@ -89,6 +89,13 @@ Rebuild `dist/` after changing the game — the exe bundles everything.
 pipelines, how to add a phase/mob/boss/ability, and the gotchas. `npm test` runs the headless suite
 (104 checks, about two seconds).
 
+## V2 vertical slice
+
+The `v2-vertical-slice` branch contains a separate tutorial → Cinderhaven → Area I slice. Open
+`v2.html` (or `npm start:v2`) and run `npm run test:v2`. See
+[`docs/Ember_Knight_V2_Slice.md`](docs/Ember_Knight_V2_Slice.md) for scope, controls and what is
+deferred. It has its own save (`emberknight.v2`) and imports a v1 save once without touching it.
+
 ## Credits
 
 Created by **LumpiaN#1**. Thanks for playing.

@@ -9,9 +9,11 @@
   "main": "app/main.js",
   "scripts": {
     "start": "electron .",
+    "start:v2": "electron . --v2",
     "smoke": "electron . --smoke",
     "dist": "electron-builder --win portable",
-    "test": "node tools/harness.mjs"
+    "test": "node tools/harness.mjs",
+    "test:v2": "node tools/harness-v2.mjs"
   },
   "build": {
     "appId": "com.lumpian.emberknight",
@@ -19,6 +21,7 @@
     "asar": true,
     "files": [
       "index.html",
+      "v2.html",
       "knightfall/**/*",
       "app/**/*",
       "!knightfall/mob-sheets/**"
