@@ -1,9 +1,16 @@
 import { sfx } from './audio.js';
 
+// Is there floor under this point? Walking enemies use it so they never patrol off a ledge.
+const floorUnder = (g, x, feet) => !!g && g.l.solids.some(s => typeof s.x === 'number' && !s.pass && !s.off
+  && x >= s.x - 1 && x <= s.x + s.w + 1 && Math.abs(s.y - feet) < 8);
+
 export class Goblin {
   constructor(o) { Object.assign(this, { type: 'goblin', w: 24, h: 30, hp: 1, dir: 1, sp: 55, flash: 0, t: 0 }, o); }
-  update(dt) {
-    this.t += dt; this.flash -= dt; this.x += this.dir * this.sp * dt;
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt;
+    const nx = this.x + this.dir * this.sp * dt;
+    if (g && !floorUnder(g, this.dir > 0 ? nx + this.w + 2 : nx - 2, this.y + this.h)) this.dir *= -1;
+    else this.x = nx;
     if (this.x < this.x0) this.dir = 1;
     if (this.x + this.w > this.x1) this.dir = -1;
   }
@@ -26,9 +33,11 @@ export class Bat {
 // or get behind it while it walks away.
 export class ShieldGoblin {
   constructor(o) { Object.assign(this, { type: 'shield', w: 26, h: 32, dir: 1, sp: 34, flash: 0, t: 0, hp: 2, st: 'guard', stT: 0, guard: 1.4, down: .8 }, o); }
-  update(dt) {
+  update(dt, p, g) {
     this.t += dt; this.flash -= dt; this.stT += dt;
-    this.x += this.dir * this.sp * dt;
+    const nx = this.x + this.dir * this.sp * dt;
+    if (g && !floorUnder(g, this.dir > 0 ? nx + this.w + 2 : nx - 2, this.y + this.h)) this.dir *= -1;
+    else this.x = nx;
     if (this.x < this.x0) this.dir = 1;
     if (this.x + this.w > this.x1) this.dir = -1;
     if (this.st === 'guard' && this.stT >= this.guard) { this.st = 'down'; this.stT = 0; }
@@ -87,7 +96,9 @@ export class Crawler {
   }
   update(dt, p, g) {
     this.t += dt; this.flash -= dt;
-    this.x += this.dir * this.sp * dt;
+    const nx = this.x + this.dir * this.sp * dt;
+    if (g && !floorUnder(g, this.dir > 0 ? nx + this.w + 2 : nx - 2, this.y + this.h)) this.dir *= -1;
+    else this.x = nx;
     if (this.x < this.x0) this.dir = 1;
     if (this.x + this.w > this.x1) this.dir = -1;
     this.drop -= dt;
@@ -109,8 +120,9 @@ export class Shade {
     const cx = this.x + this.w / 2, cy = this.y + this.h / 2;
     this.lit = g.lightAt ? g.lightAt(cx, cy) : 0;
     const dx = (p.x + p.w / 2) - cx;
-    if (this.lit) this.x -= Math.sign(dx) * 55 * dt;             // recoils from the light
-    else this.x += Math.sign(dx) * this.sp * dt;
+    const step = this.lit ? -Math.sign(dx) * 55 : Math.sign(dx) * this.sp;   // recoils from the light
+    const nx = this.x + step * dt, feet = this.y0 + this.h;
+    if (!g || floorUnder(g, step > 0 ? nx + this.w + 2 : nx - 2, feet)) this.x = nx;
     this.dir = dx < 0 ? -1 : 1;
     this.x = Math.max(this.x0, Math.min(this.x1, this.x));
     this.y = this.y0 + Math.sin(this.t * 2.1) * 5;
@@ -127,7 +139,10 @@ export class Husk {
     this.t += dt; this.flash -= dt;
     const dx = (p.x + p.w / 2) - (this.x + this.w / 2);
     this.dir = dx < 0 ? -1 : 1;
-    if (Math.abs(dx) > 18) this.x += Math.sign(dx) * this.sp * dt;
+    if (Math.abs(dx) > 18) {
+      const nx = this.x + Math.sign(dx) * this.sp * dt;
+      if (!g || floorUnder(g, Math.sign(dx) > 0 ? nx + this.w + 2 : nx - 2, this.y + this.h)) this.x = nx;
+    }
   }
   hit() { this.hp--; this.flash = .12; return this.hp <= 0; }
 }

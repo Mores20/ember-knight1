@@ -93,6 +93,20 @@ for (let i = 0; i < LEVELS.length; i++) {
 ok(badLevel.length === 0, 'every phase has a name, title, lore, gate and checkpoint' + (badLevel.length ? ' -> ' + badLevel.join(', ') : ''));
 ok(badSpawn.length === 0, 'every spawn point stands on a solid' + (badSpawn.length ? ' -> ' + badSpawn.join(', ') : ''));
 ok(badEnemy.length === 0, 'no walking enemy starts on air' + (badEnemy.length ? ' -> ' + badEnemy.join(', ') : ''));
+let offEdge = [];
+for (let lv = 0; lv < 7; lv++) {
+  dbg.loadLevel(lv); frames(1);
+  const g = dbg.g; g.p.x = 120; g.p.inv = 999;
+  frames(900);                                   // 15s of patrols
+  for (const e of g.enemies) {
+    if (!['goblin', 'shield', 'crawler', 'husk', 'archer', 'shade'].includes(e.type)) continue;
+    const feet = e.type === 'shade' ? e.y0 + e.h : e.y + e.h;
+    const on = g.l.solids.some(s2 => typeof s2.x === 'number' && !s2.pass && !s2.off
+      && feet >= s2.y - 3 && feet <= s2.y + 3 && e.x + e.w > s2.x && e.x < s2.x + s2.w);
+    if (!on) offEdge.push(LEVELS[lv].name + ' ' + e.type + '@' + Math.round(e.x));
+  }
+}
+ok(offEdge.length === 0, 'patrolling enemies stay on solid ground' + (offEdge.length ? ' -> ' + offEdge.join(', ') : ''));
 
 /* ================= 3. player: jump, dash, gaps ================= */
 dbg.loadLevel(0); frames(2);
@@ -118,6 +132,19 @@ P.reset(300, 2266); frames(3); P.dashCd = 0; P.dashUsed = false; P.face = 1;
 const dx0 = P.x; fire('keydown', 'ShiftLeft'); frames(1); fire('keyup', 'ShiftLeft'); frames(25);
 const dashDist = P.x - dx0;
 ok(dashDist > 90 && dashDist < 140, 'a ground surge covers ~' + dashDist.toFixed(0) + 'px');
+// a dash follows the held direction even when the facing is frozen mid-swing
+dbg.loadLevel(2); frames(2); G = dbg.g; P = G.p;
+P.reset(300, 2266); frames(2); P.face = 1; P.swing = .2; P.dashCd = 0; P.dashUsed = false;
+fire('keydown', 'ArrowLeft'); fire('keydown', 'ShiftLeft'); frames(1);
+ok(P.vx < -300, 'a dash follows the held direction mid-swing (vx=' + P.vx.toFixed(0) + ')');
+fire('keyup', 'ArrowLeft'); fire('keyup', 'ShiftLeft');
+// being embedded in geometry depenetrates cleanly instead of teleporting
+dbg.loadLevel(0); frames(2); G = dbg.g; P = G.p;
+P.reset(600, 386); frames(2);
+P.y = 410; G.stopT = 0;                       // 24px inside the floor (and no hit-stop)
+frames(2);
+ok(Math.abs((P.y + P.h) - 420) < 1.5, 'an embedded player is pushed back onto the floor (feet ' + (P.y + P.h).toFixed(1) + ')');
+ok(dbg.g.p.crushed === 0, 'and is not flagged as crushed by a clean depenetration');
 
 function leap(level, startX, y, edge, dashDelay) {
   dbg.loadLevel(level); frames(1);
@@ -246,6 +273,15 @@ P.debuffs.snuff = 0; P.swing = 0; frames(12);
 fire('keydown', 'KeyJ'); frames(10); fire('keyup', 'KeyJ');
 ok(mob.hp < 1 || mob.dead, 'and bites again once it burns off');
 ok(P.debuffs.snuff <= 0, 'debuffs run out on their own');
+
+/* ================= 6b. the lantern ================= */
+dbg.loadLevel(0); frames(2); G = dbg.g; P = G.p;
+dbg.run.abil.lantern = true; G.abil.lantern = true; G.lamp = 3;
+P.reset(300, 386); frames(2);
+fire('keydown', 'KeyE'); frames(1); fire('keyup', 'KeyE');
+frames(100);
+const lamp = G.lamps[0];
+ok(!!lamp && lamp.t > 4.5, 'a thrown lantern burns for ~6.5s (t=' + (lamp ? lamp.t.toFixed(1) : 'none') + ')');
 
 /* ================= 7. the menu ================= */
 dbg.loadLevel(0); frames(2); dbg.start();

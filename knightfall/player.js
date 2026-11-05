@@ -4,7 +4,7 @@ const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 480, 
 export const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export class Player {
   constructor() { this.w = 22; this.h = 34; this.hp = 3; this.reset(80, 386); }
-  reset(x, y) { Object.assign(this, { x, y, vx: 0, vy: 0, face: 1, ground: false, groundSolid: null, coyote: 0, buf: 0, swing: 0, inv: 0, kb: 0, run: 0, hits: new Set(), dashT: 0, dashCd: 0, dashUsed: false, root: 0,
+  reset(x, y) { Object.assign(this, { x, y, vx: 0, vy: 0, face: 1, ground: false, groundSolid: null, coyote: 0, buf: 0, swing: 0, inv: 0, kb: 0, run: 0, hits: new Set(), dashT: 0, dashCd: 0, dashUsed: false, root: 0, crushed: 0,
       debuffs: { smother: 0, heavy: 0, snuff: 0 } }); }
   // Short hitbox in front of the knight, only live during the middle of the swing.
   sword() {
@@ -33,7 +33,9 @@ export class Player {
     }
     if (pressed.dash && this.dashT <= 0 && this.dashCd <= 0 && !this.dashUsed && g.abil.dash && !heavy) {
       this.dashT = DASH_T; this.dashCd = .4; this.dashUsed = true; // one surge per airtime
-      this.vx = this.face * (this.ground ? DASH_VG : DASH_V);       // vy is kept: dashing at apex carries furthest
+      const dashDir = dir || this.face;                             // input wins over facing (which freezes mid-swing)
+      this.face = dashDir;
+      this.vx = dashDir * (this.ground ? DASH_VG : DASH_V);          // vy is kept: dashing at apex carries furthest
       sfx.dash();
     }
     this.coyote = this.ground ? .1 : this.coyote - dt;            // coyote time
@@ -45,6 +47,7 @@ export class Player {
     }
     if (pressed.atk && this.swing <= 0) { this.swing = .26; this.hits = new Set(); sfx.swing(); }
     this.swing -= dt; this.inv -= dt;
+    this.crushed = this.separate(solids);                            // resolve anything we were already inside first
     this.x += this.vx * dt;
     for (const s of solids) {
       if (s.off || s.pass || s.oneway) continue;                        // one-way ledges never block a walk
@@ -66,7 +69,30 @@ export class Player {
       }
       if (hit(this, s)) { if (this.vy > 0) { this.y = s.y - this.h; this.ground = true; this.groundSolid = s; } else this.y = s.y + s.h; this.vy = 0; }
     }
+    if (this.separate(solids)) this.crushed = 1;                     // still buried after the move: a true crush
     if (this.ground && !was) sfx.land();
     this.run += Math.abs(this.vx) * dt * .05;
+  }
+
+  // Push out of any solid we overlap, along the smallest axis (deterministic, never random).
+  // Returns 1 if a solid still contains us afterwards - a true crush.
+  separate(solids) {
+    for (let pass = 0; pass < 2; pass++) {
+      let fixed = false;
+      for (const s of solids) {
+        if (s.off || s.pass || s.oneway || !hit(this, s)) continue;
+        const left = (this.x + this.w) - s.x, right = (s.x + s.w) - this.x;
+        const top = (this.y + this.h) - s.y, bottom = (s.y + s.h) - this.y;
+        if (Math.min(left, right) <= Math.min(top, bottom)) { this.x += left < right ? -left : right; this.vx = 0; }
+        else { this.y += top < bottom ? -top : bottom; this.vy = 0; }
+        fixed = true;
+      }
+      if (!fixed) break;
+    }
+    for (const s of solids) {
+      if (s.off || s.pass || s.oneway) continue;
+      if (hit(this, s)) return 1;
+    }
+    return 0;
   }
 }

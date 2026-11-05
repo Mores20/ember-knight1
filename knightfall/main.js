@@ -17,6 +17,7 @@ import { drawSolid, drawTorch, drawCoin, drawHeartPickup, drawSpikes, SWATCH } f
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d'), VW = 960, VH = 540;
 const GAME_VERSION = '1.0.0';
+const LAMP_LIFE = 6.5;                                 // how long a thrown lantern burns
 const BAR = 34, BARB = 18, SH = VH;                   // status strips cut into the 960x540 frame
 const BOT = VH - BARB;                                // nothing important below this line
 const C = { bg: '#0b1021', stone: '#232a3f', stone2: '#2f3750', moon: '#dfe8ff', ember: '#ff8a3d', ink: '#05070f', rim: 'rgba(255,138,61,.55)' };
@@ -236,6 +237,7 @@ function update(dt) {
   }
   if (g.reveal > 0) g.reveal -= dt;
   p.update(dt, g.l.solids, g);
+  if (p.crushed) { A.sfx.crumble(); g.shake(7); respawn(); }       // squeezed by a moving solid: a clean reset, not a teleport
   if (g.l.vscroll) {                                             // tower: the highest lit checkpoint wins
     let best = g.l.cps[0];
     for (const c of g.l.cps) if (c[1] < best[1]) best = c;
@@ -270,9 +272,10 @@ function update(dt) {
       if (dead) { e.dead = 1; A.sfx.kill(); }
       if (e.type === 'hexer' && !dead && e.hp <= 0) A.sfx.kill();
     }
-    if (g.boss && !cold) {
+    if (g.boss && !cold && !p.hits.has(g.boss)) {               // one clang per swing, not one per frame
       const r = g.boss.takeHit(s);
       if (r === 2) {                                            // the kite shield eats it
+        p.hits.add(g.boss);
         A.sfx.block(); g.stop(.04); g.shake(2);
         spark(g.boss.x + g.boss.w / 2 + g.boss.dir * 10, g.boss.y + 36, 5, '#c9d4f0');
       } else if (r === 1) {                                     // the Warden has hyper-armour: no flinch
@@ -337,7 +340,7 @@ function update(dt) {
     const sb = { x: s.x - 4, y: s.y - 4, w: 8, h: 8 };
     let land = s.y > g.l.h - 4 || s.t > 2;
     for (const o of g.l.solids) if (!o.off && hit(sb, o)) { land = true; s.y = o.y - 2; break; }   // catches even on an unlit bridge
-    if (land) { s.done = 1; g.lamps.push({ x: s.x, y: s.y, t: 4 }); }
+    if (land) { s.done = 1; g.lamps.push({ x: s.x, y: s.y, t: LAMP_LIFE }); }
   }
   g.sparks = g.sparks.filter(s => !s.done);
   for (const l of g.lamps) l.t -= dt;
@@ -950,12 +953,18 @@ function renderWorld() {
     glow(s.x, s.y, 56, .4);
     ctx.fillStyle = POP.lantern; ctx.fillRect(s.x - 2, s.y - 2, 4, 4);
   }
-  for (const l of g.lamps) {                                       // a burning lantern
-    const k = Math.min(1, l.t / .6), f = 1 + Math.sin(g.t * 12 + l.x) * .12;
+  for (const l of g.lamps) {                                       // a burning lantern, dimming before it dies
+    const born = Math.min(1, (LAMP_LIFE - l.t) / .35), dying = l.t < 1.5 ? Math.max(.25, l.t / 1.5) : 1;
+    const k = born * dying, f = 1 + Math.sin(g.t * 12 + l.x) * .12;
     glow(l.x, l.y, 150 * k, .34 * k);
     ctx.fillStyle = POP.lantern; ctx.beginPath(); ctx.arc(l.x, l.y, 3.4 * f, 0, 7); ctx.fill();
     ctx.strokeStyle = `rgba(255,242,176,${.4 * k})`; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(l.x, l.y, 9, 0, 7); ctx.stroke();
+    if (l.t < 1.5) {                                               // a pulse as it goes out
+      const p = 1 - l.t / 1.5;
+      ctx.strokeStyle = `rgba(255,242,176,${.55 * p})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(l.x, l.y, 12 + p * 14, 0, 7); ctx.stroke();
+    }
   }
   for (const c of g.coins) if (!c.got) drawCoin(ctx, c.x, c.y + Math.sin(g.t * 3 + c.x) * 2, g.t + c.x * .11);
   for (const h of g.hearts) if (!h.got) drawHeartPickup(ctx, h.x, h.y - 8 + Math.sin(g.t * 3) * 2, 22);

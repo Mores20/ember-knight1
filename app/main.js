@@ -78,9 +78,12 @@ function createWindow() {
     backgroundColor: '#05070f',
     autoHideMenuBar: true,
     title: `Ember Knight \u2014 v${VERSION}`,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    show: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
   });
   win.setMenuBarVisibility(false);
+  win.show();
+  win.focus();
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'keyDown' && input.key === 'F11') { win.setFullScreen(!win.isFullScreen()); e.preventDefault(); }
   });
@@ -130,15 +133,18 @@ async function smoke(win) {
       return 'ok';
     })()`, true);
   } catch (e) { errors.push('fight: ' + e.message); }
-  await wait(5000);
   let fight = {};
-  try {
-    fight = await win.webContents.executeJavaScript(`(async () => {
-      const m = await import('/knightfall/main.js');
-      const b = m.dbg.g.boss;
-      return { st: b && b.st, hp: b && b.hp };
-    })()`, true);
-  } catch (e) { errors.push('fight read: ' + e.message); }
+  for (let i = 0; i < 24; i++) {                 // poll: a background window may render slowly
+    await wait(500);
+    try {
+      fight = await win.webContents.executeJavaScript(`(async () => {
+        const m = await import('/knightfall/main.js');
+        const b = m.dbg.g.boss;
+        return { st: b && b.st, hp: b && b.hp, state: m.dbg.g.state };
+      })()`, true);
+    } catch (e) { errors.push('fight read: ' + e.message); }
+    if (fight.st && fight.st !== 'dormant') break;
+  }
   add(fight.st && fight.st !== 'dormant', 'the King fight runs (' + fight.st + ', hp ' + fight.hp + ')');
   add(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 
