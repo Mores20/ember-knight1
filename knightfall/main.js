@@ -26,7 +26,7 @@ let g;
 
 /* ---- persistent run (S1/S9): hearts, coins and unlocks survive phases AND reloads ---- */
 const SAVE_KEY = 'emberknight.v1';
-const freshRun = () => ({ lvl: 0, hp: 2, coins: 0, time: 0, abil: { dash: false, lantern: false }, got: {}, lit: {}, cleared: LEVELS.map(() => false),
+const freshRun = () => ({ lvl: 0, hp: 2, coins: 0, gold: 0, time: 0, abil: { dash: false, lantern: false }, got: {}, lit: {}, cleared: LEVELS.map(() => false),
   skin: 'iron', emberSword: false, titled: false });
 function loadRun() {
   try {
@@ -46,6 +46,8 @@ function loadRun() {
 }
 let run = loadRun();
 setKnight(run.skin, run.emberSword);
+if (typeof run.gold !== 'number') run.gold = run.coins || 0;   // v1 saves: coins become the purse
+
 function saveRun() { try { if (typeof localStorage !== 'undefined') localStorage.setItem(SAVE_KEY, JSON.stringify(run)); } catch (e) {} }
 const picked = (i, k) => (run.got[i] = run.got[i] || { c: [], h: [] })[k];   // per-phase pickup ledger
 
@@ -64,6 +66,7 @@ function loadLevel(i) {
       return { ...o, i: k, lit: o.lit || litSet.includes(k) ? 1 : 0 };
     }),
   };
+  l.merchant = L.merchant ? { ...L.merchant, stock: [2, 1, 1, 1], sel: 0, msg: '' } : null;   // stock per visit
   const p = new Player(); p.reset(L.spawn[0], L.spawn[1]);
   p.hp = Math.max(1, Math.min(3, run.hp));                       // hearts carry across phases
   const camY = l.vscroll ? Math.max(0, Math.min(l.h - VH, p.y - 270)) : 0;   // open straight onto the climb
@@ -196,6 +199,7 @@ const reach = e => { const [px, py] = PAD[e.type] || [4, 4]; return { x: e.x - p
 function update(dt) {
   const p = g.p; g.t += dt; g.msg -= dt;
   if (g.state === 'menu') { menu.update(dt); return; }
+  if (g.state === 'shop') { shopUpdate(); return; }
   if (g.state === 'story') { updateStory(dt); return; }
   if (g.state === 'win') {
     g.win += dt;
@@ -238,6 +242,7 @@ function update(dt) {
   if (g.reveal > 0) g.reveal -= dt;
   p.update(dt, g.l.solids, g);
   if (p.crushed) { A.sfx.crumble(); g.shake(7); respawn(); }       // squeezed by a moving solid: a clean reset, not a teleport
+  if (pressed.talk && g.state === 'play' && merchantNear()) openShop();
   if (g.l.vscroll) {                                             // tower: the highest lit checkpoint wins
     let best = g.l.cps[0];
     for (const c of g.l.cps) if (c[1] < best[1]) best = c;
@@ -377,7 +382,7 @@ function update(dt) {
       A.sfx.parry(); g.stop(.04); g.shake(2); spark(a.x, a.y, 8, '#ffd479');
     }
   }
-  for (const c of g.coins) if (!c.got && hit(p, { x: c.x - 9, y: c.y - 9, w: 18, h: 18 })) { c.got = 1; run.coins++; picked(g.lvl, 'c').push(c.k); saveRun(); A.sfx.coin(); }
+  for (const c of g.coins) if (!c.got && hit(p, { x: c.x - 9, y: c.y - 9, w: 18, h: 18 })) { c.got = 1; run.coins++; run.gold++; picked(g.lvl, 'c').push(c.k); saveRun(); A.sfx.coin(); }
   for (const h of g.hearts) if (!h.got && p.hp < 3 && hit(p, { x: h.x - 11, y: h.y - 11, w: 22, h: 22 })) { h.got = 1; p.hp++; picked(g.lvl, 'h').push(h.k); saveRun(); A.sfx.heart(); }
   if (g.sigil && !g.sigil.got && hit(p, { x: g.sigil.x - 12, y: g.sigil.y - 12, w: 24, h: 24 })) {
     g.sigil.got = 1; run.abil.dash = true; saveRun(); g.grant = 3.6; g.grantKind = 'dash';   // the ember dash, for good
@@ -790,7 +795,7 @@ function drawStrips() {
   ctx.fillStyle = '#04060c'; ctx.fillRect(0, 0, VW, BAR); ctx.fillRect(0, BOT, VW, BARB);
   ctx.fillStyle = 'rgba(255,138,61,.30)'; ctx.fillRect(0, BAR - 1, VW, 1);
   ctx.fillStyle = 'rgba(255,138,61,.16)'; ctx.fillRect(0, BOT, VW, 1);
-  const playing = g.state === 'play', p = g.p;
+  const playing = g.state === 'play' || g.state === 'shop', p = g.p;
   const midY = 22, botY = VH - 5;
 
   if (playing) {
@@ -855,6 +860,70 @@ function drawStrips() {
       else if (run.titled) T('THE EMBER KNIGHT', VW - 18, botY, 11, 'right', C.ember);
     }
   }
+}
+
+
+/* ---- the Sketchy Merchant: a safe-room shop paid for with gold ---- */
+const SHOP_ITEMS = [
+  { name: 'ASHROOT POTION', price: 15, blurb: 'one heart back', sold: 'Chew it. Do not ask what is in it.',
+    can: () => g.p.hp < 3, apply: () => { g.p.hp = Math.min(3, g.p.hp + 1); } },
+  { name: 'CLEANSING FLASK', price: 20, blurb: 'wash off a hex', sold: 'Tastes like a wet boot. It works.',
+    can: () => true, apply: () => { for (const k in g.p.debuffs) g.p.debuffs[k] = 0; } },
+  { name: 'EMBER SHIELD', price: 35, blurb: 'eats one hit', sold: 'Hold it up. Try not to die.',
+    can: () => true, unlock: () => !!run.cleared[3], apply: () => { g.p.shield = 1; } },
+  { name: 'GREATER HEART', price: 40, blurb: 'two hearts back', sold: 'For the truly battered.',
+    can: () => g.p.hp < 3, unlock: () => !!run.cleared[4], apply: () => { g.p.hp = Math.min(3, g.p.hp + 2); } },
+];
+const merchantNear = () => {
+  const m = g.l.merchant, p = g.p;
+  return !!m && Math.abs((p.x + p.w / 2) - m.x) < 58 && Math.abs((p.y + p.h) - m.y) < 80;
+};
+function openShop() { g.state = 'shop'; g.l.merchant.sel = 0; g.l.merchant.msg = ''; A.sfx.grant(); }
+function shopUpdate() {
+  const m = g.l.merchant;
+  if (pressed.up || pressed.down) { m.sel = (m.sel + (pressed.down ? 1 : SHOP_ITEMS.length - 1)) % SHOP_ITEMS.length; A.sfx.land(); }
+  if (pressed.talk) { g.state = 'play'; A.sfx.block(); return; }
+  if (!pressed.ok) return;
+  const i = m.sel, it = SHOP_ITEMS[i];
+  if (it.unlock && !it.unlock()) { m.msg = 'Not for the likes of you. Not yet.'; A.sfx.block(); return; }
+  if (m.stock[i] <= 0) { m.msg = 'Sold out. Tragic.'; A.sfx.block(); return; }
+  if (!it.can()) { m.msg = 'You do not need that.'; A.sfx.block(); return; }
+  if (run.gold < it.price) { m.msg = 'You are short. Also tragic.'; A.sfx.block(); return; }
+  run.gold -= it.price; m.stock[i]--; it.apply();
+  m.msg = it.sold; A.sfx.coin(); saveRun();
+}
+function drawMerchant() {
+  const m = g.l.merchant; if (!m) return;
+  const x = m.x, y = m.y;
+  ctx.fillStyle = '#241a2b'; ctx.fillRect(x - 12, y - 46, 24, 46);            // cloak
+  ctx.fillStyle = '#1a1420'; ctx.fillRect(x - 14, y - 62, 28, 18);            // hood
+  ctx.fillStyle = '#0a0710'; ctx.fillRect(x - 8, y - 57, 16, 11);             // shadowed face
+  ctx.fillStyle = '#ff8a3d'; ctx.fillRect(x - 5, y - 52, 2, 2); ctx.fillRect(x + 3, y - 52, 2, 2);
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(x + 16, y - 20, 26, 20);            // crate
+  ctx.fillStyle = '#5a4030'; ctx.fillRect(x + 16, y - 22, 26, 3);
+  glow(x - 18, y - 34, 40, .16 + Math.sin(g.t * 3) * .04);
+  ctx.fillStyle = '#ffd84a'; ctx.fillRect(x - 20, y - 36, 4, 6);              // a lantern on a hook
+}
+function drawShop() {
+  const m = g.l.merchant; if (!m) return;
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
+  const w = 600, h = 292, x = (VW - w) / 2, y = 126;
+  ctx.fillStyle = 'rgba(5,7,15,.94)'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#2f3750'; ctx.fillRect(x, y, w, 2); ctx.fillRect(x, y + h - 2, w, 2);
+  T('THE SKETCHY MERCHANT', x + 22, y + 30, 20, 'left', C.ember);
+  T(run.cleared[3] ? '"You killed the Warden. He owed me money."' : '"Everything has a price. Even hope."', x + 22, y + 52, 13, 'left', '#8f9bb8');
+  T('GOLD ' + run.gold, x + w - 22, y + 30, 16, 'right', '#ffd84a');
+  SHOP_ITEMS.forEach((it, i) => {
+    const iy = y + 82 + i * 38, on = i === m.sel;
+    if (on) { ctx.fillStyle = 'rgba(127,227,255,.12)'; ctx.fillRect(x + 12, iy - 18, w - 24, 32); }
+    const locked = it.unlock && !it.unlock();
+    T(it.name, x + 24, iy, 16, 'left', locked ? '#4a5578' : on ? '#e4ecff' : '#cfd8ee');
+    T(it.blurb, x + 252, iy, 12, 'left', '#5d6a8a');
+    T(locked ? 'LOCKED' : m.stock[i] > 0 ? it.price + 'g  x' + m.stock[i] : 'SOLD OUT',
+      x + w - 24, iy, 14, 'right', locked ? '#4a5578' : m.stock[i] > 0 ? '#ffd84a' : '#5d6a8a');
+  });
+  T(m.msg || '', x + 24, y + h - 34, 13, 'left', '#8f9bb8');
+  T('\u2191\u2193 SELECT   ENTER BUY   F LEAVE', x + w - 24, y + h - 34, 12, 'right', '#4a5578');
 }
 
 function render() {
@@ -992,6 +1061,7 @@ function renderWorld() {
   }
   for (const c of g.coins) if (!c.got) drawCoin(ctx, c.x, c.y + Math.sin(g.t * 3 + c.x) * 2, g.t + c.x * .11);
   for (const h of g.hearts) if (!h.got) drawHeartPickup(ctx, h.x, h.y - 8 + Math.sin(g.t * 3) * 2, 22);
+  drawMerchant();
   if (g.sigil && !g.sigil.got) {                                   // the ember dash, waiting on its ledge
     const sy = g.sigil.y + Math.sin(g.t * 2.4) * 5, r = 10 + Math.sin(g.t * 5) * 1.5;
     ctx.save(); ctx.translate(g.sigil.x, sy); ctx.rotate(g.t * 1.4);
@@ -1124,6 +1194,11 @@ function renderWorld() {
       }
     }
   }
+  if (g.l.merchant && g.state === 'play' && merchantNear()) {
+    const mx = g.l.merchant.x - g.cam.x, my = g.l.merchant.y - g.cam.y - 74;
+    T('F  TRADE', mx, my, 12, 'center', C.ember);
+  }
+  if (g.state === 'shop') drawShop();
   if (g.state === 'menu') menu.draw(ctx, BAR);
 }
 
@@ -1155,7 +1230,10 @@ function frame(ts) {
     while (hits.length) menu.key(hits.shift());
   } else {
     hits.length = 0;
-    if (pressed.menu) { syncMenu(); g.state = 'menu'; hits.length = 0; pressed.menu = false; }
+    if (pressed.menu) {
+      if (g.state === 'shop') g.state = 'play'; else { syncMenu(); g.state = 'menu'; }
+      hits.length = 0; pressed.menu = false;
+    }
     if (pressed.restart) { if (g.state !== 'card') loadLevel(g.lvl); pressed.restart = false; }
     if (pressed.mute) { A.toggle(); SND.setMuted(A.isMuted()); pressed.mute = false; }
   }

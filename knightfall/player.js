@@ -4,7 +4,7 @@ const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 480, 
 export const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export class Player {
   constructor() { this.w = 22; this.h = 34; this.hp = 3; this.reset(80, 386); }
-  reset(x, y) { Object.assign(this, { x, y, vx: 0, vy: 0, face: 1, ground: false, groundSolid: null, coyote: 0, buf: 0, swing: 0, inv: 0, kb: 0, run: 0, hits: new Set(), dashT: 0, dashCd: 0, dashUsed: false, root: 0, crushed: 0, aim: 'side',
+  reset(x, y) { Object.assign(this, { x, y, vx: 0, vy: 0, face: 1, ground: false, groundSolid: null, coyote: 0, buf: 0, swing: 0, inv: 0, kb: 0, run: 0, hits: new Set(), dashT: 0, dashCd: 0, dashUsed: false, root: 0, crushed: 0, aim: 'side', shield: 0,
       debuffs: { smother: 0, heavy: 0, snuff: 0 } }); }
   // Short hitbox in front of the knight, only live during the middle of the swing.
   sword() {
@@ -16,6 +16,10 @@ export class Player {
   }
   hurt(fx, g) {
     if (this.inv > 0) return;
+    if (this.shield > 0) {                                        // the Ember Shield eats one hit
+      this.shield = 0; this.inv = .8; this.vy = -140; this.kb = .12;
+      g.shake(6); g.stop(.04); sfx.block(); return;
+    }
     this.hp--; this.inv = 1.2; this.vy = -300; this.vx = this.x < fx ? -240 : 240; this.kb = .25;
     g.shake(9); g.stop(.1); sfx.hurt();
   }

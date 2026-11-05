@@ -14,7 +14,7 @@ const GLYPH = {
   I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'], G: ['01111', '10000', '10000', '10011', '10001', '10001', '01111'],
   H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'], T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
 };
-const CONTROLS = [['MOVE', 'ARROWS / A D'], ['JUMP', 'SPACE / W / UP'], ['ATTACK', 'J / X'], ['DASH', 'SHIFT'], ['LANTERN', 'E'], ['MENU', 'ESC'], ['MUTE', 'M'], ['RESTART', 'R']];
+const CONTROLS = [['MOVE', 'ARROWS / A D'], ['JUMP', 'SPACE / W / UP'], ['ATTACK', 'J / X'], ['DASH', 'SHIFT'], ['LANTERN', 'E'], ['TRADE', 'F'], ['MENU', 'ESC'], ['MUTE', 'M'], ['RESTART', 'R']];
 
 export function createMenu({ save = null, audio = {}, onAction = () => {} } = {}) {
   let screen = 'main', sel = 0, t = 0, fade = 0, stars = Array.from({ length: 70 }, (_, i) => [(i * 137.5) % W, (i * 53.3) % 300, i % 3 + 1]);

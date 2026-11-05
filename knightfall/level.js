@@ -48,6 +48,7 @@ const PHASE1 = {
     { type: 'goblin', x: 3000, y: 390, x0: 2900, x1: 3100, hp: 1 },
     { type: 'bat', x0: 2350, x1: 2750, y0: 230, ay: 90, sp: 1.2, ph: 1.0 },
   ],
+  merchant: { x: 380, y: 420 },                              // the first safe room
   gate: { x: 3110, y: 170, w: 80, h: 90 },
   cps: [[80, 420], [1150, 420], [2260, 420]],                 // respawn points
 };
@@ -294,6 +295,7 @@ const PHASE5 = {
     { x: 1480, w: 620, dir: -1, on: 2.2, off: 3.2, force: 105, ph: 2.7 },
   ],
   lantern: { x: 1380, y: 250 },                                // the Ember Lantern, earned here
+  merchant: { x: 2700, y: 420 },
   gate: { x: 2880, y: 330, w: 90, h: 90 },
   cps: [[80, 420], [2200, 420]],
 };
@@ -416,6 +418,7 @@ const PHASE7 = {
     { type: 'hexer', x: 900, y: 300, hp: 3 },
     { type: 'hexer', x: 2000, y: 300, hp: 3 },
   ],
+  merchant: { x: 300, y: 420 },
   gate: { x: 2420, y: 330, w: 90, h: 90 },
   cps: [[80, 420], [1100, 420]],
 };

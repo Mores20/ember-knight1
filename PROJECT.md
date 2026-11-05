@@ -18,7 +18,7 @@ the map of the machine.
 | `python -m http.server 8000` | Play from source at `http://127.0.0.1:8000/` (HTTP is required — ES modules and audio won't load from `file://`) |
 | `npm install` | Install the desktop/build dependencies (not needed to play) |
 | `npm start` | Run the game in an Electron window |
-| `npm test` | Headless regression suite (`tools/harness.mjs`, 77 checks, ~1 s) |
+| `npm test` | Headless regression suite (`tools/harness.mjs`, 88 checks, ~1 s) |
 | `npm run smoke` | Launch Electron, verify boot/canvas/audio/a fight, screenshot, exit code |
 | `npm run dist` | Build `dist/Ember-Knight-<version>.exe` (portable) |
 
@@ -288,6 +288,24 @@ on the first keydown.
 The main menu is CONTINUE / NEW GAME / PHASE SELECT / KNIGHT COLOURS / CONTROLS / SOUND; the diorama
 behind it paces, fights goblins/bats every 12–16 s, and uses the selected skin.
 
+## 10b. The Sketchy Merchant
+
+A safe-room shop (`merchant: { x, y }` in a level; phases I, V and VII have one). Walk up and press
+**F** (the hint reads `F TRADE`). The game enters the `shop` state: the world pauses, the strips keep
+the HUD, and a panel lists four items with prices and per-visit stock.
+
+| item | price | effect | unlock |
+|---|---|---|---|
+| Ashroot Potion | 15 | +1 heart (refused at full hp) | always |
+| Cleansing Flask | 20 | clears all three hexes | always |
+| Ember Shield | 35 | `p.shield = 1`; `hurt()` eats one hit | Warden cleared (`cleared[3]`) |
+| Greater Heart | 40 | +2 hearts | Phase V cleared (`cleared[4]`) |
+
+Spending uses **gold**, never the coin tally. Stock is `[2, 1, 1, 1]` and refreshes on every level
+load. Up/Down selects, Enter buys (with refusal lines for locked/sold-out/poor/not-needed), F or Esc
+leaves. The merchant is drawn procedurally (hood, eyes, crate, lantern) and his stock lives on
+`g.l.merchant`.
+
 ## 11. Story, ending, credits
 
 - `PROLOGUE` (3 pages) shows on a new journey; `EPILOGUE` (3 lines) plays in the ending.
@@ -304,7 +322,7 @@ Key: `emberknight.v1` in `localStorage` (on the app's stable origin).
 
 ```js
 {
-  lvl, hp, coins, time,
+  lvl, hp, coins, gold, time,
   abil: { dash, lantern },
   got: { [phase]: { c: [coinIndex], h: [heartIndex] } },
   lit: { [phase]: [torchIndex] },
@@ -313,8 +331,11 @@ Key: `emberknight.v1` in `localStorage` (on the app's stable origin).
 }
 ```
 
-Written on pickups, level loads, phase completion, respawn, before unload, and after the ending.
-There are no migrations yet — changing the shape needs a version bump (or defensive defaults).
+`coins` is the lifetime tally (the 124-coin completion count); **`gold`** is the spendable purse,
+filled by the same pickups. v1 saves migrate once: `gold` is seeded from `coins`.
+
+Written on pickups, purchases, level loads, phase completion, respawn, before unload, and after the
+ending. Further shape changes still need a version bump (or defensive defaults).
 
 ---
 
@@ -336,7 +357,7 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
 
 ## 14. Testing
 
-`npm test` → `tools/harness.mjs` (77 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
+`npm test` → `tools/harness.mjs` (88 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
 `AudioContext` and `requestAnimationFrame`, imports the real game, and drives it:
 
 - boot + the renderer actually draws
@@ -348,6 +369,8 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
   volley counts, one-shot knockdown; the Warden's phase-2 cleave→volley chain
 - the hexer: cast → 3 orbs, debuff without damage, heavy locks the dash, snuff silences the blade,
   and killing the caster clears its hex
+- the merchant: F opens the shop, a potion heals and charges 15, a poor knight is refused, the flask
+  cleanses, the shield unlocks after the Warden and eats a hit, F leaves, coins fill the purse
 - the menu: Esc, CONTINUE, colour persistence, diorama kills
 - story settle, card hold, ending → credits
 

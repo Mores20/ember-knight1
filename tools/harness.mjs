@@ -345,6 +345,38 @@ ok(dbg.run.skin === 'frost' && JSON.parse(store.get('emberknight.v1')).skin === 
 for (let i = 0; i < 900; i++) dbg.menu.update(1 / 60);
 ok(dbg.menu.sceneInfo().kills > 0, 'the diorama actually has fights');
 
+/* ================= 7b. the Sketchy Merchant ================= */
+dbg.loadLevel(0); frames(2); G = dbg.g; P = G.p;
+const M = G.l.merchant;
+ok(!!M && M.stock.length === 4, 'phase I has a merchant with four lines of stock');
+ok(LEVELS.filter(L2 => L2.merchant).length >= 3, 'merchants wait in several safe rooms');
+P.reset(M.x, 386); frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF');
+ok(G.state === 'shop', 'F opens the shop');
+dbg.run.gold = 100; P.hp = 2; M.sel = 0;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(P.hp === 3 && dbg.run.gold === 85 && M.stock[0] === 1, 'an Ashroot Potion heals one and costs 15');
+dbg.run.gold = 5; P.hp = 2; M.sel = 0;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(P.hp === 2 && dbg.run.gold === 5, 'a poor knight cannot buy');
+P.debuffs.heavy = 5; dbg.run.gold = 100; M.sel = 1;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(P.debuffs.heavy === 0, 'the Cleansing Flask washes off a hex');
+dbg.run.cleared[3] = true; M.sel = 2;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(P.shield === 1, 'the Ember Shield unlocks after the Warden and can be bought');
+P.inv = 0; const hpBefore = P.hp; P.hurt(P.x + 40, G);
+ok(P.hp === hpBefore && P.shield === 0, 'and it eats one hit');
+G.stopT = 0;
+fire('keydown', 'KeyF'); frames(4); fire('keyup', 'KeyF');
+ok(G.state === 'play', 'F leaves the shop');
+dbg.loadLevel(0); frames(2); G = dbg.g; P = G.p;
+const goldBefore = dbg.run.gold;
+const freeCoin = G.coins.find(c => !c.got);
+freeCoin.x = P.x + 4; freeCoin.y = P.y + 4; frames(1);
+ok(dbg.run.gold === goldBefore + 1, 'picked coins fill the purse as well as the tally');
+ok(JSON.parse(store.get('emberknight.v1')).gold === dbg.run.gold, 'and the purse is saved');
+
 /* ================= 8. story, cards, the ending ================= */
 dbg.newJourney(); frames(1);
 ok(dbg.g.state === 'story' && dbg.g.story.i === 0, 'a new journey opens on the prologue');
