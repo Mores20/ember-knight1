@@ -1,8 +1,32 @@
-# Ember Knight — V2 Vertical Slice (V0)
+# Ember Knight — V2 Vertical Slice (V0 + V1)
 
 A separate branch (`v2-vertical-slice`) proving the shape of the world-design document:
 **tutorial road → Cinderhaven → Area I → back to Cinderhaven**. The shipped v1 game on `main`
 is untouched.
+
+## V1 — the tutorial lesson
+
+The tutorial is now a ten-step lesson with one prompt at a time and a `TUTORIAL n/10` counter:
+
+1. Move.
+2. Jump the fence.
+3. Coins and hearts.
+4. Strike the straw dummy.
+5. Light the cold torch (a real checkpoint).
+6. Dash the gap (the dash is granted here).
+7. Clear the road.
+8. Guard the orb with **L**.
+9. Perfect-parry the orb (press L just before impact).
+10. The gate.
+
+The **ward lesson is the gate**: the ward wakes once the road is clear (the goblin is dead) and fires
+slow orbs while the player is near. It has three pips. A normal block chips one pip; three blocks
+break it. A perfect parry reflects the orb into the ward and breaks it in one. Until it breaks, the
+gate is visibly sealed and stepping into it shows **THE WARD SEALS THE GATE**. Breaking it shows
+**THE WARD BREAKS** and the gate opens.
+
+Other V1 feedback: `CHECKPOINT SET`, `BLOCKED`, `PERFECT PARRY`, the ward pips, a guard arc on the
+knight, and an L keycap in the prompt bar when the lesson needs it.
 
 ## Run it
 
@@ -19,8 +43,8 @@ npm test          # the shipped 104-check suite; must stay green
 
 ## What V0 includes
 
-- **Tutorial road:** move, jump, sword, dash grant, one goblin, a training ward for block/perfect
-  parry, coins/hearts, checkpoints, and a gate into the hub.
+- **Tutorial road:** the ten-step lesson above, with the checkpoint torch, dash grant, one goblin,
+  the ward-gated exit, coins/hearts, and the gate into the hub.
 - **Cinderhaven stage 1:** D0 Arrival + D1 Ash Square. Safe street, Clint the gargoyle, Patino's
   Hearth (heal + save), practice dummy, Gate I open, Gate II sealed.
 - **Area I placeholder:** the shipped Ember Road, re-homed as Area I until V3 splits it into
@@ -53,7 +77,7 @@ that lands with the Brute in V4.
 
 ## Deliberately deferred
 
-- V1: the full tutorial sequence, block prompts on the HUD, and a proper ward lesson.
+- V1 done: the ten-step tutorial, the checkpoint torch, and the ward-gated exit.
 - V2: hub visual pass, full Clint/Patino dialogue, district lighting.
 - V3: split Area I into 1-1/1-2/1-3, including the wagon secret and per-level exits.
 - V4: Road Scavenger (steals, drops, never permanently loses coins), Cinder Crow, Gatekeeper Brute.

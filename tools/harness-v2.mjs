@@ -112,10 +112,30 @@ ok(dbg.sceneId === 'tutorial' && dbg.run.tutorialDone === false, 'New Game start
 ok(dbg.TOTAL_COINS === SCENES.tutorial.coins.length + SCENES.area1.coins.length, 'the coin total is derived from the slice scenes');
 
 const tut = dbg.g;
-tut.p.x = 1020; frames(3);
+ok(tut.tutStep === 0 && tut.prompt.includes('move'), 'the tutorial starts on the move step');
+tut.p.x = 160; frames(2);
+ok(tut.tutStep >= 1 && tut.prompt.includes('jump'), 'moving advances the prompt to jump');
+tut.p.x = 1070; frames(3);
 ok(dbg.run.abil.dash === true && tut.grant > 0, 'the dash lesson grants the ember dash');
+ok(tut.tutStep >= 5, 'the prompt reaches the dash step');
 
-tut.p.x = 1550; tut.p.y = 386; tut.p.inv = 0; tut.wardT = 0; frames(2);
+tut.p.reset(1060, 386); tut.p.hp = 3; tut.p.inv = 999; frames(2);
+fire('keydown', 'ArrowRight'); frames(10); fire('keydown', 'Space'); frames(10);
+fire('keydown', 'ShiftLeft'); frames(1); fire('keyup', 'ShiftLeft'); frames(14);
+fire('keyup', 'Space'); frames(24); fire('keyup', 'ArrowRight'); frames(40);
+ok(tut.p.x > 1300 && tut.p.ground, 'the dash gap is crossable on foot (x=' + Math.round(tut.p.x) + ', y=' + Math.round(tut.p.y) + ', ground=' + tut.p.ground + ')');
+
+const cpT = tut.l.torches.find(t => t.cp);
+tut.p.x = cpT.x - 20; tut.p.y = 386; tut.p.face = 1; tut.p.swing = .15; frames(2);
+ok(cpT.lit === 1 && tut.cpT > 0, 'the cold torch lights and sets the checkpoint');
+ok(tut.tutStep >= 5, 'lighting the checkpoint advances the prompt');
+
+const gob = tut.enemies.find(e => e.type === 'goblin');
+if (gob) { gob.x = 1380; gob.y = 390; gob.dir = 1; gob.sp = 0; gob.hp = 1; }
+tut.p.x = 1350; tut.p.y = 386; tut.p.face = 1; tut.p.swing = .15; frames(8);
+ok(tut.kills > 0 && tut.tutStep >= 6, 'the tutorial goblin can be cleared');
+
+tut.p.x = 1550; tut.p.y = 386; tut.p.inv = 0; tut.wardT = 0; tut.orbs.length = 0; frames(2);
 ok(tut.orbs.length > 0, 'the training ward lobs an orb');
 
 /* ================= 6. block and perfect parry ================= */
@@ -127,13 +147,31 @@ frames(1);
 ok((tut.orbs[0] && tut.orbs[0].reflected === 1) || tut.parryMsg > 0, 'a perfect parry reflects a projectile');
 fire('keyup', 'KeyL');
 
-/* ================= 7. tutorial exit ================= */
+/* ================= 7. the ward gates the tutorial exit ================= */
 const tex = tut.l.exit;
+tut.wardHp = 3; tut.wardBroken = false; tut.orbs.length = 0;
+tut.p.x = tex.x + tex.w / 2 - tut.p.w / 2; tut.p.y = tex.y + tex.h - tut.p.h; frames(4);
+ok(dbg.sceneId === 'tutorial' && tut.sealMsg > 0, 'the unbroken ward seals the gate');
+
+tut.p.x = 1550; tut.p.y = 386; tut.p.face = 1; tut.wardHp = 3; tut.wardBroken = false; tut.wardBlocks = 0;
+tut.wardT = 99; tut.orbs.length = 0;
+fire('keydown', 'KeyL'); frames(1);
+for (let i = 0; i < 3; i++) {
+  tut.p.parry = 0; tut.p.block = 1; tut.orbs.length = 0;
+  tut.orbs.push({ x: tut.p.x + tut.p.w / 2 + 14, y: tut.p.y + 15, vx: 0, vy: 0, r: 7, t: 5, reflected: 0 });
+  frames(1);
+}
+frames(2);
+fire('keyup', 'KeyL');
+ok(tut.wardHp === 0 && tut.wardBroken, 'three blocks break the ward');
+ok(tut.tutStep >= tut.l.steps.length - 1, 'the tutorial prompt reaches the open gate');
+
+/* ================= 8. tutorial exit ================= */
 tut.p.x = tex.x + tex.w / 2 - tut.p.w / 2; tut.p.y = tex.y + tex.h - tut.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.tutorialDone === true, 'the tutorial gate leads to Cinderhaven and marks the tutorial done');
 ok(JSON.parse(store.get('emberknight.v2')).tutorialDone === true, 'the tutorial flag is saved');
 
-/* ================= 8. every scene is sane ================= */
+/* ================= 9. every scene is sane ================= */
 const bad = [];
 for (const id of Object.keys(SCENES)) {
   dbg.loadScene(id); frames(2);

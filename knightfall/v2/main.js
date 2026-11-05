@@ -75,12 +75,14 @@ function loadScene(id) {
     coins: l.coins.map(([x, y], k) => ({ x, y, k, got: got.c.includes(k) ? 1 : 0 })),
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: got.h.includes(k) ? 1 : 0 })),
     secrets: l.secrets, props: l.props, got,
-    parts: [], orbs: [], wardT: 2.2,
+    parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: 0 }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
     paused: false, pauseSel: 0, dialog: null, prompt: '', near: null,
     found: 0, foundName: '', grant: 0, grantKind: 'dash', healMsg: 0,
     dummyT: 0, parryMsg: 0, state: 'play', blockEnabled: true,
+    tutStep: 0, wardHp: l.ward ? (l.ward.hp || 3) : 0, wardBroken: !l.ward,
+    wardBlocks: 0, dummyHits: 0, kills: 0, cpT: 0, wardMsg: 0, blockMsg: 0, sealMsg: 0,
     shake: n => { g.shk = Math.max(g.shk, n); },
     stop: t => { g.stopT = Math.max(g.stopT, t); },
   };
@@ -157,13 +159,20 @@ function useNear() {
 
 function fireWard() {
   const w = g.l.ward, p = g.p;
-  if (!w) return;
+  if (!w || g.wardHp <= 0) return;
   const sx = w.x, sy = w.y - 42;
   const tx = p.x + p.w / 2, ty = p.y + p.h * .45;
   const d = Math.hypot(tx - sx, ty - sy) || 1;
   g.orbs.push({ x: sx, y: sy, vx: (tx - sx) / d * 132, vy: (ty - sy) / d * 132, r: 7, t: 7, reflected: 0 });
-  g.wardT = 2.2;
+  g.wardT = w.cool || 1.6;
   A.sfx.ember();
+}
+
+function breakWard() {
+  if (g.wardBroken) return;
+  g.wardHp = 0; g.wardBroken = true; g.wardMsg = 3.2; g.shake(8);
+  g.orbs.length = 0;
+  A.sfx.grant(); spark(g.l.ward.x, g.l.ward.y - 40, 30, '#ffd479');
 }
 
 function updateOrbs(dt) {
@@ -173,17 +182,19 @@ function updateOrbs(dt) {
     const box = { x: o.x - o.r, y: o.y - o.r, w: o.r * 2, h: o.r * 2 };
     const gd = p.guard();
     if (gd && hit(gd, box)) {
+      g.wardBlocks++;
       if (p.parry > 0) {
         o.reflected = 1; o.vx *= -1.28; o.vy *= -1.28;
         g.parryMsg = 2.2; A.sfx.parry(); spark(o.x, o.y, 12, '#fff2b0'); g.stop(.05); g.shake(3);
       } else {
-        o.done = 1; A.sfx.block(); spark(o.x, o.y, 7, '#7fe3ff'); g.shake(2);
+        o.done = 1; g.blockMsg = 1.0; A.sfx.block(); spark(o.x, o.y, 7, '#7fe3ff'); g.shake(2);
+        if (g.wardHp > 0) { g.wardHp--; if (g.wardHp <= 0) breakWard(); }
       }
     } else if (p.inv <= 0 && hit(p, box)) {
       o.done = 1; p.hurt(o.x, g);
     }
-    if (o.reflected && g.l.ward && Math.abs(o.x - g.l.ward.x) < 30 && Math.abs(o.y - (g.l.ward.y - 30)) < 54) {
-      o.done = 1; g.wardT = 3.4; g.shake(5); A.sfx.kill(); spark(g.l.ward.x, g.l.ward.y - 34, 18, '#ffd479');
+    if (o.reflected && g.l.ward && g.wardHp > 0 && Math.abs(o.x - g.l.ward.x) < 30 && Math.abs(o.y - (g.l.ward.y - 30)) < 54) {
+      o.done = 1; breakWard();
     }
     if (o.t <= 0 || o.x < -80 || o.x > g.l.w + 80) o.done = 1;
   }
@@ -221,6 +232,10 @@ function update(dt) {
   if (g.healMsg > 0) g.healMsg -= dt;
   if (g.parryMsg > 0) g.parryMsg -= dt;
   if (g.dummyT > 0) g.dummyT -= dt;
+  if (g.cpT > 0) g.cpT -= dt;
+  if (g.wardMsg > 0) g.wardMsg -= dt;
+  if (g.blockMsg > 0) g.blockMsg -= dt;
+  if (g.sealMsg > 0) g.sealMsg -= dt;
 
   p.update(dt, g.l.solids, g);
   if (p.hp <= 0) { p.hp = 3; A.sfx.die(); respawn(); save(); }
@@ -238,19 +253,35 @@ function update(dt) {
     gr.done = 1; run.abil[gr.abil] = true; g.grant = 3.4; g.grantKind = gr.abil;
     save(); A.sfx.grant(); spark(p.x + p.w / 2, p.y + p.h / 2, 16, C.ember);
   }
-  g.prompt = '';
-  for (const pr of g.l.prompts || []) if (p.x >= pr.x) g.prompt = pr.text;
+  if (g.l.steps) {
+    for (let n = 0; n < g.l.steps.length; n++) {
+      if (g.tutStep >= g.l.steps.length - 1) break;
+      const st = g.l.steps[g.tutStep];
+      if (st.done && st.done(g)) { g.tutStep++; A.sfx.land(); continue; }
+      const nx = g.l.steps[g.tutStep + 1];
+      if (!st.hold && nx && nx.at != null && p.x > nx.at) { g.tutStep++; A.sfx.land(); continue; }
+      break;
+    }
+    const step = g.l.steps[Math.min(g.tutStep, g.l.steps.length - 1)];
+    g.prompt = step ? step.text : '';
+    g.promptKey = step ? step.key : '';
+    g.promptNo = Math.min(g.tutStep + 1, g.l.steps.length);
+  } else { g.prompt = ''; g.promptKey = ''; g.promptNo = 0; }
 
   // exits
   const ex = g.l.exit;
   if (ex && hit(p, ex)) {
-    transition(ex.to, () => {
-      if (ex.tutorial) { run.tutorialDone = true; run.abil.dash = true; }
-      if (ex.area) run.cleared[ex.area] = true;
-      run.hp = p.hp; run.scene = 'hub'; save();
-      A.sfx.grant();
-    });
-    return;
+    if (g.l.ward && g.wardHp > 0) {
+      if (g.sealMsg <= 0) { g.sealMsg = 2.4; A.sfx.block(); }
+    } else {
+      transition(ex.to, () => {
+        if (ex.tutorial) { run.tutorialDone = true; run.abil.dash = true; }
+        if (ex.area) run.cleared[ex.area] = true;
+        run.hp = p.hp; run.scene = 'hub'; save();
+        A.sfx.grant();
+      });
+      return;
+    }
   }
 
   // hub interaction
@@ -262,16 +293,16 @@ function update(dt) {
   if (d && g.dummyT <= 0) {
     const s = p.sword();
     if (s && hit(s, { x: d.x - 16, y: d.y - 48, w: 32, h: 48 })) {
-      g.dummyT = .35; spark(d.x, d.y - 30, 6, '#ffd08a'); A.sfx.block(); g.shake(2);
+      g.dummyT = .35; g.dummyHits++; spark(d.x, d.y - 30, 6, '#ffd08a'); A.sfx.block(); g.shake(2);
     }
   }
 
   // training ward
-  if (g.l.ward) {
+  if (g.l.ward && g.wardHp > 0) {
     const w = g.l.ward;
     const dist = Math.abs((p.x + p.w / 2) - w.x);
     g.wardT -= dt;
-    if (dist < w.range && g.wardT <= 0 && p.inv <= 0 && !g.dialog) fireWard();
+    if (dist < w.range && g.wardT <= 0 && p.inv <= 0 && !g.dialog && g.kills > 0) fireWard();
   }
   updateOrbs(dt);
 
@@ -281,13 +312,14 @@ function update(dt) {
     for (const t of g.l.torches) if (!t.lit && hit(s, { x: t.x - 10, y: t.y - 58, w: 20, h: 58 })) {
       t.lit = 1;
       if (!run.lit[g.id].includes(t.i)) run.lit[g.id].push(t.i);
+      if (t.cp) g.cpT = 2.2;
       A.sfx.torch(); spark(t.x, t.y - 56, 12, C.ember); g.shake(2); save();
     }
     for (const e of g.enemies) if (!p.hits.has(e) && hit(s, { x: e.x - 4, y: e.y - 4, w: e.w + 8, h: e.h + 8 })) {
       p.hits.add(e);
       const dead = e.hit(p.face);
       g.stop(.07); g.shake(5); A.sfx.hit(); spark(e.x + e.w / 2, e.y + e.h / 2, dead ? 18 : 8, C.ember);
-      if (dead) { e.dead = 1; A.sfx.kill(); }
+      if (dead) { e.dead = 1; g.kills++; A.sfx.kill(); }
     }
   }
   g.enemies = g.enemies.filter(e => !e.dead);
@@ -385,11 +417,23 @@ function drawPatino(x, y, t) {
   ctx.beginPath(); ctx.moveTo(x + 12, y - 30); ctx.lineTo(x + 20, y - 44); ctx.stroke();   // ladle
   ctx.fillStyle = '#8f9bb8'; ctx.beginPath(); ctx.arc(x + 21, y - 46, 3, 0, 7); ctx.fill();
 }
-function drawWard(x, y, t, cool) {
+function drawWard(x, y, t, cool, hp, active) {
   ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 6, y - 34, 12, 34);
   ctx.fillStyle = '#4a5578'; ctx.fillRect(x - 10, y - 40, 20, 6);
-  const ready = cool <= 0;
+  const ready = active && hp > 0 && cool <= 0;
   if (ready) glow(x, y - 46, 34, .28);
+  if (hp > 0) {
+    ctx.strokeStyle = active ? 'rgba(255,138,61,.22)' : 'rgba(90,111,150,.15)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y - 34, 22 + Math.sin(t * 2.4) * 1.5, 0, 7); ctx.stroke();
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i < hp ? (active ? C.ember : '#5a6f96') : '#3a4257';
+      ctx.fillRect(x - 9 + i * 8, y - 58, 5, 4);
+    }
+  } else {
+    ctx.strokeStyle = '#4a5578'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y - 46, 11, .4, 5.8); ctx.stroke();
+    ctx.fillStyle = '#3a4257'; ctx.fillRect(x - 2, y - 48, 4, 4);
+  }
   ctx.fillStyle = ready ? C.ember : '#3a4257';
   ctx.beginPath(); ctx.arc(x, y - 46, 7 + Math.sin(t * 4) * .8, 0, 7); ctx.fill();
   ctx.fillStyle = ready ? '#ffd08a' : '#4a5578'; ctx.fillRect(x - 2, y - 48, 4, 4);
@@ -448,9 +492,9 @@ function drawWorld() {
       if (g.near && g.near.obj === gate) T(gate.label, gate.x + gate.w / 2, gate.y - 34, 12, 'center', gateOpen(gate) ? '#ffd27a' : '#8f9bb8');
     }
   } else if (g.l.gate) {
-    drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, true);
+    drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, !g.l.ward || g.wardHp <= 0);
   }
-  if (g.l.ward) drawWard(g.l.ward.x, g.l.ward.y, g.t, g.wardT);
+  if (g.l.ward) drawWard(g.l.ward.x, g.l.ward.y, g.t, g.wardT, g.wardHp, g.kills > 0);
 
   for (const c of g.coins) if (!c.got) drawCoin(ctx, c.x, c.y + Math.sin(g.t * 3 + c.x) * 2, g.t + c.x * .11);
   for (const h of g.hearts) if (!h.got) drawHeartPickup(ctx, h.x, h.y - 8 + Math.sin(g.t * 3) * 2, 22);
@@ -476,8 +520,17 @@ function drawWorld() {
   drawHud();
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   if (g.l.kind === 'tutorial' && g.prompt && !g.paused && !g.dialog) {
-    ctx.fillStyle = 'rgba(5,7,15,.72)'; ctx.fillRect(VW / 2 - 300, 448, 600, 30);
-    T(g.prompt, VW / 2, 468, 14, 'center', '#dfe8ff');
+    const w = 720, x = (VW - w) / 2;
+    ctx.fillStyle = 'rgba(5,7,15,.80)'; ctx.fillRect(x, 444, w, 36);
+    ctx.fillStyle = 'rgba(127,227,255,.25)'; ctx.fillRect(x, 444, w, 1);
+    const tx = g.promptKey ? x + 62 : x + 18;
+    if (g.promptKey) {
+      ctx.fillStyle = '#20304a'; ctx.fillRect(x + 14, 450, 30, 24);
+      ctx.strokeStyle = '#7fe3ff'; ctx.lineWidth = 1.5; ctx.strokeRect(x + 14.5, 450.5, 29, 23);
+      T(g.promptKey, x + 29, 467, 15, 'center', '#c8f6ff');
+    }
+    T(g.prompt, tx, 467, 13, 'left', '#dfe8ff');
+    T(`TUTORIAL ${g.promptNo}/${g.l.steps.length}`, x + w - 16, 466, 11, 'right', '#5d6a8a');
   }
   if (g.near && !g.paused && !g.dialog) T(g.near.label, VW / 2, 468, 14, 'center', C.ember);
   if (g.grant > 0) {
@@ -497,6 +550,26 @@ function drawWorld() {
   if (g.parryMsg > 0) {
     ctx.globalAlpha = Math.min(1, g.parryMsg) * Math.min(1, (2.2 - g.parryMsg) * 8 + .7);
     T('PERFECT PARRY', VW / 2, 130, 30, 'center', '#fff2b0');
+    ctx.globalAlpha = 1;
+  }
+  if (g.blockMsg > 0 && g.parryMsg <= 0 && g.wardMsg <= 0 && g.sealMsg <= 0) {
+    ctx.globalAlpha = Math.min(1, g.blockMsg) * Math.min(1, (1 - g.blockMsg) * 5 + .5);
+    T('BLOCKED', VW / 2, 130, 24, 'center', '#7fe3ff');
+    ctx.globalAlpha = 1;
+  }
+  if (g.wardMsg > 0) {
+    ctx.globalAlpha = Math.min(1, g.wardMsg) * Math.min(1, (3.2 - g.wardMsg) * 4 + .4);
+    T('THE WARD BREAKS', VW / 2, g.parryMsg > 0 ? 162 : 130, 28, 'center', '#ffd27a');
+    ctx.globalAlpha = 1;
+  }
+  if (g.sealMsg > 0 && g.wardMsg <= 0) {
+    ctx.globalAlpha = Math.min(1, g.sealMsg) * Math.min(1, (2.4 - g.sealMsg) * 5 + .5);
+    T('THE WARD SEALS THE GATE', VW / 2, g.parryMsg > 0 ? 162 : 130, 20, 'center', C.ember);
+    ctx.globalAlpha = 1;
+  }
+  if (g.cpT > 0) {
+    ctx.globalAlpha = Math.min(1, g.cpT) * Math.min(1, (2.2 - g.cpT) * 5 + .5);
+    T('CHECKPOINT SET', VW / 2, 160, 18, 'center', '#ffd27a');
     ctx.globalAlpha = 1;
   }
   if (g.healMsg > 0) {
