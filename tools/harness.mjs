@@ -220,7 +220,17 @@ G.coins[0].x = P.x + 4; G.coins[0].y = P.y + 4; frames(1);
 ok(dbg.run.coins >= 1 && JSON.parse(store.get('emberknight.v1')).coins === dbg.run.coins, 'coins are banked and written to localStorage');
 ok(dbg.run.got && Array.isArray(dbg.run.got[0].c), 'the save keeps a per-phase pickup ledger');
 
-/* ================= 5. the Ash King ================= */
+/* ================= 5. the Ash King ================= *//* ================= 4b. the Ash Warden ================= */
+dbg.loadLevel(3); frames(2); G = dbg.g; P = G.p;
+const W = G.boss;
+ok(W && W.max === 16, 'the Warden loads with 16 hp');
+W.phase = 2; W.st = 'act'; W.atk = 'cleave'; W.act = .3; W.t = 0; W.chained = 0; W.iframe = 0;
+const rnd = Math.random; Math.random = () => 0;      // force the follow-up
+frames(19);
+Math.random = rnd;
+ok(W.atk === 'volley' && (W.st === 'wind' || W.st === 'volley'), 'phase 2 chains a cleave into a volley (' + W.atk + '/' + W.st + ')');
+
+
 dbg.loadLevel(7); frames(2); G = dbg.g; P = G.p;
 const K = G.boss;
 ok(K && K.title === 'THE ASH KING' && K.max === 24, 'the King loads with 24 hp');
@@ -293,6 +303,10 @@ const orb = G.hexOrbs[0];
 orb.x = P.x + P.w / 2; orb.y = P.y + 16; orb.vx = 0; orb.vy = 0;
 frames(1);
 ok(P.hp === 3 && P.debuffs[orb.hex] > 0, 'a level hexer debuffs without damage');
+P.debuffs[orb.hex] = 5; hx.applied = orb.hex;
+hx.st = 'idle'; hx.blinkCd = 99; hx.hp = 1; hx.dying = 0;
+hx.hit(); frames(45);
+ok(P.debuffs[orb.hex] <= 0, 'killing the caster clears its hex');
 P.debuffs.smother = P.debuffs.heavy = P.debuffs.snuff = 0;
 G.hexOrbs = [];
 P.debuffs.heavy = 5; P.dashCd = 0; P.dashUsed = false; P.ground = true;

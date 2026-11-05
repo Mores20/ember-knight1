@@ -36,7 +36,7 @@ export class AshWarden {
     this.guardT = 0; this.restT = 0; this.blockFlash = 0;
   }
 
-  enterGuard() { this.st = 'guard'; this.t = 0; this.guardT = this.phase === 2 ? 1.2 : 1.6; }
+  enterGuard() { this.st = 'guard'; this.t = 0; this.chained = 0; this.guardT = this.phase === 2 ? 1.2 : 1.6; }
   enterOpen() { this.st = 'open'; this.t = 0; this.cool = this.phase === 2 ? 1.0 : 1.4; }
 
   fire(p) {
@@ -184,7 +184,13 @@ export class AshWarden {
       if (this.atk === 'double' && this.pair === 0 && this.t >= .34) {          // second pair: jump, land, jump
         this.pair = 1; this.spawnWave(-1); this.spawnWave(1); g.shake(7); sfx.heavy();
       }
-      if (this.t >= this.act) { this.st = 'recover'; this.t = 0; }
+      if (this.t >= this.act) {
+        if (p2 && this.atk === 'cleave' && !this.chained && Math.random() < .6) {   // the follow-up
+          this.chained = 1;
+          this.atk = 'volley'; this.st = 'wind'; this.t = 0; this.wind = .4;
+          sfx.wind();
+        } else { this.chained = 0; this.st = 'recover'; this.t = 0; }
+      }
     } else if (this.st === 'volley') {
       const gap = p2 ? .15 : .18;
       if (this.fired < this.need && this.t >= this.fired * gap) { this.fire(p); this.fired++; }

@@ -18,7 +18,7 @@ the map of the machine.
 | `python -m http.server 8000` | Play from source at `http://127.0.0.1:8000/` (HTTP is required — ES modules and audio won't load from `file://`) |
 | `npm install` | Install the desktop/build dependencies (not needed to play) |
 | `npm start` | Run the game in an Electron window |
-| `npm test` | Headless regression suite (`tools/harness.mjs`, 74 checks, ~1 s) |
+| `npm test` | Headless regression suite (`tools/harness.mjs`, 77 checks, ~1 s) |
 | `npm run smoke` | Launch Electron, verify boot/canvas/audio/a fight, screenshot, exit code |
 | `npm run dist` | Build `dist/Ember-Knight-<version>.exe` (portable) |
 
@@ -217,7 +217,8 @@ and spawns in `level.js`. `ANCHOR` is the foot/centre pivot inside the 32 px cel
 
 States: `dormant → rise → guard → open → (wind → act | volley | charge) → rest/recover → …`.
 Every attack is telegraphed in orange. `takeHit` returns `2` when the kite shield faces you, `1`
-otherwise. Phase 2 at ⅔ hp adds hyper-armour pressure.
+otherwise. Phase 2 at ⅔ hp adds hyper-armour pressure, and a cleave has a 60% chance to chain
+straight into a volley (`chained`, reset on guard) so the shield window punishes camping.
 
 ### Ash King (`king.js`) — phase VIII, the real fight
 
@@ -233,7 +234,10 @@ He floats at a fixed height above the floor; **steel only bites while `st === 's
 - **Stun:** reflected bolt → falls to the floor → **one** impact (shake/boom/puff) → stunned
   2.4/2.2/2.0 s. Light rule in phase 3: a hit in the dark does nothing.
 - **Summons:** each phase change calls **two hexers** at `x 430` and `w-430` with `pierce: 1` orbs;
-  phase 3 tops the pair back up. They die with him or on your death.
+  phase 3 tops the pair back up. They die with him or on your death. Each carries **three health pips**
+  above its hood; killing the caster **clears the hex it applied** (`applied` tracks it).
+- **Phase-3 contrast:** hazards light themselves in the dark — bolts double their glow radius and gain
+  a white core, rain/eruption/meteor glows scale up, and hex orbs brighten with `g.dark`.
 - **Death:** `dead → gone`; the gate unseals.
 
 ---
@@ -332,7 +336,7 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
 
 ## 14. Testing
 
-`npm test` → `tools/harness.mjs` (74 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
+`npm test` → `tools/harness.mjs` (77 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
 `AudioContext` and `requestAnimationFrame`, imports the real game, and drives it:
 
 - boot + the renderer actually draws
@@ -341,8 +345,9 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
   dash-gated gaps, up-slash and plunge + bounce, and boss hurtbox padding
 - a sword kill, coins banked to localStorage
 - the King: wake, ward clang, bolt → stun, stun damage, phase flips, two flanking summons, phase-3
-  volley counts, one-shot knockdown
-- the hexer: cast → 3 orbs, debuff without damage, heavy locks the dash, snuff silences the blade
+  volley counts, one-shot knockdown; the Warden's phase-2 cleave→volley chain
+- the hexer: cast → 3 orbs, debuff without damage, heavy locks the dash, snuff silences the blade,
+  and killing the caster clears its hex
 - the menu: Esc, CONTINUE, colour persistence, diorama kills
 - story settle, card hold, ending → credits
 

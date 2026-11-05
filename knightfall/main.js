@@ -303,6 +303,7 @@ function update(dt) {
       o.done = 1;
       if (o.dmg) p.hurt(o.x, g);
       p.debuffs[o.hex] = Math.max(p.debuffs[o.hex] || 0, o.dur);
+      if (o.from) o.from.applied = o.hex;
       A.sfx.block(); spark(o.x, o.y, 8, o.hex === 'snuff' ? '#cfd8ee' : '#ffd479'); g.shake(3);
     }
     if (!o.pierce) for (const s of g.l.solids) if (!s.pass && !s.off && hit(ob, s)) { o.done = 1; break; }   // summons pierce platforms
@@ -471,6 +472,10 @@ function drawEnemy(e) {
       : e.st === 'blink' ? Math.min(2, Math.floor(e.bT / .14))
       : Math.floor(e.t * 3) % 2;
     NEWMOBS.drawMob(ctx, 'hexer', st, n, e.x + e.w / 2, e.y + e.h, e.dir, flash);
+    if (e.dying <= 0) for (let i = 0; i < e.maxHp; i++) {           // a readable health pip per cut
+      ctx.fillStyle = i < e.hp ? '#ffb066' : '#3a4257';
+      ctx.fillRect(e.x + e.w / 2 - 5 + i * 4, e.y - 8, 3, 3);
+    }
   } else if (e.type === 'bat') {
     const face = Math.cos(e.t * e.sp + e.ph) >= 0 ? 1 : -1;
     drawMob(ctx, 'bat', 'fly', Math.floor(e.t * 14 + e.ph * 3), e.x + e.w / 2, e.y + e.h / 2, face, flash);
@@ -593,6 +598,7 @@ function wardenFrame(b) {
 
 function drawWarden(b) {
   const cx = b.x + b.w / 2, fy = b.y + b.h, dead = b.st === 'dead' || b.st === 'gone';
+  const p3 = b.phase === 3;                                        // in the dark, hazards light themselves
 
   if (b.st === 'wind') {                                           // --- the tells ---
     const p = .55 + .45 * Math.abs(Math.sin(g.t * 9));
@@ -669,7 +675,7 @@ function drawWarden(b) {
       ctx.beginPath(); ctx.moveTo(drop.x, drop.surf - 10); ctx.lineTo(drop.x, drop.surf - 10 - colH); ctx.stroke();
     }
     if (down) {
-      glow(drop.x, drop.y, 26, .5);
+      glow(drop.x, drop.y, p3 ? 38 : 26, p3 ? .8 : .5);
       ctx.fillStyle = '#ffd479'; ctx.fillRect(drop.x - 3, drop.y - 8, 6, 12);
       ctx.fillStyle = '#ff8a3d'; ctx.fillRect(drop.x - 1, drop.y - 4, 2, 8);
     }
@@ -711,7 +717,7 @@ function drawWarden(b) {
       const k = Math.max(0, Math.min(1, e.t / e.life)), h = 6 + 60 * Math.sin(Math.PI * k);
       ctx.fillStyle = '#ff5a24'; ctx.fillRect(e.x - 12, e.surf - h, 24, h);
       ctx.fillStyle = '#ffd479'; ctx.fillRect(e.x - 5, e.surf - h, 10, h);
-      glow(e.x, e.surf - h * .5, 40, .35);
+      glow(e.x, e.surf - h * .5, p3 ? 56 : 40, p3 ? .6 : .35);
     }
   }
   for (const gr of b.grasps || []) {                                // ash grasp: an outline closes, then a hand
@@ -729,7 +735,7 @@ function drawWarden(b) {
     ctx.strokeStyle = `rgba(255,120,40,${.35 + .3 * Math.abs(Math.sin(g.t * 10))})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(me.x - 20, me.surf - 3); ctx.lineTo(me.x + 20, me.surf - 3); ctx.stroke();
     if (me.delay <= 0) {
-      glow(me.x, me.y, 46, .5);
+      glow(me.x, me.y, p3 ? 60 : 46, p3 ? .75 : .5);
       ctx.fillStyle = '#ff8a3d'; ctx.beginPath(); ctx.arc(me.x, me.y, 12, 0, 7); ctx.fill();
       ctx.fillStyle = '#ffd479'; ctx.beginPath(); ctx.arc(me.x - 2, me.y - 2, 5, 0, 7); ctx.fill();
       ctx.strokeStyle = 'rgba(255,150,70,.5)'; ctx.lineWidth = 3;
@@ -738,13 +744,14 @@ function drawWarden(b) {
   }
 
   for (const bolt of b.bolts || []) {                              // Ember Bolt: swing it home
-    glow(bolt.x, bolt.y, bolt.reflected ? 46 : bolt.heavy ? 40 : 26, bolt.reflected ? .55 : .4);
+    glow(bolt.x, bolt.y, (bolt.reflected ? 46 : bolt.heavy ? 40 : 26) * (p3 ? 1.5 : 1), bolt.reflected ? .55 : p3 ? .7 : .4);
     ctx.save(); ctx.translate(bolt.x, bolt.y); ctx.rotate(bolt.spin || 0);
     ctx.fillStyle = bolt.reflected ? '#fff6e0' : bolt.heavy ? '#ff5a24' : '#ff8a3d';
     ctx.strokeStyle = bolt.reflected ? '#ffd479' : '#ffc08a'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(0, 0, bolt.r, 0, 7); ctx.fill(); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,240,200,.85)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, bolt.r + 3.5, .4, 2.6); ctx.stroke();
+    if (p3) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, Math.max(2, bolt.r * .4), 0, 7); ctx.fill(); }
     ctx.restore();
   }
 
@@ -1022,7 +1029,7 @@ function renderWorld() {
   for (const e of g.enemies) drawEnemy(e);
   for (const o of g.hexOrbs) {                                     // a hex orb in flight
     const col = o.hex === 'snuff' ? '#cfd8ee' : '#ff8a3d';
-    glow(o.x, o.y, 24, .3);
+    glow(o.x, o.y, 24 + g.dark * 22, .3 + g.dark * .25);
     ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.spin || 0);
     ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 6, 0, 7); ctx.stroke();
     ctx.fillStyle = col; ctx.fillRect(-3, -3, 6, 6);

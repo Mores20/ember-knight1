@@ -151,10 +151,11 @@ export class Hexer {
   constructor(o) {
     Object.assign(this, {
       type: 'hexer', w: 22, h: 30, hp: 3, dir: 1, sp: 46, t: 0, flash: 0,
-      st: 'idle', stT: 0, hex: 'smother', lastHex: '', cool: 2.4 + Math.random() * 1.2,
+      st: 'idle', stT: 0, hex: 'smother', lastHex: '', cool: 2.4 + Math.random() * 1.2, applied: null,
       bT: 0, bJump: 0, blinkCd: 0, dying: 0, dmg: 0, summoned: 0, y0: o.y,
       x0: (o.x || 0) - 150, x1: (o.x || 0) + 150,
     }, o);
+    this.maxHp = this.hp;
   }
   cast() {
     const opts = ['smother', 'heavy', 'snuff'].filter(k => k !== this.lastHex);
@@ -171,13 +172,20 @@ export class Hexer {
     g.hexOrbs ??= [];
     for (const a of [-.24, 0, .24]) {
       g.hexOrbs.push({ x: sx, y: sy, vx: Math.cos(base + a) * 155, vy: Math.sin(base + a) * 155,
-        hex: this.hex, dmg: this.dmg, dur, t: 3.6, spin: 0, pierce: this.pierce || 0 });
+        hex: this.hex, dmg: this.dmg, dur, t: 3.6, spin: 0, pierce: this.pierce || 0, from: this });
     }
     sfx.ember();
   }
   update(dt, p, g) {
     this.t += dt; this.flash -= dt; this.blinkCd -= dt;
-    if (this.dying > 0) { this.dying -= dt; if (this.dying <= 0) this.dead = 1; return; }
+    if (this.dying > 0) {
+      this.dying -= dt;
+      if (this.dying <= 0) {
+        if (this.applied && p.debuffs && p.debuffs[this.applied] > 0) p.debuffs[this.applied] = 0;   // the hex dies with the caster
+        this.dead = 1;
+      }
+      return;
+    }
 
     const cx = this.x + this.w / 2, px = p.x + p.w / 2;
     const dx = px - cx, dist = Math.abs(dx);
