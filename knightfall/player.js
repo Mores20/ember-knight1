@@ -4,11 +4,14 @@ const MAXV = 230, ACC = 1900, GRAV = 1700, JV = -620, CUT = -240, DASH_V = 480, 
 export const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export class Player {
   constructor() { this.w = 22; this.h = 34; this.hp = 3; this.reset(80, 386); }
-  reset(x, y) { Object.assign(this, { x, y, vx: 0, vy: 0, face: 1, ground: false, groundSolid: null, coyote: 0, buf: 0, swing: 0, inv: 0, kb: 0, run: 0, hits: new Set(), dashT: 0, dashCd: 0, dashUsed: false, root: 0, crushed: 0,
+  reset(x, y) { Object.assign(this, { x, y, vx: 0, vy: 0, face: 1, ground: false, groundSolid: null, coyote: 0, buf: 0, swing: 0, inv: 0, kb: 0, run: 0, hits: new Set(), dashT: 0, dashCd: 0, dashUsed: false, root: 0, crushed: 0, aim: 'side',
       debuffs: { smother: 0, heavy: 0, snuff: 0 } }); }
   // Short hitbox in front of the knight, only live during the middle of the swing.
   sword() {
     if (this.swing <= .1 || this.swing > .2) return null;
+    const cx = this.x + this.w / 2;
+    if (this.aim === 'up') return { x: cx - 20, y: this.y - 34, w: 40, h: 38 };             // overhead cut
+    if (this.aim === 'down') return { x: cx - 20, y: this.y + this.h - 4, w: 40, h: 38 };    // plunge
     return { x: this.face > 0 ? this.x + this.w : this.x - 36, y: this.y + 2, w: 36, h: 28 };
   }
   hurt(fx, g) {
@@ -33,9 +36,14 @@ export class Player {
     }
     if (pressed.dash && this.dashT <= 0 && this.dashCd <= 0 && !this.dashUsed && g.abil.dash && !heavy) {
       this.dashT = DASH_T; this.dashCd = .4; this.dashUsed = true; // one surge per airtime
-      const dashDir = dir || this.face;                             // input wins over facing (which freezes mid-swing)
-      this.face = dashDir;
-      this.vx = dashDir * (this.ground ? DASH_VG : DASH_V);          // vy is kept: dashing at apex carries furthest
+      let ax = dir, ay = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+      if (!ax && !ay) { ax = this.face; ay = 0; }                    // neutral dash keeps the facing
+      const len = Math.hypot(ax, ay) || 1; ax /= len; ay /= len;
+      if (ax) this.face = Math.sign(ax);
+      const surge = this.ground && !ay ? DASH_VG : DASH_V;            // a pure ground dash is the short one
+      this.vx = ax * surge;
+      if (ay) this.vy = ay * surge;                                  // flat dashes keep their vertical momentum
+      sfx.dash();
       sfx.dash();
     }
     this.coyote = this.ground ? .1 : this.coyote - dt;            // coyote time
@@ -45,7 +53,11 @@ export class Player {
       if (!keys.jump && this.vy < CUT) this.vy = CUT;             // variable jump height
       this.vy = Math.min(this.vy + GRAV * dt, 900);
     }
-    if (pressed.atk && this.swing <= 0) { this.swing = .26; this.hits = new Set(); sfx.swing(); }
+    if (pressed.atk && this.swing <= 0) {
+      this.swing = .26; this.hits = new Set();
+      this.aim = keys.up ? 'up' : (keys.down && !this.ground) ? 'down' : 'side';
+      sfx.swing();
+    }
     this.swing -= dt; this.inv -= dt;
     this.crushed = this.separate(solids);                            // resolve anything we were already inside first
     this.x += this.vx * dt;

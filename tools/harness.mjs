@@ -145,6 +145,39 @@ P.y = 410; G.stopT = 0;                       // 24px inside the floor (and no h
 frames(2);
 ok(Math.abs((P.y + P.h) - 420) < 1.5, 'an embedded player is pushed back onto the floor (feet ' + (P.y + P.h).toFixed(1) + ')');
 ok(dbg.g.p.crushed === 0, 'and is not flagged as crushed by a clean depenetration');
+// eight-way dash: up, diagonal, and Space alone must not count as "up"
+dbg.loadLevel(2); frames(2); G = dbg.g; P = G.p;
+dbg.run.abil.dash = true;
+P.reset(300, 2200); P.ground = false; P.vy = 0; P.y -= 40; P.dashCd = 0; P.dashUsed = false;
+fire('keydown', 'ArrowUp'); fire('keydown', 'ShiftLeft'); frames(1);
+ok(P.vy < -300 && P.dashT > 0, 'an up dash surges upward (vy=' + P.vy.toFixed(0) + ')');
+fire('keyup', 'ArrowUp'); fire('keyup', 'ShiftLeft');
+P.reset(300, 2200); P.ground = false; P.vy = 0; P.y -= 40; P.dashCd = 0; P.dashUsed = false;
+fire('keydown', 'ArrowRight'); fire('keydown', 'ArrowDown'); fire('keydown', 'ShiftLeft'); frames(1);
+ok(P.vx > 200 && P.vy > 200, 'a diagonal dash moves on both axes (' + P.vx.toFixed(0) + ',' + P.vy.toFixed(0) + ')');
+fire('keyup', 'ArrowRight'); fire('keyup', 'ArrowDown'); fire('keyup', 'ShiftLeft');
+P.reset(300, 2266); frames(2); P.dashCd = 0; P.dashUsed = false;
+fire('keydown', 'Space'); fire('keydown', 'ShiftLeft'); frames(1);
+ok(Math.abs(P.vy) < 500 && P.vx !== 0, 'Space is jump, not an up dash (' + P.vy.toFixed(0) + ')');
+fire('keyup', 'Space'); fire('keyup', 'ShiftLeft');
+// up slash and plunge
+const mk = (await import(here('../knightfall/enemies.js'))).makeEnemy;
+function frozenMob(x, y) { const m = mk({ type: 'goblin', x: 0, y: 0, x0: 0, x1: 1, hp: 1 }); m.x = x; m.y = y; m.update = () => {}; return m; }
+dbg.loadLevel(0); frames(2); G = dbg.g; P = G.p;
+G.enemies = [];
+const above = frozenMob(0, 0); G.enemies.push(above);
+P.reset(300, 300); P.vy = 0; P.inv = 9; P.swing = 0;
+above.x = P.x; above.y = P.y - 44;
+fire('keydown', 'ArrowUp'); fire('keydown', 'KeyJ'); frames(10);
+ok(above.dead || above.hp <= 0, 'an up slash reaches the enemy overhead');
+fire('keyup', 'ArrowUp'); fire('keyup', 'KeyJ');
+const below = frozenMob(0, 0); G.enemies = [below];
+P.reset(300, 300); P.vy = 0; P.inv = 9; P.swing = 0; P.ground = false;
+below.x = P.x; below.y = P.y + P.h + 2;
+fire('keydown', 'ArrowDown'); fire('keydown', 'KeyJ'); frames(4);
+ok(below.dead || below.hp <= 0, 'a plunge reaches the enemy below');
+ok(P.vy < 0, 'a plunge that connects bounces the knight back up (vy=' + P.vy.toFixed(0) + ')');
+fire('keyup', 'ArrowDown'); fire('keyup', 'KeyJ');
 
 function leap(level, startX, y, edge, dashDelay) {
   dbg.loadLevel(level); frames(1);
@@ -213,6 +246,8 @@ frames(45);
 ok(Math.abs(K.y + K.h - 420) < 1, 'and he drops to the arena floor');
 K.iframe = 0;
 ok(K.takeHit(kbox()) === 1 && K.hp === 23, 'now the sword bites');
+K.iframe = 0;
+ok(K.takeHit({ x: K.x - 10, y: K.y + 40, w: 8, h: 10 }) === 1, 'the boss hurtbox is slightly forgiving (edge hit lands)');
 // phase 2 summons two flanking hexers
 K.hp = 17; K.phase = 1; K.st = 'stun'; K.t = 0; K.iframe = 0; K.y = 328;
 K.takeHit(kbox());

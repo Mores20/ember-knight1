@@ -79,7 +79,7 @@ Rebuild `dist/` after changing the game — the exe bundles everything.
 
 [`PROJECT.md`](PROJECT.md) is the full reference: architecture, level format, the art and audio
 pipelines, how to add a phase/mob/boss/ability, and the gotchas. `npm test` runs the headless suite
-(62 checks, about a second).
+(74 checks, about a second).
 
 ## Credits
 

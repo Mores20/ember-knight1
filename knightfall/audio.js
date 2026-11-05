@@ -41,6 +41,7 @@ export const sfx = {
   swing: () => { noise(.09, .22); tone(500, .08, 'sawtooth', .1, -250); },
   hit: () => { tone(180, .1, 'square', .4, -100); noise(.08, .3); },
   kill: () => tone(400, .18, 'square', .3, -300),
+  hitHeavy: () => { noise(.16, .3); tone(90, .2, 'square', .42, -30); },   // boss steel: lower and fatter
   coin: () => { tone(988, .07, 'square', .22); tone(1319, .14, 'square', .22, 0, .07); },
   heart: () => [523, 659, 784].forEach((f, i) => tone(f, .12, 'square', .25, 0, i * .08)),
   hurt: () => tone(200, .3, 'sawtooth', .4, -150),

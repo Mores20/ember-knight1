@@ -268,6 +268,7 @@ function update(dt) {
         continue;
       }
       const dead = e.hit(p.face);
+      if (p.aim === 'down' && !p.ground) { p.vy = -360; p.dashUsed = false; }   // plunge bounce
       g.stop(.08); g.shake(5); A.sfx.hit(); spark(e.x + e.w / 2, e.y + e.h / 2, dead ? 18 : 8, C.ember);
       if (dead) { e.dead = 1; A.sfx.kill(); }
       if (e.type === 'hexer' && !dead && e.hp <= 0) A.sfx.kill();
@@ -279,7 +280,8 @@ function update(dt) {
         A.sfx.block(); g.stop(.04); g.shake(2);
         spark(g.boss.x + g.boss.w / 2 + g.boss.dir * 10, g.boss.y + 36, 5, '#c9d4f0');
       } else if (r === 1) {                                     // the Warden has hyper-armour: no flinch
-        A.sfx.hit(); g.stop(.06); g.shake(5); spark(g.boss.x + g.boss.w / 2, g.boss.y + 34, 10, C.ember);
+        if (p.aim === 'down' && !p.ground) { p.vy = -360; p.dashUsed = false; }
+        A.sfx.hitHeavy(); g.stop(.06); g.shake(5); spark(g.boss.x + g.boss.w / 2, g.boss.y + 34, 10, C.ember);
         if (!g.boss.alive) {
           g.slain = 3.4; g.shake(16); A.sfx.bossDie(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 34, 44, C.ember);
           g.enemies = g.enemies.filter(e => !e.summoned);         // the summoned mage goes with him
@@ -430,8 +432,23 @@ function glow(x, y, r, a) {
 function knight(p) {
   if (p.inv > 0 && Math.floor(p.inv * 20) % 2) return;           // i-frame blink
   const st = p.dashT > 0 ? 'dash' : p.swing > 0 ? 'attack' : !p.ground ? 'air' : Math.abs(p.vx) > 20 ? 'run' : 'idle';
-  const u = st === 'dash' ? 1 - p.dashT / .24 : st === 'attack' ? 1 - p.swing / .26 : 0;
+  const u = st === 'dash' ? 1 - p.dashT / .22 : st === 'attack' ? 1 - p.swing / .26 : 0;
   drawKnight(ctx, st, g.t, u, p.x + p.w / 2, p.y + p.h, p.face);
+  if (p.swing > .1 && p.swing < .22 && p.aim !== 'side') {        // directional slash arc
+    const cx = p.x + p.w / 2;
+    ctx.strokeStyle = 'rgba(200,246,255,.85)'; ctx.lineWidth = 3;
+    if (p.aim === 'up') { ctx.beginPath(); ctx.arc(cx, p.y - 2, 26, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(cx, p.y + p.h + 2, 26, Math.PI * .15, Math.PI * .85); ctx.stroke(); }
+  }
+  if (p.dashT > 0) {                                              // a trail along the surge, whatever the angle
+    const sp = Math.hypot(p.vx, p.vy) || 1, tx = p.vx / sp, ty = p.vy / sp;
+    for (let i = 1; i <= 3; i++) {
+      ctx.globalAlpha = .55 * (4 - i) / 3;
+      ctx.fillStyle = i === 1 ? '#c8f6ff' : '#7fe3ff';
+      ctx.fillRect(p.x + p.w / 2 - tx * i * 13 - 3, p.y + p.h / 2 - ty * i * 13 - 3, 6, 6);
+    }
+    ctx.globalAlpha = 1;
+  }
 }
 function drawEnemy(e) {
   const flash = { flash: e.flash > 0 };

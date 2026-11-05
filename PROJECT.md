@@ -18,7 +18,7 @@ the map of the machine.
 | `python -m http.server 8000` | Play from source at `http://127.0.0.1:8000/` (HTTP is required — ES modules and audio won't load from `file://`) |
 | `npm install` | Install the desktop/build dependencies (not needed to play) |
 | `npm start` | Run the game in an Electron window |
-| `npm test` | Headless regression suite (`tools/harness.mjs`, 62 checks, ~1 s) |
+| `npm test` | Headless regression suite (`tools/harness.mjs`, 74 checks, ~1 s) |
 | `npm run smoke` | Launch Electron, verify boot/canvas/audio/a fight, screenshot, exit code |
 | `npm run dist` | Build `dist/Ember-Knight-<version>.exe` (portable) |
 
@@ -173,12 +173,18 @@ Constants: `MAXV 230`, `ACC 1900`, `GRAV 1700`, `JV -620`, `CUT -240`, `DASH_V 4
 `DASH_T .22`.
 
 - **Jump** apex ≈ 113 px; variable height via jump-cut; coyote 0.1 s; buffer 0.12 s.
-- **Dash** is one per airtime: 480 px/s in the air, 403 on the ground (decided on the press), then
-  stronger braking while grounded inside the dash cooldown. Ground surge ≈ 116 px start-to-stop.
-- **Attack:** `swing = .26 s`; the sword box is live between 0.1 s and 0.2 s, 36×28 in front.
+- **Dash** is one per airtime and eight-directional: the direction held at the press (arrows + W/S for
+  up/down, diagonals normalised) with 480 px/s in the air and 403 on a flat ground dash. Vertical speed
+  is set for up/down/diagonal surges and kept for flat ones. A cyan trail follows the surge vector.
+  Ground surge ≈ 116 px start-to-stop.
+- **Attack:** `swing = .26 s`; the box is live between 0.1 s and 0.2 s. Aim is chosen at the press:
+  36×28 in front normally, 40×38 overhead with ↑/W held, and 40×38 below with ↓/S while airborne
+  (a connecting plunge bounces the knight with `vy = -360` and refreshes the dash).
 - **Parry:** a live swing against a projectile reflects it (boss bolts and archer arrows).
 - **Lantern:** 3 sparks thrown with E; they light gameplay light and the veil.
 - **Hearts:** 3; `hurt` gives 1.2 s invulnerability + knockback.
+- **Boss hurtboxes** are padding (`hurtbox()`, +6 px x / +4 px y) so melee lands at the edges; contact
+  damage still uses the tight `box()`.
 - **Debuffs** (`p.debuffs`): `smother` (aura 122→62 px), `heavy` (×0.65 speed, ×0.82 jump, no dash),
   `snuff` (sword deals no damage). Times tick down in `update`.
 - `p.root` (from snares) pins horizontal movement and blocks jumping.
@@ -326,12 +332,13 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
 
 ## 14. Testing
 
-`npm test` → `tools/harness.mjs` (62 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
+`npm test` → `tools/harness.mjs` (74 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
 `AudioContext` and `requestAnimationFrame`, imports the real game, and drives it:
 
 - boot + the renderer actually draws
 - all eight phases load; spawns and every walking enemy sit on solids; titles/lore/gates/checkpoints exist
-- jump height, dash speeds and distances, and the two dash-gated gaps (with and without the dash)
+- jump height, eight-way dash directions (and Space not counting as up), dash distances, the two
+  dash-gated gaps, up-slash and plunge + bounce, and boss hurtbox padding
 - a sword kill, coins banked to localStorage
 - the King: wake, ward clang, bolt → stun, stun damage, phase flips, two flanking summons, phase-3
   volley counts, one-shot knockdown

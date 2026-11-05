@@ -34,6 +34,7 @@ export class AshKing {
   }
   get alive() { return this.hp > 0; }
   box() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  hurtbox() { return { x: this.x - 6, y: this.y - 4, w: this.w + 12, h: this.h + 8 }; }   // a little forgiving for melee
   reset() {
     this.x = this.x0; this.y = this.y0; this.hp = this.max; this.dir = -1;
     this.st = 'dormant'; this.t = 0; this.cool = 1.2; this.atk = null; this.lastAtk = null; this.wind = 1;
@@ -210,7 +211,7 @@ export class AshKing {
   }
   takeHit(sw) {
     if (this.st === 'dormant' || this.st === 'rise' || this.st === 'enrage' || this.st === 'dead' || this.st === 'gone') return 0;
-    if (!hit(sw, this.box())) return 0;
+    if (!hit(sw, this.hurtbox())) return 0;
     if (this.st !== 'stun') return 2;                          // the ward: every other swing clangs
     if (this.phase === 3 && !this.lit) return 0;               // in the dark only light can reach him
     if (this.iframe > 0) return 0;
