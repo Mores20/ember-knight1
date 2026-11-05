@@ -74,19 +74,24 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
 ok(hub.l.hub.gates.length === 2, 'the hub has two gates');
+ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 /* ================= 2. hub interactions ================= */
 hub.p.hp = 1; hub.p.x = hub.l.hub.hearth.x - 12; hub.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
 ok(hub.p.hp === 3, 'Patino\u2019s Hearth heals to full');
 
-hub.p.x = hub.l.hub.dummy.x - 20; hub.p.y = 386; hub.p.face = 1; hub.p.swing = .15; frames(2);
+hub.p.x = hub.l.hub.dummy.x - 20; hub.p.y = 386; hub.p.face = 1; hub.p.swing = .15; frames(8);
 ok(hub.dummyT > 0 || hub.parts.length > 0, 'the practice dummy takes a sword hit');
 
 hub.p.x = 140; hub.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
-ok(hub.dialog && hub.dialog.name === 'CLINT', 'Clint talks in the hub');
+ok(hub.dialog && hub.dialog.pages[0].who === 'CLINT' && hub.dialog.pages.length === 2, 'Clint talks, with a knight reply the first time');
 hub.dialog = null;
+fire('keydown', 'KeyF'); frames(8); fire('keyup', 'KeyF'); frames(2);
+ok(hub.dialog && hub.dialog.pages.length === 1, 'talking again skips the repeated reply');
+hub.dialog = null;
+ok(JSON.parse(store.get('emberknight.v2')).talked.clint.n === 2, 'the conversation count is saved');
 
 hub.p.x = 1480; hub.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
@@ -102,9 +107,21 @@ ok(JSON.parse(store.get('emberknight.v2')).cleared.I === true, 'area progress is
 
 /* ================= 4. Gate II after the clear ================= */
 const hub2 = dbg.g;
+ok(hub2.stage === 2 && !hub2.l.solids.some(s => s.barrier), 'Area I clears the Market Lane barrier and wakes the town');
+
+hub2.p.x = 140; hub2.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(hub2.dialog && hub2.dialog.pages[0].who === 'CLINT' && hub2.dialog.pages[0].text.includes('Still alive'), 'Clint has a stage-2 line and a new reply');
+hub2.dialog = null;
+
+hub2.p.x = 520; hub2.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(hub2.dialog && hub2.dialog.pages[0].who === 'PATINO', 'Patino talks by the hearth');
+hub2.dialog = null;
+
 hub2.p.x = 1740; hub2.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
-ok(hub2.dialog && hub2.dialog.name === 'MARKET LANE', 'Gate II acknowledges the cleared area');
+ok(hub2.dialog && hub2.dialog.pages[0].who === 'MARKET LANE', 'Gate II acknowledges the cleared area');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);

@@ -84,13 +84,26 @@ export const HUB = {
   hub: {
     hearth: { x: 420, y: 420 },
     dummy: { x: 700, y: 420 },
+    barrier: { x: 1620, y: 250, w: 120, h: 170 },
     npcs: [
-      { id: 'clint', name: 'CLINT', x: 140, y: 420 },
-      { id: 'patino', name: 'PATINO', x: 520, y: 420 },
+      { id: 'clint', name: 'CLINT', x: 140, y: 420,
+        lines: {
+          1: ['Oh good, another hero. Ash is that way. Dying is that way too.',
+              'The gate opens when the road is clear. It has opinions about who clears it.'],
+          2: ['Still alive? Huh. Fine. Tip: parry the big ones. Dodging is for cowards. And me.',
+              'The town\u2019s waking up. Don\u2019t let it go to your head.'],
+        } },
+      { id: 'patino', name: 'PATINO', x: 520, y: 420,
+        lines: {
+          1: ['...Hot stew. It\u2019s not much. But it\u2019s warm.',
+              'Found some ashroot. Added it. Hope you like it.'],
+          2: ['People are coming back. They keep asking for seconds. I... don\u2019t mind.',
+              'There\u2019s a story that the first hearth is hidden in the final hall. I\u2019d like to see it, someday.'],
+        } },
     ],
     gates: [
-      { x: 1500, y: 330, w: 90, h: 90, to: 'area1', label: 'GATE I \u2014 THE EMBER ROAD', open: true },
-      { x: 1750, y: 330, w: 90, h: 90, to: null, label: 'GATE II \u2014 THE SUNKEN CRYPT', openWhen: 'ICleared',
+      { x: 1500, y: 330, w: 90, h: 90, to: 'area1', label: 'GATE I \u2014 THE EMBER ROAD', short: 'THE EMBER ROAD', open: true },
+      { x: 1750, y: 330, w: 90, h: 90, to: null, label: 'GATE II \u2014 THE SUNKEN CRYPT', short: 'MARKET LANE', openWhen: 'ICleared',
         closed: 'Sealed in ash. The Crypt\u2019s guardian still stands.' },
     ],
   },

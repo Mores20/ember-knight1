@@ -1,8 +1,25 @@
-# Ember Knight — V2 Vertical Slice (V0 + V1)
+# Ember Knight — V2 Vertical Slice (V0 + V1 + V2)
 
 A separate branch (`v2-vertical-slice`) proving the shape of the world-design document:
 **tutorial road → Cinderhaven → Area I → back to Cinderhaven**. The shipped v1 game on `main`
 is untouched.
+
+## V2 — Cinderhaven
+
+The hub is now a real place, not a placeholder street:
+
+- **Two visual stages.** Stage 1 is cold and half-lit: a few windows, one lamp, heavy ash, the
+  Market Lane barrier up. Clearing Area I moves the town to stage 2: every window lit, string
+  lights, lamplight, warm awnings, fewer ash and rising gold embers, and the barrier gone.
+- **The street grows.** The Market Lane barricade is a real solid in stage 1; after Area I it is
+  removed, the Gate II sign reads OPEN, and the road continues.
+- **District details.** The arrival gatehouse and Clint's perch, Ash Square's hearth/bench/sign,
+  Patino's pot and steam, a notice board, three market stalls, lamps, crates, a broken castle on the
+  horizon, chimney smoke, and the banner over the square.
+- **Dialogue with portraits.** Clint and Patino have stage-specific lines. The first talk in each
+  stage also shows the knight's reply (arrogant in stage 1, softened in stage 2). Conversations
+  cycle, and the count is saved under `run.talked`.
+- **Cinderhaven wakes.** Returning after Area I shows **THE TOWN IS WAKING** and relights the street.
 
 ## V1 — the tutorial lesson
 
@@ -78,7 +95,8 @@ that lands with the Brute in V4.
 ## Deliberately deferred
 
 - V1 done: the ten-step tutorial, the checkpoint torch, and the ward-gated exit.
-- V2: hub visual pass, full Clint/Patino dialogue, district lighting.
+- V2 done: stage lighting, the Market Lane barrier, the rebuilt street and the full Clint/Patino
+  conversations.
 - V3: split Area I into 1-1/1-2/1-3, including the wagon secret and per-level exits.
 - V4: Road Scavenger (steals, drops, never permanently loses coins), Cinder Crow, Gatekeeper Brute.
 - V5: D2 Market Lane, merchant payoff, tuning, screenshots, docs.

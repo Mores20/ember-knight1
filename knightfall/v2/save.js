@@ -9,7 +9,7 @@ export const freshRun = () => ({
   scene: 'tutorial',
   hp: 2, coins: 0, gold: 0, time: 0,
   abil: { dash: false, lantern: false },
-  got: {}, lit: {}, secrets: {}, cleared: { I: false },
+  got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false },
   skin: 'iron', emberSword: false, titled: false,
 });
 
@@ -30,6 +30,7 @@ export function loadRun() {
   if (!out.got || typeof out.got !== 'object') out.got = {};
   if (!out.lit || typeof out.lit !== 'object') out.lit = {};
   if (!out.secrets || typeof out.secrets !== 'object') out.secrets = {};
+  if (!out.talked || typeof out.talked !== 'object') out.talked = {};
   return out;
 }
 
