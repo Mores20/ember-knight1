@@ -95,15 +95,33 @@ ok(JSON.parse(store.get('emberknight.v2')).talked.clint.n === 2, 'the conversati
 
 hub.p.x = 1480; hub.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
-ok(dbg.sceneId === 'area1' && dbg.g.l.kind === 'level', 'Gate I opens Area I');
+ok(dbg.sceneId === 'a1' && dbg.g.l.kind === 'level', 'Gate I opens 1-1');
 
-/* ================= 3. Area I and the return trip ================= */
-const area = dbg.g;
-ok(area.enemies.length > 0 && area.l.exit && area.l.cps.length > 0, 'Area I has enemies, checkpoints and an exit');
-const ex = area.l.exit;
-area.p.x = ex.x + ex.w / 2 - area.p.w / 2; area.p.y = ex.y + ex.h - area.p.h; frames(40);
-ok(dbg.sceneId === 'hub' && dbg.run.cleared.I === true, 'the Area I gate returns to the hub and marks the area cleared');
+/* ================= 3. Area I: three levels and the return trip ================= */
+const a1 = dbg.g;
+ok(a1.enemies.length > 0 && a1.l.exit && a1.l.cps.length > 0, '1-1 has enemies, checkpoints and an exit');
+
+const sec1 = a1.l.secrets[0];
+const ledge1 = a1.l.solids.find(s => s.oneway && s.y >= sec1.y + sec1.h - 70 && s.y <= sec1.y + sec1.h);
+a1.p.reset(sec1.x + sec1.w / 2 - a1.p.w / 2, ledge1.y - a1.p.h); frames(3);
+ok((dbg.run.secrets.a1 || []).includes(0), 'the Cook\u2019s Satchel is a discoverable secret');
+
+a1.p.x = a1.l.exit.x + a1.l.exit.w / 2 - a1.p.w / 2; a1.p.y = a1.l.exit.y + a1.l.exit.h - a1.p.h; frames(40);
+ok(dbg.sceneId === 'a2' && dbg.run.levels.I[0] === true, '1-1 leads to 1-2 and is marked cleared');
+dbg.returnHub(); frames(3);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.I === false, 'returning to town keeps Area I unfinished');
+const hres = dbg.g;
+hres.p.x = 1480; hres.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'a2', 'Gate I resumes at the first uncleared level');
+const a2 = dbg.g;
+a2.p.x = a2.l.exit.x + a2.l.exit.w / 2 - a2.p.w / 2; a2.p.y = a2.l.exit.y + a2.l.exit.h - a2.p.h; frames(40);
+ok(dbg.sceneId === 'a3' && dbg.run.levels.I[1] === true, '1-2 leads to 1-3 and is marked cleared');
+const a3 = dbg.g;
+a3.p.x = a3.l.exit.x + a3.l.exit.w / 2 - a3.p.w / 2; a3.p.y = a3.l.exit.y + a3.l.exit.h - a3.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.I === true && dbg.run.levels.I[2] === true, '1-3 returns to the hub and completes Area I');
 ok(JSON.parse(store.get('emberknight.v2')).cleared.I === true, 'area progress is saved');
+ok(JSON.parse(store.get('emberknight.v2')).levels.I.every(Boolean), 'level progress is saved');
 
 /* ================= 4. Gate II after the clear ================= */
 const hub2 = dbg.g;
@@ -126,7 +144,7 @@ ok(hub2.dialog && hub2.dialog.pages[0].who === 'MARKET LANE', 'Gate II acknowled
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);
 ok(dbg.sceneId === 'tutorial' && dbg.run.tutorialDone === false, 'New Game starts on the tutorial road');
-ok(dbg.TOTAL_COINS === SCENES.tutorial.coins.length + SCENES.area1.coins.length, 'the coin total is derived from the slice scenes');
+ok(dbg.TOTAL_COINS === SCENES.tutorial.coins.length + SCENES.a1.coins.length + SCENES.a2.coins.length + SCENES.a3.coins.length, 'the coin total is derived from the slice scenes');
 
 const tut = dbg.g;
 ok(tut.tutStep === 0 && tut.prompt.includes('move'), 'the tutorial starts on the move step');
@@ -199,6 +217,11 @@ for (const id of Object.keys(SCENES)) {
   if (!L.cps || !L.cps.length) bad.push(id + ' cps');
   if (id !== 'hub' && !L.exit && !L.gate) bad.push(id + ' exit');
   if (id === 'hub' && (!L.hub || !L.hub.gates.length)) bad.push(id + ' gates');
+  for (const sec of L.secrets || []) {
+    const ledge = L.solids.some(s => s.oneway && s.y >= sec.y + sec.h - 70 && s.y <= sec.y + sec.h);
+    const reward = L.coins.concat(L.hearts).some(([x, y]) => x > sec.x && x < sec.x + sec.w && y > sec.y && y < sec.y + sec.h);
+    if (!ledge || !reward) bad.push(id + ' secret');
+  }
 }
 ok(bad.length === 0, 'every v2 scene loads with a solid spawn, checkpoints and an exit' + (bad.length ? ' -> ' + bad.join(', ') : ''));
 ok((calls.fillRect || 0) > 1000, 'the v2 renderer actually draws (' + (calls.fillRect || 0) + ' rects)');

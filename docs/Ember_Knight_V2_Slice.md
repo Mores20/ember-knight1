@@ -1,10 +1,31 @@
-# Ember Knight — V2 Vertical Slice (V0 + V1 + V2)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3)
 
 A separate branch (`v2-vertical-slice`) proving the shape of the world-design document:
 **tutorial road → Cinderhaven → Area I → back to Cinderhaven**. The shipped v1 game on `main`
 is untouched.
 
-## V2 — Cinderhaven
+## V3 - Area I in three levels
+
+The old single Ember Road is now the three-level area from the design document:
+
+| Level | Name | Shape |
+|---|---|---|
+| 1-1 | The Torchlit Ledge | The road in, the first gap, the wagon secret, a goblin and two bats |
+| 1-2 | The Broken Causeway | The chasm, broken stones, two bats, the Keeper's Niche |
+| 1-3 | The Keep Steps and Gate | Ascending steps, the keep roof, a goblin guard and the Warden's gate |
+
+- **The Cook's Satchel** sits on a one-way wagon ledge above the first gap in 1-1: three coins and a
+  heart. **The Keeper's Niche** is the optional upper route above the causeway in 1-2, marked by an
+  abandoned banner: three coins and a heart.
+- Levels auto-advance through per-level exits. 1-1 and 1-2 mark themselves cleared; 1-3 marks the
+  area cleared and returns to Cinderhaven.
+- `run.levels.I` tracks the three levels. Gate I resumes at the first uncleared level, and its town
+  sign shows progress (0/3 to 3/3). After 1-3, the town wakes.
+- Each level has its own checkpoint, collectibles, torches and exit. The Gatekeeper Brute, Road
+  Scavenger and Cinder Crow still arrive in V4; 1-3 currently ends at the open gate.
+- The v2 coin total is now **46** across the tutorial and the three area levels.
+
+## V2 - Cinderhaven
 
 The hub is now a real place, not a placeholder street:
 
@@ -64,8 +85,9 @@ npm test          # the shipped 104-check suite; must stay green
   the ward-gated exit, coins/hearts, and the gate into the hub.
 - **Cinderhaven stage 1:** D0 Arrival + D1 Ash Square. Safe street, Clint the gargoyle, Patino's
   Hearth (heal + save), practice dummy, Gate I open, Gate II sealed.
-- **Area I placeholder:** the shipped Ember Road, re-homed as Area I until V3 splits it into
-  1-1/1-2/1-3. Its gate returns to the hub and marks Area I cleared.
+- **Area I in three levels:** 1-1 The Torchlit Ledge, 1-2 The Broken Causeway, 1-3 The Keep Steps
+  and Gate. The area gate resumes at the first uncleared level; 1-3 returns to the hub and marks the
+  area cleared.
 - **Save v2:** `emberknight.v2`, separate from `emberknight.v1`.
 - **Import:** a v1 save with progress is imported once (gold, skin, ember sword, title, abilities,
   tutorial marked done). The v1 save is never modified.
@@ -87,7 +109,8 @@ that lands with the Brute in V4.
 
 1. New browser with no save → tutorial.
 2. Tutorial gate → Cinderhaven, `tutorialDone = true`.
-3. Gate I → Area I; the Area I gate → Cinderhaven, `cleared.I = true`.
+3. Gate I → 1-1 → 1-2 → 1-3 → Cinderhaven, `cleared.I = true`. Gate I resumes at the first
+   uncleared level if you return to town early.
 4. Gate II then says the market lane is open (the merchant arrives in V5).
 5. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
@@ -97,13 +120,13 @@ that lands with the Brute in V4.
 - V1 done: the ten-step tutorial, the checkpoint torch, and the ward-gated exit.
 - V2 done: stage lighting, the Market Lane barrier, the rebuilt street and the full Clint/Patino
   conversations.
-- V3: split Area I into 1-1/1-2/1-3, including the wagon secret and per-level exits.
+- V3 done: the three Ember Road levels, per-level exits, the Cook's Satchel and the Keeper's Niche.
 - V4: Road Scavenger (steals, drops, never permanently loses coins), Cinder Crow, Gatekeeper Brute.
 - V5: D2 Market Lane, merchant payoff, tuning, screenshots, docs.
 
 ## Known placeholders
 
-- Area I is still the shipped Ember Road (merchant removed, but the level is otherwise v1).
-- The hub uses the road backdrop plus simple town silhouettes; it is not the final art.
+- The hub uses the road backdrop plus town silhouettes; it is not the final art.
 - There is no title menu yet: the build boots into the tutorial or the imported hub.
-- Enemy placements in Area I are the v1 placements, not the final 1-1/1-2/1-3 split.
+- 1-3 ends at an open gate until the Gatekeeper Brute lands in V4; the Scavenger and Cinder Crow
+  are also V4.

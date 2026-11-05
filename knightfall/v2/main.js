@@ -117,6 +117,18 @@ function tickFade(dt) {
 
 const gateOpen = gate => !!(gate.open || (gate.openWhen === 'ICleared' && run.cleared.I));
 
+const AREA_LEVELS = { I: ['a1', 'a2', 'a3'] };
+function areaStart(area) {
+  const ids = AREA_LEVELS[area] || [];
+  const arr = run.levels[area] || [];
+  const i = ids.findIndex((_, k) => !arr[k]);
+  return i < 0 ? ids[0] : ids[i];
+}
+function markLevel(area, index) {
+  const arr = run.levels[area] = run.levels[area] || [];
+  arr[index] = true;
+}
+
 function nearest() {
   const p = g.p, cx = p.x + p.w / 2;
   if (g.l.hub) {
@@ -148,8 +160,10 @@ function useNear() {
   if (n.type === 'gate') {
     const gate = n.obj;
     if (gateOpen(gate)) {
-      if (gate.to) transition(gate.to, () => { run.hp = g.p.hp; persist(run); });
-      else g.dialog = { pages: [{ who: 'MARKET LANE', text: 'The lane is open. The merchant is still setting up his stall.' }], i: 0, t: 0 };
+      if (gate.to) {
+        const dest = gate.to === 'a1' ? areaStart('I') : gate.to;
+        transition(dest, () => { run.hp = g.p.hp; persist(run); });
+      } else g.dialog = { pages: [{ who: 'MARKET LANE', text: 'The lane is open. The merchant is still setting up his stall.' }], i: 0, t: 0 };
     } else {
       g.dialog = { pages: [{ who: 'SEALED GATE', text: gate.closed || 'Sealed in ash.' }], i: 0, t: 0 };
       A.sfx.block();
@@ -281,9 +295,9 @@ function update(dt) {
     } else {
       transition(ex.to, () => {
         if (ex.tutorial) { run.tutorialDone = true; run.abil.dash = true; }
-        if (ex.area) run.cleared[ex.area] = true;
-        run.hp = p.hp; run.scene = 'hub'; save();
-        A.sfx.grant();
+        if (ex.level != null) markLevel(ex.area || 'I', ex.level);
+        if (ex.complete) { run.cleared[ex.area] = true; A.sfx.grant(); } else A.sfx.land();
+        run.hp = p.hp; run.scene = ex.to; save();
       });
       return;
     }
@@ -593,6 +607,14 @@ function townHouse(x, base, w, h, alpha, stage, seed, t) {
   ctx.globalAlpha = 1;
 }
 
+function drawWaystone(x, y, text, sub) {
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 3, y - 64, 6, 64);
+  ctx.fillStyle = '#c9b06b'; ctx.fillRect(x - 54, y - 94, 108, 32);
+  ctx.strokeStyle = '#6b5a2e'; ctx.lineWidth = 1; ctx.strokeRect(x - 53.5, y - 93.5, 107, 31);
+  T(text, x, y - 80, 8, 'center', '#3a2a20');
+  if (sub) T(sub, x, y - 68, 7, 'center', '#5a4030');
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(x - 2, y - 64, 4, 3);
+}
 function drawSign(x, y, text, col = '#ffd27a', sub = '') {
   ctx.fillStyle = '#1a2030'; ctx.fillRect(x - 50, y - 13, 100, 27);
   ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(x - 49.5, y - 12.5, 99, 26);
@@ -669,7 +691,7 @@ function drawHubWorld(h, p, stage) {
   drawLamp(900, 420, g.t, warm);
   drawLamp(1300, 420, g.t, warm);
 
-  drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a');
+  drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a', `${(run.levels.I || []).filter(Boolean).length}/3`);
   if (warm) drawSign(1795, 292, 'MARKET LANE', '#ffd27a', 'OPEN');
   if (!warm && h.barrier) drawBarrier(h.barrier.x, h.barrier.y, h.barrier.w, h.barrier.h, g.t);
   if (warm) {
@@ -695,6 +717,7 @@ function drawWorld() {
   ctx.setTransform(1, 0, 0, 1, -g.cam.x + (Math.random() - .5) * g.shk * 2, BAR - g.cam.y + (Math.random() - .5) * g.shk * 2);
   for (const s of g.l.solids) if (!s.off && !s.pass && !s.barrier) drawSolid(ctx, s, g.l.style || 'road', s.broken);
   drawProps(ctx, g.props, g.l.style || 'road', g.t);
+  for (const sg of g.l.signs || []) drawWaystone(sg.x, sg.y, sg.text, sg.sub);
 
   for (const [x, y] of g.l.lights || []) { ctx.fillStyle = C.ember; ctx.beginPath(); ctx.arc(x, y - 6, 3, 0, 7); ctx.fill(); }
   for (const t of g.l.torches) {

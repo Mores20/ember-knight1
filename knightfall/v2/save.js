@@ -9,7 +9,7 @@ export const freshRun = () => ({
   scene: 'tutorial',
   hp: 2, coins: 0, gold: 0, time: 0,
   abil: { dash: false, lantern: false },
-  got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false },
+  got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false }, levels: { I: [false, false, false] },
   skin: 'iron', emberSword: false, titled: false,
 });
 
@@ -31,6 +31,8 @@ export function loadRun() {
   if (!out.lit || typeof out.lit !== 'object') out.lit = {};
   if (!out.secrets || typeof out.secrets !== 'object') out.secrets = {};
   if (!out.talked || typeof out.talked !== 'object') out.talked = {};
+  out.levels = { ...freshRun().levels, ...(r.levels || {}) };
+  if (!Array.isArray(out.levels.I)) out.levels.I = [false, false, false];
   return out;
 }
 
