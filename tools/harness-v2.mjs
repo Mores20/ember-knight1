@@ -175,9 +175,39 @@ fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
 ok(hub2.dialog && hub2.dialog.pages[0].who === 'PATINO', 'Patino talks by the hearth');
 hub2.dialog = null;
 
-hub2.p.x = 1740; hub2.p.y = 386; frames(2);
+/* ================= 4b. Market Lane and the merchant ================= */
+ok(hub2.l.w >= 2400 && hub2.l.hub.market, 'Market Lane extends the street past Gate II');
+hub2.p.x = 1980; hub2.p.y = 386; frames(2);
+ok(hub2.near && hub2.near.type === 'merchant', 'the Sketchy Merchant waits in Market Lane');
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
-ok(hub2.dialog && hub2.dialog.pages[0].who === 'MARKET LANE', 'Gate II acknowledges the cleared area');
+ok(!!hub2.shop, 'F opens the merchant shop');
+
+dbg.run.gold = 100; hub2.p.hp = 2; hub2.shop.sel = 0;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(hub2.p.hp === 3 && dbg.run.gold === 85 && hub2.shopStock[0] === 1, 'an Ashroot Potion heals one and costs 15');
+
+hub2.shop.sel = 2;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(hub2.p.shield === 1 && dbg.run.shield === 1 && dbg.run.gold === 50, 'the Ember Shield unlocks after Area I');
+
+hub2.p.hp = 1; hub2.shop.sel = 3;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(hub2.p.hp === 3 && dbg.run.gold === 10 && hub2.shopStock[3] === 0, 'the Greater Heart heals two');
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(dbg.run.gold === 10 && hub2.shop.msg.includes('Sold out'), 'bought-out stock refuses further sales');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(1);
+ok(!hub2.shop, 'F leaves the shop');
+
+dbg.loadScene('hub'); frames(2);
+ok(dbg.g.p.shield === 1, 'the shield is carried across a scene load');
+const hs = dbg.g, hp0 = hs.p.hp; hs.p.inv = 0; hs.p.hurt(hs.p.x + 30, hs); frames(6);
+ok(hs.p.hp === hp0 && hs.p.shield === 0 && dbg.run.shield === 0, 'the shield eats one hit and is spent');
+
+hs.p.x = 1980; hs.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+dbg.run.gold = 5; hs.p.hp = 2; hs.shop.sel = 0;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(hs.p.hp === 2 && dbg.run.gold === 5 && hs.shop.msg.includes('short'), 'a poor knight cannot buy');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);

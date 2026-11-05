@@ -47,7 +47,7 @@ const spark = (x, y, n, col) => {
     g.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, l: .5 + Math.random() * .3, col });
   }
 };
-const save = () => { if (g) run.hp = Math.max(1, Math.min(3, g.p.hp)); persist(run); };
+const save = () => { if (g) { run.hp = Math.max(1, Math.min(3, g.p.hp)); run.shield = g.p.shield ? 1 : 0; } persist(run); };
 
 function loadScene(id) {
   const L = SCENES[id];
@@ -73,6 +73,7 @@ function loadScene(id) {
   }
   const p = new Player(); p.reset(L.spawn[0], L.spawn[1]);
   p.hp = Math.max(1, Math.min(3, run.hp));
+  p.shield = run.shield ? 1 : 0;
   const camX = Math.max(0, Math.min(l.w - VW, p.x - 380));
   g = {
     l, id, p, abil: run.abil, stage,
@@ -85,7 +86,8 @@ function loadScene(id) {
     parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: 0 }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
-    paused: false, pauseSel: 0, dialog: null, prompt: '', near: null,
+    paused: false, pauseSel: 0, dialog: null, prompt: '', near: null, shop: null,
+    shopStock: id === 'hub' ? [2, 1, 1, 1] : null,
     found: 0, foundName: '', grant: 0, grantKind: 'dash', healMsg: 0,
     stageMsg: id === 'hub' && stage === 2 ? 3.2 : 0,
     dummyT: 0, parryMsg: 0, state: 'play', blockEnabled: true,
@@ -132,14 +134,68 @@ function markLevel(area, index) {
   arr[index] = true;
 }
 
+/* ---- the Sketchy Merchant: the D2 shop, paid from the gold purse ---- */
+const SHOP_ITEMS = [
+  { name: 'ASHROOT POTION', price: 15, blurb: 'one heart back', sold: 'Chew it. Do not ask what is in it.',
+    can: () => g.p.hp < 3, apply: () => { g.p.hp = Math.min(3, g.p.hp + 1); } },
+  { name: 'CLEANSING FLASK', price: 20, blurb: 'wash off a hex', sold: 'Tastes like a wet boot. It works.',
+    can: () => true, apply: () => { for (const k in g.p.debuffs) g.p.debuffs[k] = 0; } },
+  { name: 'EMBER SHIELD', price: 35, blurb: 'eats one hit', sold: 'Hold it up. Try not to die.',
+    can: () => true, unlock: () => !!run.cleared.I, apply: () => { g.p.shield = 1; run.shield = 1; } },
+  { name: 'GREATER HEART', price: 40, blurb: 'two hearts back', sold: 'For the truly battered.',
+    can: () => g.p.hp < 3, unlock: () => !!run.cleared.I, apply: () => { g.p.hp = Math.min(3, g.p.hp + 2); } },
+];
+function openShop() { g.shop = { sel: 0, msg: '' }; A.sfx.grant(); }
+function shopUpdate() {
+  const s = g.shop;
+  if (pressed.up || pressed.down) {
+    s.sel = (s.sel + (pressed.down ? 1 : SHOP_ITEMS.length - 1)) % SHOP_ITEMS.length;
+    A.sfx.land();
+  }
+  if (pressed.talk) { g.shop = null; A.sfx.block(); return; }
+  if (!pressed.ok) return;
+  const i = s.sel, it = SHOP_ITEMS[i];
+  if (it.unlock && !it.unlock()) { s.msg = 'Not for the likes of you. Not yet.'; A.sfx.block(); return; }
+  if (g.shopStock[i] <= 0) { s.msg = 'Sold out. Tragic.'; A.sfx.block(); return; }
+  if (!it.can()) { s.msg = 'You do not need that.'; A.sfx.block(); return; }
+  if (run.gold < it.price) { s.msg = 'You are short. Also tragic.'; A.sfx.block(); return; }
+  run.gold -= it.price; g.shopStock[i]--; it.apply();
+  s.msg = it.sold; A.sfx.coin(); save();
+}
+function drawShop() {
+  const s = g.shop;
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
+  ctx.fillStyle = 'rgba(5,7,15,.55)'; ctx.fillRect(0, 0, VW, VH);
+  const w = 690, h = 310, x = (VW - w) / 2, y = 116;
+  ctx.fillStyle = 'rgba(5,7,15,.96)'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#2f3750'; ctx.fillRect(x, y, w, 2); ctx.fillRect(x, y + h - 2, w, 2);
+  T('THE SKETCHY MERCHANT', x + 24, y + 30, 20, 'left', C.ember);
+  T('"You broke the Brute. He owed me money."', x + 24, y + 54, 12, 'left', '#8f9bb8');
+  T('GOLD ' + run.gold, x + w - 24, y + 30, 16, 'right', '#ffd84a');
+  SHOP_ITEMS.forEach((it, i) => {
+    const iy = y + 86 + i * 42, on = i === s.sel, locked = it.unlock && !it.unlock();
+    if (on) { ctx.fillStyle = 'rgba(127,227,255,.12)'; ctx.fillRect(x + 12, iy - 18, w - 24, 34); }
+    T(it.name, x + 24, iy, 15, 'left', locked ? '#4a5578' : on ? '#e4ecff' : '#cfd8ee');
+    T(it.blurb, x + 292, iy, 12, 'left', '#5d6a8a');
+    T(locked ? 'LOCKED' : g.shopStock[i] > 0 ? it.price + 'g  x' + g.shopStock[i] : 'SOLD OUT',
+      x + w - 24, iy, 14, 'right', locked ? '#4a5578' : g.shopStock[i] > 0 ? '#ffd84a' : '#5d6a8a');
+  });
+  T(s.msg || '', x + 24, y + h - 34, 13, 'left', '#8f9bb8');
+  T('\u2191\u2193 SELECT   ENTER BUY   F LEAVE', x + w - 24, y + h - 34, 11, 'right', '#4a5578');
+}
+
 function nearest() {
   const p = g.p, cx = p.x + p.w / 2;
   if (g.l.hub) {
     const h = g.l.hub;
     const near = (x, y, r = 72) => Math.abs(cx - x) < r && Math.abs((p.y + p.h) - y) < 70;
-    for (const gate of h.gates) if (near(gate.x + gate.w / 2, gate.y + gate.h)) return { type: 'gate', obj: gate, label: gateOpen(gate) ? 'F  ENTER' : 'F  GATE' };
+    for (const gate of h.gates) if (!gate.pass && near(gate.x + gate.w / 2, gate.y + gate.h)) return { type: 'gate', obj: gate, label: gateOpen(gate) ? 'F  ENTER' : 'F  GATE' };
     if (near(h.hearth.x, h.hearth.y, 64)) return { type: 'hearth', obj: h.hearth, label: 'F  REST' };
     for (const npc of h.npcs) if (near(npc.x, npc.y, 56)) return { type: 'npc', obj: npc, label: 'F  TALK' };
+    if (g.stage === 2 && h.market) {
+      const m = h.market.merchant;
+      if (near(m.x, m.y, 60)) return { type: 'merchant', obj: m, label: 'F  TRADE' };
+    }
   }
   return null;
 }
@@ -176,6 +232,7 @@ function useNear() {
     g.healMsg = 2.2; goldGlow(n.obj.x, n.obj.y - 28, 90, .35);
     A.sfx.grant(); spark(n.obj.x, n.obj.y - 30, 12, '#ffd27a');
   } else if (n.type === 'npc') talkTo(n.obj);
+  else if (n.type === 'merchant') openShop();
 }
 
 function fireWard() {
@@ -226,6 +283,7 @@ function update(dt) {
   const p = g.p;
   g.t += dt; g.time += dt; g.msg -= dt;
   if (g.fade > 0) { tickFade(dt); return; }
+  if (g.shop) { shopUpdate(); return; }
   if (g.dialog) {
     g.dialog.t += dt;
     if ((pressed.talk || pressed.ok) && g.dialog.t > .15) {
@@ -394,6 +452,8 @@ function update(dt) {
     respawn(); save();
   }
 
+  if (run.shield && !p.shield) { run.shield = 0; save(); }        // the shield was spent
+
   g.shk *= .88; if (g.shk < .3) g.shk = 0;
   const camT = Math.max(0, Math.min(g.l.w - VW, p.x - 380));
   g.cam.x += (camT - g.cam.x) * .12;
@@ -510,6 +570,38 @@ function drawPatino(x, y, t, stage) {
   ctx.restore();
   if (warm) goldGlow(x, y - 30, 30, .10);
 }
+function drawMerchantStall(x, y, t, warm) {
+  ctx.fillStyle = '#2a2030'; ctx.fillRect(x - 80, y - 58, 160, 10);
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 76, y - 48, 152, 48);
+  ctx.fillStyle = '#5b3d22'; ctx.fillRect(x - 76, y - 48, 152, 4);
+  ctx.fillStyle = '#2a2030'; ctx.fillRect(x - 76, y - 128, 5, 70); ctx.fillRect(x + 71, y - 128, 5, 70);
+  ctx.fillStyle = warm ? '#3f6d4a' : '#2a2030';
+  ctx.beginPath(); ctx.moveTo(x - 88, y - 128); ctx.lineTo(x + 88, y - 128); ctx.lineTo(x + 76, y - 152); ctx.lineTo(x - 76, y - 152); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = warm ? '#ffd27a' : '#5a6f96';
+  for (let i = -3; i <= 3; i++) ctx.fillRect(x + i * 22 - 6, y - 148, 12, 16);
+  ctx.fillStyle = '#1a2030'; ctx.fillRect(x - 42, y - 180, 84, 24);
+  ctx.strokeStyle = warm ? '#ffd27a' : '#5a6f96'; ctx.lineWidth = 1; ctx.strokeRect(x - 41.5, y - 179.5, 83, 23);
+  T('TRADE', x, y - 164, 10, 'center', warm ? '#ffd27a' : '#8f9bb8');
+  if (warm) {
+    goldGlow(x - 62, y - 96, 44, .22);
+    ctx.fillStyle = '#ffd27a'; ctx.fillRect(x - 66, y - 104, 8, 10);
+    ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 68, y - 106, 12, 3);
+  }
+}
+function drawMerchant(x, y, t, warm) {
+  const blink = (t * .8) % 6 > 5.85;
+  ctx.fillStyle = '#241a2b'; ctx.fillRect(x - 15, y - 104, 30, 46);          // cloak
+  ctx.fillStyle = '#1a1420'; ctx.fillRect(x - 18, y - 122, 36, 24);          // hood
+  ctx.fillStyle = '#0a0710'; ctx.fillRect(x - 11, y - 117, 22, 15);          // shadowed face
+  if (!blink) {
+    ctx.fillStyle = warm ? '#ffd84a' : C.ember;
+    ctx.fillRect(x - 7, y - 112, 4, 3); ctx.fillRect(x + 3, y - 112, 4, 3);
+  }
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 22, y - 66, 44, 5);            // hands on the counter
+  ctx.fillStyle = '#5b3d22'; ctx.fillRect(x + 16, y - 60, 14, 4);
+  if (warm) { ctx.fillStyle = '#ffd84a'; ctx.fillRect(x + 28, y - 61, 2, 2); }
+}
+
 function drawWard(x, y, t, cool, hp, active) {
   ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 6, y - 34, 12, 34);
   ctx.fillStyle = '#4a5578'; ctx.fillRect(x - 10, y - 40, 20, 6);
@@ -550,13 +642,13 @@ function drawTownBackdrop(camX, t, stage) {
   }
   ctx.globalAlpha = 1;
 
-  const far = [[60, 180, 210], [380, 160, 260], [760, 200, 180], [1120, 170, 240], [1460, 190, 210]];
+  const far = [[60, 180, 210], [380, 160, 260], [760, 200, 180], [1120, 170, 240], [1460, 190, 210], [1800, 180, 220], [2150, 190, 240]];
   for (let i = 0; i < far.length; i++) {
     const [bx, w, h] = far[i], x = bx - camX * .12;
     if (x < -w - 40 || x > VW + 40) continue;
     townHouse(x, 420, w, h, .26, stage, i, t);
   }
-  const near = [[-40, 220, 260], [300, 260, 300], [760, 240, 280], [1180, 250, 300], [1580, 220, 260]];
+  const near = [[-40, 220, 260], [300, 260, 300], [760, 240, 280], [1180, 250, 300], [1580, 220, 260], [1980, 250, 290], [2300, 220, 250]];
   for (let i = 0; i < near.length; i++) {
     const [bx, w, h] = near[i], x = bx - camX * .26;
     if (x < -w - 60 || x > VW + 60) continue;
@@ -707,13 +799,19 @@ function drawHubWorld(h, p, stage) {
   drawStall(980, 420, g.t, warm, 0);
   drawStall(1180, 420, g.t, warm, 1);
   drawStall(1380, 420, g.t, warm, 2);
+  drawStall(2200, 420, g.t, warm, 2);
+  drawMerchantStall(1980, 420, g.t, warm);
 
   drawLamp(300, 420, g.t, true);
   drawLamp(900, 420, g.t, warm);
   drawLamp(1300, 420, g.t, warm);
+  drawLamp(1850, 420, g.t, warm);
+  drawLamp(2150, 420, g.t, warm);
+  drawLamp(2350, 420, g.t, warm);
 
   drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a', `${(run.levels.I || []).filter(Boolean).length}/3`);
-  if (warm) drawSign(1795, 292, 'MARKET LANE', '#ffd27a', 'OPEN');
+  drawSign(1795, 292, 'MARKET LANE', warm ? '#ffd27a' : '#8f9bb8', warm ? 'OPEN' : '');
+  if (warm) drawSign(1880, 246, 'THE SKETCHY MERCHANT', '#ffd27a');
   if (!warm && h.barrier) drawBarrier(h.barrier.x, h.barrier.y, h.barrier.w, h.barrier.h, g.t);
   if (warm) {
     ctx.fillStyle = 'rgba(255,210,122,.10)'; ctx.fillRect(1680, 300, 120, 120);
@@ -760,8 +858,8 @@ function drawWorld() {
     }
     for (const gate of h.gates) {
       drawGate(gate.x, gate.y, gate.w, gate.h, gateOpen(gate));
-      if (g.near && g.near.obj === gate) T(gate.label, gate.x + gate.w / 2, gate.y - 34, 12, 'center', gateOpen(gate) ? '#ffd27a' : '#8f9bb8');
     }
+    if (g.stage === 2 && h.market) drawMerchant(h.market.merchant.x, h.market.merchant.y, g.t, true);
   } else if (g.l.gate) {
     const open = (!g.l.ward || g.wardHp <= 0) && (!g.boss || g.boss.hp <= 0);
     drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, open);
@@ -806,7 +904,7 @@ function drawWorld() {
     T(g.prompt, tx, 467, 13, 'left', '#dfe8ff');
     T(`TUTORIAL ${g.promptNo}/${g.l.steps.length}`, x + w - 16, 466, 11, 'right', '#5d6a8a');
   }
-  if (g.near && !g.paused && !g.dialog) T(g.near.label, VW / 2, 468, 14, 'center', C.ember);
+  if (g.near && !g.paused && !g.dialog && !g.shop) T(g.near.label, VW / 2, 468, 14, 'center', C.ember);
   if (g.grant > 0) {
     ctx.globalAlpha = Math.min(1, g.grant / .5) * Math.min(1, (3.4 - g.grant) * 2.5);
     ctx.fillStyle = 'rgba(5,7,15,.72)'; ctx.fillRect(VW / 2 - 220, 166, 440, 70);
@@ -876,6 +974,7 @@ function drawWorld() {
   }
 
   if (g.dialog) drawDialog();
+  if (g.shop) drawShop();
   if (g.paused) drawPause();
   if (g.fade > 0) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1011,9 +1110,15 @@ function drawHud() {
     ctx.fillStyle = i < p.hp ? POP.heart : '#3a4257';
     heart(18 + i * 25, 8, 8); ctx.fill();
   }
+  if (p.shield) {
+    ctx.fillStyle = '#7fe3ff';
+    ctx.beginPath(); ctx.moveTo(96, 6); ctx.lineTo(106, 6); ctx.lineTo(105, 14); ctx.lineTo(101, 18); ctx.lineTo(97, 14); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#20304a'; ctx.fillRect(100, 9, 2, 6);
+  }
   ctx.fillStyle = POP.coin; ctx.fillRect(118, 7, 9, 9);
   ctx.fillStyle = '#a98a3f'; ctx.fillRect(120, 9, 5, 5);
   T(`x ${run.coins}/${TOTAL_COINS}`, 134, 16, 13, 'left', '#cfd8ee');
+  T(`G ${run.gold}`, 196, 16, 12, 'left', '#ffd84a');
   T(g.l.title, VW / 2, 16, 12, 'center', '#8f9bb8');
   T(`${g.time.toFixed(1)}s`, VW - 20, 16, 13, 'right', '#cfd8ee');
   ctx.setTransform(1, 0, 0, 1, 0, BOT);
@@ -1085,7 +1190,10 @@ function drawPause() {
 let last = 0;
 function frame(ts) {
   const dt = Math.min(.033, (ts - last) / 1000 || 0); last = ts;
-  if (pressed.menu && !g.dialog) { g.paused = !g.paused; g.pauseSel = 0; }
+  if (pressed.menu && !g.dialog) {
+    if (g.shop) g.shop = null;
+    else { g.paused = !g.paused; g.pauseSel = 0; }
+  }
   if (pressed.mute) A.toggle();
   if (g.stopT > 0) g.stopT -= dt;
   else { update(dt); clearPressed(); }

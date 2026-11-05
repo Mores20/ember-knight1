@@ -63,12 +63,12 @@ export const HUB = {
   style: 'road', theme: 0,
   line: 'The one place nothing is trying to kill you.',
   spawn: [80, 386],
-  w: 1900, h: 540,
+  w: 2500, h: 540,
   darkZones: [], lights: [], hazards: [],
   solids: [
     wallL,
-    { x: 0, y: 420, w: 1900, h: 120 },                         // the street
-    wallR(1900),
+    { x: 0, y: 420, w: 2500, h: 120 },                         // the street, through Market Lane
+    wallR(2500),
   ],
   torches: [[180, 420], [980, 420], [1360, 420]],
   coins: [], hearts: [], enemies: [],
@@ -82,6 +82,7 @@ export const HUB = {
     hearth: { x: 420, y: 420 },
     dummy: { x: 700, y: 420 },
     barrier: { x: 1620, y: 250, w: 120, h: 170 },
+    market: { merchant: { x: 1980, y: 420 } },
     npcs: [
       { id: 'clint', name: 'CLINT', x: 140, y: 420,
         lines: {
@@ -100,7 +101,7 @@ export const HUB = {
     ],
     gates: [
       { x: 1500, y: 330, w: 90, h: 90, to: 'a1', label: 'GATE I \u2014 THE EMBER ROAD', short: 'THE EMBER ROAD', open: true },
-      { x: 1750, y: 330, w: 90, h: 90, to: null, label: 'GATE II \u2014 THE SUNKEN CRYPT', short: 'MARKET LANE', openWhen: 'ICleared',
+      { x: 1750, y: 330, w: 90, h: 90, to: null, pass: true, label: 'GATE II \u2014 THE SUNKEN CRYPT', short: 'MARKET LANE', openWhen: 'ICleared',
         closed: 'Sealed in ash. The Crypt\u2019s guardian still stands.' },
     ],
   },

@@ -1,8 +1,33 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5)
 
 A separate branch (`v2-vertical-slice`) proving the shape of the world-design document:
 **tutorial road → Cinderhaven → Area I → back to Cinderhaven**. The shipped v1 game on `main`
 is untouched.
+
+## V5 - Market Lane and the Sketchy Merchant
+
+The street now continues past Gate II. Area I clears the barrier and opens **D2 Market Lane**: a
+lamp-lit run of stalls with the merchant's green awning, a hanging trade sign, a second stall and the
+town's warm windows. In stage 1 the lane is dark and empty behind the barricade; in stage 2 the
+merchant is there.
+
+Walk up and press **F** to trade. The shop uses the **gold purse** (`G` in the HUD), while the coin
+count stays the lifetime tally.
+
+| item | price | effect | stock | unlock |
+|---|---|---|---|---|
+| Ashroot Potion | 15g | +1 heart (refused at full) | 2 | always |
+| Cleansing Flask | 20g | clears all hexes | 1 | always |
+| Ember Shield | 35g | eats one hit | 1 | Area I cleared |
+| Greater Heart | 40g | +2 hearts | 1 | Area I cleared |
+
+- Stock is per visit; leaving and re-entering town refreshes it.
+- Purchases spend gold, apply immediately, reduce stock and save.
+- The **Ember Shield** is carried across scene loads (the HUD shows a shield icon) and is spent the
+  first time it absorbs a hit.
+- The slice compresses the full-game unlocks: both late items open after Area I. In the full v2 they
+  will follow the Warden and Phase V.
+- With 46 coins and no other spending, the player can afford a potion plus one big item, or save.
 
 ## V4 - the three encounters
 
@@ -127,7 +152,8 @@ guarded too; a perfect guard on the charge stuns him.
 2. Tutorial gate → Cinderhaven, `tutorialDone = true`.
 3. Gate I → 1-1 → 1-2 → 1-3 (the Gatekeeper Brute) → Cinderhaven, `cleared.I = true`. Gate I
    resumes at the first uncleared level if you return to town early.
-4. Gate II then says the market lane is open (the merchant arrives in V5).
+4. Gate II opens into Market Lane; the Sketchy Merchant sells potions, the Ember Shield and the
+   Greater Heart for gold.
 5. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
 
@@ -138,10 +164,12 @@ guarded too; a perfect guard on the charge stuns him.
   conversations.
 - V3 done: the three Ember Road levels, per-level exits, the Cook's Satchel and the Keeper's Niche.
 - V4 done: the Road Scavenger, Cinder Crow and Gatekeeper Brute, plus the sealed keep gate.
-- V5: D2 Market Lane, merchant payoff, tuning, screenshots, docs.
+- V5 done: Market Lane, the merchant shop, gold/stock tuning and shield persistence.
+- Beyond the slice: the other seven areas, hub rooftops, district stages S3-S5 and the full unlock
+  map for the shop.
 
 ## Known placeholders
 
 - The hub uses the road backdrop plus town silhouettes; it is not the final art.
 - There is no title menu yet: the build boots into the tutorial or the imported hub.
-- The Market Lane shop and merchant payoff land in V5.
+- The full game's later shop unlocks (Warden / Phase V) are compressed to Area I in the slice.

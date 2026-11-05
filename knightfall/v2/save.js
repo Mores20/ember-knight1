@@ -7,7 +7,7 @@ export const freshRun = () => ({
   saveVersion: 2,
   tutorialDone: false,
   scene: 'tutorial',
-  hp: 2, coins: 0, gold: 0, time: 0,
+  hp: 2, coins: 0, gold: 0, time: 0, shield: 0,
   abil: { dash: false, lantern: false },
   got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false }, levels: { I: [false, false, false] },
   skin: 'iron', emberSword: false, titled: false,
@@ -33,6 +33,7 @@ export function loadRun() {
   if (!out.talked || typeof out.talked !== 'object') out.talked = {};
   out.levels = { ...freshRun().levels, ...(r.levels || {}) };
   if (!Array.isArray(out.levels.I)) out.levels.I = [false, false, false];
+  if (typeof out.shield !== 'number') out.shield = 0;
   return out;
 }
 
