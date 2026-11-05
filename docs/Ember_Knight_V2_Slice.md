@@ -1,8 +1,35 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6)
 
-A separate branch (`v2-vertical-slice`) proving the shape of the world-design document:
-**tutorial road → Cinderhaven → Area I → back to Cinderhaven**. The shipped v1 game on `main`
-is untouched.
+The v2 slice now lives on `main` alongside the shipped game and proves the shape of the world-design document:
+**tutorial road → Cinderhaven → Area I → back to Cinderhaven → Area II**. The shipped v1 game is
+still available at `index.html` and is untouched.
+
+## V6 - Area II: The Sunken Crypt
+
+Gate II now runs all the way through Market Lane and into a second four-level area. The crypt has
+its own teal palette, flooded cisterns, bone shelves and hanging chains.
+
+| Level | Name | Shape |
+|---|---|---|
+| 2-1 | The Flooded Stair | A dry top step, four sinking stones over deep water, a Mire Leech and a bat |
+| 2-2 | The Ossuary | Broken bone ledges, the Ossuary Alcove secret, a Wick Skull and a leech |
+| 2-3 | The Drowned Nave | Three sinking stones, then the Crypt Warden's arena and gate |
+| 2-4 | The Matron's Cistern | A short platform run into the Crypt Matron's flooded cistern |
+
+- **Water** is a level-level hazard: fall in and you lose a heart and return to the checkpoint.
+- **Sinking stones** (`kind:'sink'`) dip under the knight and rise again when she steps off.
+- **The Mire Leech** hangs from the ceiling, drips, drops when the knight passes under, then crawls
+  and retracts. Two hits.
+- **The Wick Skull** floats and shrieks, calling one goblin to its position. Two hits. Its summons
+  are capped at three.
+- **The Crypt Warden (2-3).** 6 HP and a ward: hits bounce off while it is idle. It alternates a
+  chain sweep and a slam, both telegraphed; only the long recovery leaves it open.
+- **The Crypt Matron (2-4).** 12 HP. Casts rising hands, dripping leeches and a ground surge wave.
+  At half health she shifts to **phase two**: the cistern water rises and her recovery shortens.
+  She can only be hurt during recovery, so the fight is about reading the cast.
+- The crypt gate sign in Market Lane shows progress (0/4 to 4/4). 2-4 returns to Cinderhaven,
+  completes Area II and refreshes the merchant stock.
+- The v2 coin total is now **79** across the tutorial, Area I and Area II.
 
 ## V5 - Market Lane and the Sketchy Merchant
 
@@ -64,7 +91,7 @@ The old single Ember Road is now the three-level area from the design document:
   sign shows progress (0/3 to 3/3). After 1-3, the town wakes.
 - Each level has its own checkpoint, collectibles, torches and exit. 1-3 ends with the Gatekeeper
   Brute; the gate is sealed until he falls.
-- The v2 coin total is now **46** across the tutorial and the three area levels.
+- The v2 coin total is now **46** across the tutorial and the three Area I levels (79 with Area II).
 
 ## V2 - Cinderhaven
 
@@ -153,7 +180,8 @@ guarded too; a perfect guard on the charge stuns him.
 3. Gate I → 1-1 → 1-2 → 1-3 (the Gatekeeper Brute) → Cinderhaven, `cleared.I = true`. Gate I
    resumes at the first uncleared level if you return to town early.
 4. Gate II opens into Market Lane; the Sketchy Merchant sells potions, the Ember Shield and the
-   Greater Heart for gold.
+   Greater Heart for gold. Continue through the lane to Gate II and the Sunken Crypt: 2-1 → 2-2 →
+   2-3 (the Crypt Warden) → 2-4 (the Crypt Matron) → Cinderhaven, `cleared.II = true`.
 5. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
 
@@ -165,7 +193,9 @@ guarded too; a perfect guard on the charge stuns him.
 - V3 done: the three Ember Road levels, per-level exits, the Cook's Satchel and the Keeper's Niche.
 - V4 done: the Road Scavenger, Cinder Crow and Gatekeeper Brute, plus the sealed keep gate.
 - V5 done: Market Lane, the merchant shop, gold/stock tuning and shield persistence.
-- Beyond the slice: the other seven areas, hub rooftops, district stages S3-S5 and the full unlock
+- V6 done: the four Sunken Crypt levels, water, sinking stones, Mire Leech, Wick Skull, Crypt Warden
+  and Crypt Matron, plus the Area II gate and progression.
+- Beyond the slice: the other six areas, hub rooftops, district stages S3-S5 and the full unlock
   map for the shop.
 
 ## Known placeholders

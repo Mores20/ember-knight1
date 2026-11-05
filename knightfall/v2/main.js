@@ -13,6 +13,7 @@ import { THEMES, POP } from '../themes.js';
 import { SCENES, TOTAL_COINS } from './levels.js';
 import { bootRun, saveRun as persist, readV1, importV1Run, freshRun } from './save.js';
 import { GatekeeperBrute } from './brute.js';
+import { CryptWarden, CryptMatron } from './crypt.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const VW = 960, VH = 540, BAR = 34, BARB = 18, BOT = VH - BARB;
@@ -68,6 +69,7 @@ function loadScene(id) {
     }),
   };
   const stage = run.cleared.I ? 2 : 1;
+  for (const s of l.solids) if (s.kind === 'sink') { s.baseY = s.baseY != null ? s.baseY : s.y; s.depth = s.depth || 16; s.dy = 0; }
   if (id === 'hub' && stage === 1 && l.hub && l.hub.barrier) {
     l.solids.push({ ...l.hub.barrier, barrier: 1 });              // Market Lane is shut until Area I falls
   }
@@ -81,8 +83,9 @@ function loadScene(id) {
     coins: l.coins.map(([x, y], k) => ({ x, y, ox: x, oy: y, k, taken: 0, got: got.c.includes(k) ? 1 : 0 })),
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: got.h.includes(k) ? 1 : 0 })),
     secrets: l.secrets, props: l.props, got,
-    boss: l.boss ? new GatekeeperBrute(l.boss) : null,
+    boss: makeBoss(l.boss),
     bossSeen: 0, bossMsg: 0,
+    water: l.water || null,
     parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: 0 }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
@@ -122,7 +125,7 @@ function tickFade(dt) {
 
 const gateOpen = gate => !!(gate.open || (gate.openWhen === 'ICleared' && run.cleared.I));
 
-const AREA_LEVELS = { I: ['a1', 'a2', 'a3'] };
+const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'] };
 function areaStart(area) {
   const ids = AREA_LEVELS[area] || [];
   const arr = run.levels[area] || [];
@@ -133,6 +136,11 @@ function markLevel(area, index) {
   const arr = run.levels[area] = run.levels[area] || [];
   arr[index] = true;
 }
+
+const makeBoss = o => !o ? null
+  : o.kind === 'cryptwarden' ? new CryptWarden(o)
+  : o.kind === 'matron' ? new CryptMatron(o)
+  : new GatekeeperBrute(o);
 
 /* ---- the Sketchy Merchant: the D2 shop, paid from the gold purse ---- */
 const SHOP_ITEMS = [
@@ -220,7 +228,7 @@ function useNear() {
     const gate = n.obj;
     if (gateOpen(gate)) {
       if (gate.to) {
-        const dest = gate.to === 'a1' ? areaStart('I') : gate.to;
+        const dest = gate.area ? areaStart(gate.area) : gate.to;
         transition(dest, () => { run.hp = g.p.hp; persist(run); });
       } else g.dialog = { pages: [{ who: 'MARKET LANE', text: 'The lane is open. The merchant is still setting up his stall.' }], i: 0, t: 0 };
     } else {
@@ -318,6 +326,12 @@ function update(dt) {
   if (g.blockMsg > 0) g.blockMsg -= dt;
   if (g.sealMsg > 0) g.sealMsg -= dt;
 
+  for (const s of g.l.solids) if (s.kind === 'sink') {            // sinking stone dips under the knight
+    const on = p.ground && Math.abs((p.y + p.h) - s.y) < 3 && p.x + p.w > s.x && p.x < s.x + s.w;
+    const target = s.baseY + (on ? s.depth : 0), old = s.y;
+    s.y += (target - s.y) * Math.min(1, dt * (on ? 5 : 2.5));
+    s.dy = s.y - old;
+  }
   p.update(dt, g.l.solids, g);
   if (g.boss) {
     const was = g.boss.st;
@@ -447,6 +461,11 @@ function update(dt) {
 
   // fall
   if (p.y > g.l.h) {
+    p.hp--;
+    if (p.hp <= 0) { p.hp = 3; A.sfx.die(); } else A.sfx.hurt();
+    respawn(); save();
+  }
+  if (g.water && p.y + p.h > g.water) {
     p.hp--;
     if (p.hp <= 0) { p.hp = 3; A.sfx.die(); } else A.sfx.hurt();
     respawn(); save();
@@ -812,6 +831,7 @@ function drawHubWorld(h, p, stage) {
   drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a', `${(run.levels.I || []).filter(Boolean).length}/3`);
   drawSign(1795, 292, 'MARKET LANE', warm ? '#ffd27a' : '#8f9bb8', warm ? 'OPEN' : '');
   if (warm) drawSign(1880, 246, 'THE SKETCHY MERCHANT', '#ffd27a');
+  if (warm) drawSign(2380, 246, 'II  THE SUNKEN CRYPT', '#7fe3ff', `${(run.levels.II || []).filter(Boolean).length}/4`);
   if (!warm && h.barrier) drawBarrier(h.barrier.x, h.barrier.y, h.barrier.w, h.barrier.h, g.t);
   if (warm) {
     ctx.fillStyle = 'rgba(255,210,122,.10)'; ctx.fillRect(1680, 300, 120, 120);
@@ -837,6 +857,24 @@ function drawWorld() {
   for (const s of g.l.solids) if (!s.off && !s.pass && !s.barrier) drawSolid(ctx, s, g.l.style || 'road', s.broken);
   drawProps(ctx, g.props, g.l.style || 'road', g.t);
   for (const sg of g.l.signs || []) drawWaystone(sg.x, sg.y, sg.text, sg.sub);
+  if (g.water) {
+    const wy = g.water, grd = ctx.createLinearGradient(0, wy, 0, g.l.h);
+    grd.addColorStop(0, 'rgba(58,128,124,.42)'); grd.addColorStop(1, 'rgba(6,24,30,.92)');
+    ctx.fillStyle = grd; ctx.fillRect(-40, wy, g.l.w + 80, g.l.h - wy + 40);
+    ctx.strokeStyle = 'rgba(159,214,200,.38)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = -20; x <= g.l.w + 20; x += 24) {
+      const y = wy + Math.sin(x * .02 + g.t * 1.6) * 3;
+      if (x === -20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    for (let k = 0; k < 8; k++) {
+      const x = (g.t * 18 + k * 211) % (g.l.w + 100) - 50;
+      ctx.globalAlpha = .12; ctx.fillStyle = '#9fd6c8';
+      ctx.beginPath(); ctx.arc(x, wy + 18 + (k % 3) * 14, 2 + (k % 2), 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
 
   for (const [x, y] of g.l.lights || []) { ctx.fillStyle = C.ember; ctx.beginPath(); ctx.arc(x, y - 6, 3, 0, 7); ctx.fill(); }
   for (const t of g.l.torches) {
@@ -877,7 +915,11 @@ function drawWorld() {
   }
 
   for (const e of g.enemies) drawEnemy(e);
-  if (g.boss) drawBrute(g.boss);
+  if (g.boss) {
+    if (g.boss.kind === 'cryptwarden') drawCryptWarden(g.boss);
+    else if (g.boss.kind === 'matron') drawMatron(g.boss);
+    else drawBrute(g.boss);
+  }
   for (const o of g.orbs) {
     glow(o.x, o.y, o.reflected ? 34 : 24, .3);
     ctx.strokeStyle = o.reflected ? '#fff2b0' : C.ember; ctx.lineWidth = 1.5;
@@ -936,14 +978,14 @@ function drawWorld() {
   }
   if (g.sealMsg > 0 && g.wardMsg <= 0) {
     ctx.globalAlpha = Math.min(1, g.sealMsg) * Math.min(1, (2.4 - g.sealMsg) * 5 + .5);
-    T(g.boss && g.boss.hp > 0 ? 'THE GATEKEEPER HOLDS THE GATE' : 'THE WARD SEALS THE GATE',
+    T(g.boss && g.boss.hp > 0 ? (g.boss.sealed || 'THE GATEKEEPER HOLDS THE GATE') : 'THE WARD SEALS THE GATE',
       VW / 2, g.parryMsg > 0 ? 162 : 130, 20, 'center', C.ember);
     ctx.globalAlpha = 1;
   }
   if (g.bossMsg > 0 && g.parryMsg <= 0 && g.sealMsg <= 0) {
     ctx.globalAlpha = Math.min(1, g.bossMsg) * Math.min(1, (2.6 - g.bossMsg) * 4 + .4);
-    T('THE GATEKEEPER BRUTE', VW / 2, 130, 28, 'center', C.ember);
-    T('THE GATE IS SEALED', VW / 2, 160, 14, 'center', '#8f9bb8');
+    T(g.boss ? g.boss.name : 'THE GATEKEEPER BRUTE', VW / 2, 130, 26, 'center', C.ember);
+    T(g.boss ? g.boss.sealed : 'THE GATE IS SEALED', VW / 2, 158, 13, 'center', '#8f9bb8');
     ctx.globalAlpha = 1;
   }
   if (g.cpT > 0) {
@@ -1000,6 +1042,38 @@ function drawEnemy(e) {
   } else if (e.type === 'bat') {
     const face = Math.cos(e.t * e.sp + e.ph) >= 0 ? 1 : -1;
     drawMob(ctx, 'bat', 'fly', Math.floor(e.t * 14 + e.ph * 3), e.x + e.w / 2, e.y + e.h / 2, face, flash);
+  } else if (e.type === 'leech') {
+    const cx = e.x + e.w / 2, top = e.y;
+    if (e.st === 'hang' || e.st === 'drop') {
+      ctx.strokeStyle = 'rgba(159,214,200,.32)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, e.y0); ctx.lineTo(cx, top); ctx.stroke();
+    }
+    const squirm = e.st === 'crawl' ? Math.sin(e.t * 14) * 2 : 0;
+    ctx.fillStyle = e.flash > 0 ? '#e4ecff' : '#3d6b5e';
+    for (let i = 0; i < 3; i++) {
+      const r = 9 - i * 2.4;
+      ctx.beginPath(); ctx.ellipse(cx + squirm * (i / 3), top + 8 + i * 6, r, 5.5, 0, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = e.flash > 0 ? '#fff2b0' : '#9fd6c8';
+    ctx.beginPath(); ctx.arc(cx, top + 7, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#05070f'; ctx.fillRect(cx - 4, top + 4, 3, 3); ctx.fillRect(cx + 1, top + 4, 3, 3);
+    ctx.fillStyle = C.ember; ctx.fillRect(cx - 1, top + 8, 2, 2);
+    if (e.st === 'hang') { ctx.globalAlpha = .35; glow(cx, top + 7, 16, .18); ctx.globalAlpha = 1; }
+  } else if (e.type === 'skull') {
+    const cx = e.x + e.w / 2, cy = e.y + e.h / 2, flare = e.st === 'shriek';
+    if (flare) glow(cx, cy, 30, .28);
+    const bone = e.flash > 0 ? '#e4ecff' : '#c9d4e0';
+    ctx.fillStyle = bone;
+    ctx.beginPath(); ctx.arc(cx, cy - 3, 9, Math.PI, 0); ctx.fill();
+    ctx.fillRect(cx - 9, cy - 3, 18, 7);
+    ctx.fillRect(cx - 6, cy + 4, 4, 4); ctx.fillRect(cx + 2, cy + 4, 4, 4);
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 6, cy - 6, 5, 5); ctx.fillRect(cx + 1, cy - 6, 5, 5);
+    if (flare) { ctx.fillStyle = C.ember; ctx.fillRect(cx - 5, cy - 5, 3, 3); ctx.fillRect(cx + 2, cy - 5, 3, 3); }
+    // the wick
+    ctx.fillStyle = '#5b3d22'; ctx.fillRect(cx - 1, cy - 14, 2, 4);
+    const f = 1 + Math.sin(e.t * 14) * .3;
+    ctx.fillStyle = flare ? '#fff2b0' : '#ffd27a';
+    ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx - 3, cy - 17 - f * 2); ctx.lineTo(cx + 3, cy - 17 - f * 2); ctx.closePath(); ctx.fill();
   } else if (e.type === 'shield') {
     drawMob(ctx, 'shield', e.st === 'down' ? 'open' : 'guard', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else {
@@ -1064,11 +1138,119 @@ function drawBrute(b) {
   }
   ctx.globalAlpha = 1;
 }
+function drawCryptWarden(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.2) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2, by = b.y + b.h;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(cx, by - 2, 24, 6, 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(cx, by); ctx.scale(b.dir, 1);
+  const crouch = dead ? 14 : b.st === 'act' ? 4 : 0;
+  const lean = b.st === 'wind' ? -3 : b.st === 'act' ? 4 : 0;
+  // legs and tattered robe
+  ctx.fillStyle = '#263241'; ctx.fillRect(-11, -16 + crouch, 8, 16 - crouch); ctx.fillRect(3, -16 + crouch, 8, 16 - crouch);
+  ctx.fillStyle = '#2c3f4a'; ctx.fillRect(-15 + lean, -38 + crouch, 30, 23);
+  ctx.fillStyle = '#213038'; for (let i = 0; i < 4; i++) ctx.fillRect(-14 + lean + i * 8, -16 + crouch, 5, 16 - crouch);
+  // ribs
+  ctx.fillStyle = '#4c6b74'; for (let i = 0; i < 3; i++) ctx.fillRect(-12 + lean, -34 + crouch + i * 6, 24, 3);
+  // shoulders and skull
+  ctx.fillStyle = '#1e2a36'; ctx.fillRect(-18 + lean, -44 + crouch, 36, 6);
+  ctx.fillStyle = '#c9d4e0'; ctx.fillRect(-9 + lean, -56 + crouch, 18, 14);
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(-6 + lean, -52 + crouch, 4, 4); ctx.fillRect(2 + lean, -52 + crouch, 4, 4);
+  const hot = b.st === 'wind' || b.st === 'act';
+  ctx.fillStyle = hot ? '#ffd08a' : C.ember;
+  ctx.fillRect(-5 + lean, -51 + crouch, 2, 2); ctx.fillRect(3 + lean, -51 + crouch, 2, 2);
+  ctx.fillStyle = '#05070f'; ctx.fillRect(-7 + lean, -45 + crouch, 14, 2);
+  // the chain
+  let ang = .45;
+  if (b.st === 'wind' && b.atk === 'chain') ang = -1.15;
+  else if (b.st === 'act' && b.atk === 'chain') ang = 1.2;
+  else if (b.st === 'wind') ang = -1.55;
+  else if (b.st === 'act') ang = .95;
+  else if (dead) ang = 1.5;
+  ctx.save(); ctx.translate(12 + lean, -28 + crouch); ctx.rotate(ang);
+  ctx.strokeStyle = '#7f8fa8'; ctx.lineWidth = 3;
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(0, -7 - i * 8, 3, 4, 0, 0, 7); ctx.stroke(); }
+  ctx.fillStyle = '#9fb0c8'; ctx.beginPath(); ctx.arc(0, -39, 4, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+  if (b.shield && !dead) {
+    ctx.strokeStyle = 'rgba(159,214,200,' + (.30 + Math.sin(b.t * 3) * .10) + ')'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(cx, by - 30, 26, 22, 0, 0, 7); ctx.stroke();
+  }
+  if (b.st === 'wind') glow(cx, b.y + 18, 42, .22);
+  ctx.globalAlpha = 1;
+}
+
+function drawMatron(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.4) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2, by = b.y + b.h;
+  ctx.globalAlpha = alpha;
+  // the flooded cistern swirl
+  const swirl = (b.phase === 2 ? 1 : .45) * (1 + Math.sin(b.t * 1.5) * .15);
+  ctx.strokeStyle = 'rgba(159,214,200,' + (.18 * swirl) + ')'; ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath(); ctx.ellipse(cx, by - 14, 34 + i * 14, 8 + i * 5, 0, 0, 7); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(cx, by + 2, 26, 6, 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(cx, by); ctx.scale(b.dir, 1);
+  const sink = b.st === 'recover' ? 10 : 0;
+  const sway = Math.sin(b.t * 1.8) * 2;
+  // veil and robe
+  ctx.fillStyle = '#1b2430';
+  ctx.beginPath(); ctx.moveTo(-24, -6 + sink); ctx.lineTo(-14, -42 + sink); ctx.lineTo(14, -42 + sink); ctx.lineTo(24, -6 + sink); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#313d50';
+  ctx.beginPath(); ctx.moveTo(-18, -8 + sink); ctx.lineTo(-10, -38 + sink); ctx.lineTo(10, -38 + sink); ctx.lineTo(18, -8 + sink); ctx.closePath(); ctx.fill();
+  // arms / sleeves
+  ctx.fillStyle = '#1b2430'; ctx.fillRect(-27, -38 + sink, 9, 24); ctx.fillRect(18, -38 + sink, 9, 24);
+  // pale hands
+  ctx.fillStyle = '#c9d4e0';
+  ctx.fillRect(-28, -16 + sink, 7, 6); ctx.fillRect(21, -16 + sink, 7, 6);
+  // mask
+  ctx.fillStyle = '#d7e2ec'; ctx.fillRect(-10 + sway * .3, -56 + sink, 20, 18);
+  ctx.fillStyle = '#9fb0c8'; ctx.fillRect(-10 + sway * .3, -56 + sink, 20, 3);
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(-6 + sway * .3, -50 + sink, 4, 5); ctx.fillRect(2 + sway * .3, -50 + sink, 4, 5);
+  ctx.fillStyle = b.phase === 2 ? '#ffd08a' : C.ember;
+  ctx.fillRect(-5 + sway * .3, -49 + sink, 2, 3); ctx.fillRect(3 + sway * .3, -49 + sink, 2, 3);
+  // crown of drowned iron
+  ctx.fillStyle = '#3a4262'; ctx.fillRect(-12 + sway * .3, -64 + sink, 24, 8);
+  ctx.fillRect(-12 + sway * .3, -70 + sink, 4, 8); ctx.fillRect(-2 + sway * .3, -72 + sink, 4, 10); ctx.fillRect(8 + sway * .3, -70 + sink, 4, 8);
+  ctx.restore();
+  if (b.st === 'wind') glow(cx, b.y + 20, 46, .22);
+  // summoned hands
+  for (const h of b.hands) {
+    const rise = Math.min(1, h.t / .5), y = h.y - 74 * rise;
+    ctx.fillStyle = 'rgba(201,212,224,' + (.35 + .45 * rise) + ')';
+    ctx.fillRect(h.x - 10, y, 20, 6);
+    ctx.fillRect(h.x - 7, y + 6, 4, 22); ctx.fillRect(h.x + 3, y + 6, 4, 22);
+    ctx.fillRect(h.x - 10, y + 28, 7, 4); ctx.fillRect(h.x + 3, y + 28, 7, 4);
+    if (h.fired) { ctx.strokeStyle = 'rgba(159,214,200,.4)'; ctx.beginPath(); ctx.arc(h.x, h.y - 4, 12, Math.PI, 0); ctx.stroke(); }
+  }
+  // falling leeches
+  for (const l of b.leeches) {
+    ctx.fillStyle = '#3d6b5e'; ctx.beginPath(); ctx.ellipse(l.x, l.y, 6, 9, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9fd6c8'; ctx.fillRect(l.x - 2, l.y - 5, 2, 2);
+  }
+  // surge wave
+  if (b.wave) {
+    const wy = b.wave.y;
+    ctx.fillStyle = 'rgba(159,214,200,.35)';
+    ctx.beginPath(); ctx.moveTo(b.wave.x - 26, wy + 62); ctx.lineTo(b.wave.x - 14, wy - 10); ctx.lineTo(b.wave.x, wy + 4);
+    ctx.lineTo(b.wave.x + 14, wy - 16); ctx.lineTo(b.wave.x + 26, wy + 62); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(220,245,240,.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(b.wave.x - 18, wy + 20); ctx.lineTo(b.wave.x - 6, wy - 6); ctx.lineTo(b.wave.x + 6, wy + 6); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawBossBar(b) {
   if (!b || b.st === 'dormant' || b.st === 'dead') return;
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   const w = 300, x = (VW - w) / 2, y = 58;
-  T('THE GATEKEEPER BRUTE', VW / 2, 50, 11, 'center', '#8f9bb8');
+  T(b.name || 'THE GATEKEEPER BRUTE', VW / 2, 50, 11, 'center', '#8f9bb8');
   ctx.fillStyle = 'rgba(5,7,15,.82)'; ctx.fillRect(x, y, w, 9);
   ctx.fillStyle = C.ember; ctx.fillRect(x + 1, y + 1, (w - 2) * Math.max(0, b.hp / b.maxHp), 7);
   ctx.strokeStyle = '#3a4265'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, w - 1, 8);

@@ -100,8 +100,10 @@ export const HUB = {
         } },
     ],
     gates: [
-      { x: 1500, y: 330, w: 90, h: 90, to: 'a1', label: 'GATE I \u2014 THE EMBER ROAD', short: 'THE EMBER ROAD', open: true },
+      { x: 1500, y: 330, w: 90, h: 90, to: 'a1', area: 'I', label: 'GATE I \u2014 THE EMBER ROAD', short: 'THE EMBER ROAD', open: true },
       { x: 1750, y: 330, w: 90, h: 90, to: null, pass: true, label: 'GATE II \u2014 THE SUNKEN CRYPT', short: 'MARKET LANE', openWhen: 'ICleared',
+        closed: 'Sealed in ash. The Crypt\u2019s guardian still stands.' },
+      { x: 2380, y: 330, w: 90, h: 90, to: 'b1', area: 'II', label: 'GATE II \u2014 THE SUNKEN CRYPT', short: 'THE SUNKEN CRYPT', openWhen: 'ICleared',
         closed: 'Sealed in ash. The Crypt\u2019s guardian still stands.' },
     ],
   },
@@ -242,6 +244,172 @@ export const A1_3 = {
   cps: [[80, 420], [900, 260]],
 };
 
-export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3 };
+/* ---------------- Area II: the Sunken Crypt ---------------- */
+export const B1 = {
+  kind: 'level', area: 'II',
+  title: '2-1  THE FLOODED STAIR',
+  name: 'THE FLOODED STAIR',
+  style: 'crypt', theme: 1,
+  line: 'The stair goes down into water that has not moved in years.',
+  spawn: [80, 386],
+  w: 1800, h: 700, water: 470,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 580, h: 280 },                        // the dry top step
+    { kind: 'sink', x: 420, y: 400, w: 110, h: 16, baseY: 400, depth: 18 },
+    { kind: 'sink', x: 600, y: 380, w: 110, h: 16, baseY: 380, depth: 18 },
+    { kind: 'sink', x: 780, y: 400, w: 110, h: 16, baseY: 400, depth: 18 },
+    { kind: 'sink', x: 960, y: 380, w: 110, h: 16, baseY: 380, depth: 18 },
+    { x: 1120, y: 420, w: 680, h: 280 },                        // the far landing
+    wallR(1800),
+  ],
+  torches: [[150, 420], [1250, 420], { x: 1200, y: 420, lit: 0, cp: 1 }],
+  coins: [[250, 385], [300, 385],
+          [470, 360], [650, 340], [830, 360], [1010, 340],
+          [1200, 385], [1240, 385]],
+  hearts: [[180, 385], [1300, 385]],
+  enemies: [
+    { type: 'leech', x: 690, y: 120 },
+    { type: 'goblin', x: 1400, y: 390, x0: 1250, x1: 1550, hp: 1 },
+    { type: 'bat', x0: 420, x1: 1000, y0: 250, ay: 50, sp: 1.0, ph: 0.5 },
+  ],
+  props: [
+    { type: 'bones', x: 250, y: 420 },
+    { type: 'chain', x: 690, y: 0, h: 120 },
+    { type: 'grave', x: 1450, y: 420 },
+    { type: 'rubble', x: 1600, y: 420 },
+  ],
+  signs: [{ x: 250, y: 420, text: 'THE FLOODED STAIR', sub: 'MIND THE WATER' }],
+  gate: { x: 1700, y: 330, w: 80, h: 90 },
+  exit: { x: 1704, y: 328, w: 72, h: 92, to: 'b2', area: 'II', level: 0 },
+  cps: [[80, 420], [1200, 420]],
+};
+
+export const B2 = {
+  kind: 'level', area: 'II',
+  title: '2-2  THE OSSUARY',
+  name: 'THE OSSUARY',
+  style: 'crypt', theme: 1,
+  line: 'The dead were laid out in rows. Someone has been rearranging them.',
+  spawn: [80, 386],
+  w: 1900, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 700, h: 220 },
+    { x: 560, y: 380, w: 120, h: 16, broken: 1 },
+    { x: 740, y: 340, w: 120, h: 16, broken: 1 },
+    { x: 920, y: 380, w: 120, h: 16, broken: 1 },
+    { x: 760, y: 260, w: 120, h: 14, oneway: 1 },              // the bone alcove
+    { x: 1080, y: 420, w: 820, h: 220 },
+    wallR(1900),
+  ],
+  torches: [[150, 420], { x: 500, y: 420, lit: 0, cp: 1 }, [1100, 420]],
+  coins: [[300, 385], [340, 385],
+          [590, 345], [770, 305], [950, 345],
+          [1150, 385], [1200, 385],
+          [780, 225], [815, 225], [850, 225]],
+  hearts: [[200, 385], [875, 225]],
+  enemies: [
+    { type: 'skull', x: 700, y: 250 },
+    { type: 'leech', x: 1200, y: 110 },
+    { type: 'goblin', x: 1350, y: 390, x0: 1250, x1: 1550, hp: 1 },
+    { type: 'bat', x0: 500, x1: 900, y0: 240, ay: 40, sp: 1.0, ph: 2.0 },
+  ],
+  props: [
+    { type: 'bones', x: 300, y: 420 },
+    { type: 'statue', x: 1500, y: 420 },
+    { type: 'shelf', x: 1000, y: 420 },
+    { type: 'grave', x: 1650, y: 420 },
+  ],
+  secrets: [{ x: 750, y: 210, w: 140, h: 90, name: 'THE OSSUARY ALCOVE' }],
+  signs: [{ x: 400, y: 420, text: 'THE OSSUARY', sub: 'COLD STONE' }],
+  gate: { x: 1800, y: 330, w: 80, h: 90 },
+  exit: { x: 1804, y: 328, w: 72, h: 92, to: 'b3', area: 'II', level: 1 },
+  cps: [[80, 420], [500, 420], [1100, 420]],
+};
+
+export const B3 = {
+  kind: 'level', area: 'II',
+  title: '2-3  THE DROWNED NAVE',
+  name: 'THE DROWNED NAVE',
+  style: 'crypt', theme: 1,
+  line: 'The Warden still keeps the nave. It has been a long watch.',
+  spawn: [80, 386],
+  w: 2100, h: 700, water: 470,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 820, h: 280 },
+    { kind: 'sink', x: 660, y: 400, w: 110, h: 16, baseY: 400, depth: 18 },
+    { kind: 'sink', x: 840, y: 380, w: 110, h: 16, baseY: 380, depth: 18 },
+    { kind: 'sink', x: 1020, y: 400, w: 110, h: 16, baseY: 400, depth: 18 },
+    { x: 1200, y: 420, w: 900, h: 280 },                        // the nave and the Warden
+    wallR(2100),
+  ],
+  torches: [[150, 420], { x: 1250, y: 420, lit: 0, cp: 1 }, [1900, 420]],
+  coins: [[250, 385], [300, 385],
+          [700, 360], [880, 340], [1060, 360],
+          [1300, 385], [1360, 385], [1950, 385]],
+  hearts: [[150, 385], [1350, 385]],
+  enemies: [
+    { type: 'leech', x: 400, y: 110 },
+    { type: 'skull', x: 900, y: 250 },
+    { type: 'bat', x0: 500, x1: 1100, y0: 250, ay: 50, sp: 1.1, ph: 1.5 },
+  ],
+  boss: { kind: 'cryptwarden', name: 'THE CRYPT WARDEN', x: 1600, y: 380, wake: 1300, hp: 6, sealed: 'THE WARDEN HOLDS THE NAVE' },
+  props: [
+    { type: 'bones', x: 200, y: 420 },
+    { type: 'statue', x: 450, y: 420 },
+    { type: 'chain', x: 900, y: 0, h: 150 },
+    { type: 'rubble', x: 1850, y: 420 },
+  ],
+  signs: [{ x: 300, y: 420, text: 'THE DROWNED NAVE', sub: 'KEEP TO THE STONES' }],
+  gate: { x: 2000, y: 330, w: 80, h: 90 },
+  exit: { x: 2004, y: 328, w: 72, h: 92, to: 'b4', area: 'II', level: 2 },
+  cps: [[80, 420], [1250, 420]],
+};
+
+export const B4 = {
+  kind: 'level', area: 'II',
+  title: '2-4  THE MATRON\u2019S CISTERN',
+  name: 'THE MATRON\u2019S CISTERN',
+  style: 'crypt', theme: 1,
+  line: 'She only wanted them to rest.',
+  spawn: [80, 386],
+  w: 1600, h: 700, water: 470,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 700, h: 280 },
+    { x: 600, y: 380, w: 140, h: 18 },
+    { x: 800, y: 340, w: 140, h: 18 },
+    { x: 1000, y: 380, w: 140, h: 18 },
+    { x: 1150, y: 420, w: 450, h: 280 },
+    wallR(1600),
+  ],
+  torches: [[150, 420], [1250, 420]],
+  coins: [[250, 385], [300, 385],
+          [650, 340], [850, 300], [1050, 340],
+          [1300, 385], [1360, 385]],
+  hearts: [[180, 385], [700, 300]],
+  enemies: [
+    { type: 'leech', x: 450, y: 110 },
+  ],
+  boss: { kind: 'matron', name: 'THE CRYPT MATRON', x: 1100, y: 330, wake: 650, hp: 12, sealed: 'THE MATRON HOLDS THE CISTERN' },
+  props: [
+    { type: 'statue', x: 350, y: 420 },
+    { type: 'chain', x: 700, y: 0, h: 140 },
+    { type: 'bones', x: 1250, y: 420 },
+    { type: 'rubble', x: 1450, y: 420 },
+  ],
+  signs: [{ x: 250, y: 420, text: 'THE CISTERN', sub: 'SHE IS WAITING' }],
+  gate: { x: 1500, y: 330, w: 80, h: 90 },
+  exit: { x: 1504, y: 328, w: 72, h: 92, to: 'hub', area: 'II', level: 3, complete: true },
+  cps: [[80, 420], [1150, 420]],
+};
+
+export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4 };
 export const SCENE_IDS = Object.keys(SCENES);
 export const TOTAL_COINS = SCENE_IDS.reduce((n, id) => n + SCENES[id].coins.length, 0);

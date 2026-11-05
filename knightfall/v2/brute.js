@@ -15,7 +15,8 @@ const burst = (g, x, y, n, col) => {
 export class GatekeeperBrute {
   constructor(o) {
     Object.assign(this, {
-      type: 'brute', x: o.x, y: o.y, w: 40, h: 44, hp: o.hp || 8, maxHp: o.hp || 8,
+      type: 'brute', kind: 'brute', name: 'THE GATEKEEPER BRUTE', sealed: 'THE GATEKEEPER HOLDS THE GATE',
+      x: o.x, y: o.y, w: 40, h: 44, hp: o.hp || 8, maxHp: o.hp || 8,
       wake: o.wake != null ? o.wake : 0, dir: -1, st: 'dormant', stT: 0, t: 0, flash: 0,
       atk: 'slam', cool: 0, vx: 0, hitDone: 0, deadT: 0,
     }, o);

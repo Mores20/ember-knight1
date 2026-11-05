@@ -329,7 +329,78 @@ export class Hexer {
   }
 }
 
+// Mire Leech: hangs from the flooded ceiling, drips, then drops when the knight passes under.
+// It crawls for a while, then retracts. Hit it on the ground or while it falls.
+export class MireLeech {
+  constructor(o) {
+    Object.assign(this, { type: 'leech', w: 18, h: 26, hp: 2, x: o.x, y: o.y, y0: o.y, t: 0, st: 'hang', stT: 0, flash: 0, vy: 0, dir: 1, drip: 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, dx = px - cx;
+    if (this.st === 'hang') {
+      this.y = this.y0 + Math.sin(this.t * 2) * 2;
+      this.drip -= dt;
+      if (this.drip <= 0) {
+        this.drip = 1.2;
+        if (g.parts) g.parts.push({ x: cx, y: this.y + this.h, vx: 0, vy: 20, l: .3, col: '#9fd6c8' });
+      }
+      if (Math.abs(dx) < 70 && p.y > this.y && this.stT > 1.4) { this.st = 'drop'; this.stT = 0; this.vy = 0; sfx.wind(); }
+    } else if (this.st === 'drop') {
+      this.vy += 900 * dt; this.y += this.vy * dt;
+      const feet = this.y + this.h;
+      let land = null;
+      if (g) for (const s of g.l.solids) if (typeof s.x === 'number' && !s.pass && !s.off && cx > s.x && cx < s.x + s.w && feet >= s.y - 2 && feet <= s.y + 20) {
+        if (!land || s.y < land.y) land = s;
+      }
+      if (land) { this.y = land.y - this.h; this.st = 'crawl'; this.stT = 0; this.dir = dx < 0 ? -1 : 1; }
+      else if (feet > (g.l.water || g.l.h)) this.dead = 1;
+    } else if (this.st === 'crawl') {
+      this.dir = dx < 0 ? -1 : 1;
+      this.x += this.dir * 26 * dt;
+      this.y += Math.sin(this.t * 8) * .4;
+      if (this.stT > 5) { this.st = 'retract'; this.stT = 0; }
+    } else if (this.st === 'retract') {
+      this.y -= 90 * dt;
+      if (this.y <= this.y0) { this.y = this.y0; this.st = 'hang'; this.stT = 0; }
+    }
+  }
+  hit() { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
+// Wick Skull: floats and shrieks, calling a goblin to its position. Kill it to stop the calls.
+export class WickSkull {
+  constructor(o) {
+    Object.assign(this, { type: 'skull', w: 20, h: 22, hp: 2, x: o.x, y: o.y, y0: o.y, t: 0, st: 'float', stT: 0, flash: 0, cool: 1.0, summons: 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt; this.cool -= dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, dx = px - cx;
+    this.y = this.y0 + Math.sin(this.t * 2.2) * 5;
+    this.dir = dx < 0 ? -1 : 1;
+    if (this.st === 'float' && this.cool <= 0 && Math.abs(dx) < 280) { this.st = 'shriek'; this.stT = 0; }
+    if (this.st === 'shriek' && this.stT > .65) {
+      this.st = 'float'; this.stT = 0; this.cool = 4;
+      this.summon(g);
+    }
+  }
+  summon(g) {
+    if (!g || this.summons >= 3) return;
+    let floor = null;
+    for (const s of g.l.solids) if (typeof s.x === 'number' && !s.pass && !s.off && this.x + this.w / 2 > s.x && this.x + this.w / 2 < s.x + s.w && s.y > this.y) {
+      if (!floor || s.y < floor.y) floor = s;
+    }
+    if (!floor) return;
+    const e = makeEnemy({ type: 'goblin', x: this.x, y: floor.y - 30, x0: this.x - 90, x1: this.x + 120, hp: 1 });
+    e.summoned = 1;
+    g.enemies.push(e);
+    this.summons++; sfx.ember();
+  }
+  hit() { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
-  : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o) : new Goblin(o);
+  : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o)
+  : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o) : new Goblin(o);

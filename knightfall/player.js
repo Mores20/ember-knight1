@@ -30,8 +30,8 @@ export class Player {
     g.shake(9); g.stop(.1); sfx.hurt();
   }
   update(dt, solids, g) {
-    const ride = this.groundSolid;                               // moving platforms carry the rider (S5)
-    if (ride && ride.kind === 'move') { this.x += ride.dx; this.y += ride.dy; }
+    const ride = this.groundSolid;                               // moving platforms carry the rider
+    if (ride && (ride.kind === 'move' || ride.kind === 'sink')) { this.x += ride.dx || 0; this.y += ride.dy || 0; }
     if (this.root > 0) this.root -= dt;                            // snares pin you in place for a beat
     for (const k in this.debuffs) if (this.debuffs[k] > 0) this.debuffs[k] -= dt;   // hexes burn off
     const heavy = this.debuffs.heavy > 0;

@@ -74,7 +74,7 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
-ok(hub.l.hub.gates.length === 2, 'the hub has two gates');
+ok(hub.l.hub.gates.length === 3, 'the hub has three gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 const crowBad = [];
@@ -209,10 +209,71 @@ dbg.run.gold = 5; hs.p.hp = 2; hs.shop.sel = 0;
 fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
 ok(hs.p.hp === 2 && dbg.run.gold === 5 && hs.shop.msg.includes('short'), 'a poor knight cannot buy');
 
+/* ================= 4c. Area II: the Sunken Crypt ================= */
+dbg.run.cleared.I = true; dbg.run.levels.I = [true, true, true];
+dbg.loadScene('hub'); frames(2);
+const cryptHub = dbg.g;
+cryptHub.p.x = 2360; cryptHub.p.y = 386; frames(2);
+ok(cryptHub.near && cryptHub.near.type === 'gate' && cryptHub.near.obj.area === 'II', 'Gate II reaches the Sunken Crypt');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'b1' && dbg.g.l.area === 'II', 'Gate II opens 2-1 The Flooded Stair');
+const b1 = dbg.g;
+const sinks = b1.l.solids.filter(s => s.kind === 'sink');
+ok(b1.l.water > 0 && sinks.length >= 4, '2-1 has deep water and sinking stones');
+b1.p.reset(sinks[0].x + 10, sinks[0].y - b1.p.h); b1.p.inv = 999; frames(40);
+ok(sinks[0].y > sinks[0].baseY + 4, 'a sinking stone dips under the knight');
+b1.p.hp = 3; b1.p.inv = 0; b1.p.y = b1.l.water - b1.p.h + 6; frames(2);
+ok(b1.p.hp === 2, 'falling into the crypt water costs a heart');
+
+const leech = b1.enemies.find(e => e.type === 'leech');
+b1.p.reset(leech.x + leech.w / 2 - b1.p.w / 2, 346); b1.p.inv = 999;
+frames(110);
+ok(leech.st !== 'hang', 'the Mire Leech drops when the knight passes beneath it');
+b1.p.x = b1.l.exit.x + b1.l.exit.w / 2 - b1.p.w / 2; b1.p.y = b1.l.exit.y + b1.l.exit.h - b1.p.h; frames(40);
+ok(dbg.sceneId === 'b2' && dbg.run.levels.II[0] === true, '2-1 leads to 2-2 and is marked cleared');
+
+const b2 = dbg.g;
+const skull = b2.enemies.find(e => e.type === 'skull');
+ok(!!skull, '2-2 has a Wick Skull');
+skull.x = 350; skull.y0 = 250; skull.y = 250; skull.cool = 0;
+b2.p.x = 350; b2.p.y = 386; b2.p.inv = 999;
+const beforeCall = b2.enemies.length;
+frames(90);
+ok(skull.st === 'shriek' || b2.enemies.length > beforeCall, 'the Wick Skull shrieks and calls a goblin');
+b2.p.x = b2.l.exit.x + b2.l.exit.w / 2 - b2.p.w / 2; b2.p.y = b2.l.exit.y + b2.l.exit.h - b2.p.h; frames(40);
+ok(dbg.sceneId === 'b3' && dbg.run.levels.II[1] === true, '2-2 leads to 2-3 and is marked cleared');
+
+const b3 = dbg.g, warden = b3.boss;
+ok(warden && warden.kind === 'cryptwarden' && warden.st === 'dormant', 'the Crypt Warden waits in the Drowned Nave');
+b3.p.x = 1350; b3.p.y = 386; b3.p.inv = 999; frames(40);
+ok(warden.st !== 'dormant', 'the Warden wakes when the knight reaches the nave');
+warden.hp = 6; warden.st = 'idle'; warden.stT = 0; warden.shield = 1;
+b3.p.x = warden.x - 30; b3.p.y = 386; b3.p.face = 1; b3.p.swing = .15; b3.p.hits.clear(); frames(8);
+ok(warden.hp === 6, 'the Warden shrugs off a hit while its ward is up');
+warden.st = 'recover'; warden.stT = 0; warden.shield = 0; warden.hp = 1;
+b3.p.x = warden.x - 30; b3.p.y = 386; b3.p.face = 1; b3.p.swing = .15; b3.p.hits.clear(); frames(8);
+ok(warden.hp === 0 && warden.st === 'dead', 'striking the Warden in recovery kills it');
+b3.p.x = b3.l.exit.x + b3.l.exit.w / 2 - b3.p.w / 2; b3.p.y = b3.l.exit.y + b3.l.exit.h - b3.p.h; frames(40);
+ok(dbg.sceneId === 'b4' && dbg.run.levels.II[2] === true, '2-3 leads to the Cistern and is marked cleared');
+
+const b4 = dbg.g, matron = b4.boss;
+ok(matron && matron.kind === 'matron' && matron.st === 'dormant', 'the Crypt Matron waits in the Cistern');
+b4.p.x = 700; b4.p.y = 386; b4.p.inv = 999; frames(40);
+ok(matron.st !== 'dormant', 'the Matron wakes when the knight enters');
+matron.hp = 6; matron.st = 'recover'; matron.stT = 0;
+b4.p.x = matron.x - 30; b4.p.y = 386; b4.p.face = 1; b4.p.swing = .15; b4.p.hits.clear(); frames(8);
+ok(matron.hp === 5 && matron.phase === 2, 'the Matron shifts to phase two at half health');
+ok(b4.water <= 434, 'phase two raises the cistern water');
+matron.st = 'recover'; matron.stT = 0; matron.hp = 1;
+b4.p.x = matron.x - 30; b4.p.y = 386; b4.p.face = 1; b4.p.swing = .15; b4.p.hits.clear(); frames(8);
+ok(matron.hp === 0 && matron.st === 'dead', 'the Crypt Matron falls');
+b4.p.x = b4.l.exit.x + b4.l.exit.w / 2 - b4.p.w / 2; b4.p.y = b4.l.exit.y + b4.l.exit.h - b4.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.II === true && dbg.run.levels.II.every(Boolean), '2-4 returns to town and completes Area II');
+
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);
 ok(dbg.sceneId === 'tutorial' && dbg.run.tutorialDone === false, 'New Game starts on the tutorial road');
-ok(dbg.TOTAL_COINS === SCENES.tutorial.coins.length + SCENES.a1.coins.length + SCENES.a2.coins.length + SCENES.a3.coins.length, 'the coin total is derived from the slice scenes');
+ok(dbg.TOTAL_COINS === Object.values(SCENES).reduce((n, s) => n + s.coins.length, 0), 'the coin total is derived from the slice scenes');
 
 const tut = dbg.g;
 ok(tut.tutStep === 0 && tut.prompt.includes('move'), 'the tutorial starts on the move step');
