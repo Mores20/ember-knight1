@@ -53,6 +53,9 @@ modules and recorded audio, and `file://` blocks both.
   casts) and summons two hexers with piercing orbs
 - **The Ash Hexer** — a floating caster whose orbs hex you instead of hurting you:
   Smother dims your light, Heavy Hex locks your dash, Snuff Hex silences your blade
+- **Redrawn enemies** — hooded goblins with a close-range snarl, helmed shield-bearers,
+  six-frame bat flaps, a six-legged crawler, a cold-rimmed shade, a casting hexer, and the
+  Warden's Ember Husk in the Throne
 - **The Sketchy Merchant** - a shop in the safe rooms: potions, a hex-cleansing flask and a
   one-hit Ember Shield, paid for with gold
 - **Abilities** - the ember dash and the lantern; light-only bridges, the rising tide,
@@ -84,7 +87,7 @@ Rebuild `dist/` after changing the game — the exe bundles everything.
 
 [`PROJECT.md`](PROJECT.md) is the full reference: architecture, level format, the art and audio
 pipelines, how to add a phase/mob/boss/ability, and the gotchas. `npm test` runs the headless suite
-(100 checks, about two seconds).
+(104 checks, about two seconds).
 
 ## Credits
 

@@ -24,6 +24,8 @@ function rim(c, cols, col) {
 function archer(st, i) {
   const c = cell(), B = M.archer, b = st === 'idle' ? i : 0, p = st === 'draw' ? [2, 5, 8][i] : 0;
   R(c, B.body, 12, 25, 3, 7); R(c, B.body, 16, 25, 3, 7); R(c, B.lift, 12, 25, 1, 7);
+  line(c, B.wood, 10, 25 + b, 7, 12 + b);                              // quiver on the back
+  R(c, B.wood, 6, 16 + b, 4, 2); R(c, B.arrow, 5, 11 + b, 1, 1); R(c, B.hot, 6, 12 + b, 1, 1);
   R(c, B.body, 10, 13 + b, 11, 7); R(c, B.body, 9, 19 + b, 13, 7); R(c, B.lift, 10, 13 + b, 2, 13);
   R(c, B.body, 9, 26 + b, 2, 2); R(c, B.body, 13, 26 + b, 2, 1); R(c, B.body, 18, 26 + b, 3, 2);
   R(c, B.body, 11, 5 + b, 9, 9); R(c, B.body, 12, 4 + b, 7, 1); R(c, B.lift, 11, 5 + b, 2, 8);
@@ -43,12 +45,18 @@ function wisp(st, i) {
   const c = cell(), B = M.wisp, cx = 16, cy = 15;
   const body = (r, eye, rc) => { disc(c, B.body, cx, cy, r); for (let y = -r; y < 0; y++) for (let x = -r; x < 0; x++) if (x * x + y * y <= r * r - 2) R(c, B.lift, cx + x, cy + y);
     ring(c, rc, cx, cy, r + 1); R(c, eye, cx - 3, cy - 1, 2, 2); R(c, eye, cx + 1, cy - 1, 2, 2); };
-  if (st === 'float') { const r = 6 + (i & 1); body(r, X.eye, B.ring); for (let k = 0; k < 3; k++) { const a = i * 1.57 + k * 2.09; R(c, B.hot, cx + Math.cos(a) * 11, cy + Math.sin(a) * 11); } R(c, B.ring, cx, cy + r + 3, 1, 2); }
+  if (st === 'float') {
+    const r = [6, 7, 7, 6][i];
+    body(r, X.eye, B.ring);
+    for (let k = 0; k < 4; k++) { const a = i * .785 + k * 1.571, rr = 10 + (k % 2); R(c, B.hot, cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    R(c, B.ring, cx - 1, cy + r + 3, 2, 1 + (i & 1));           // a trailing wisp
+    R(c, B.lift, cx + 2, cy + r + 4 + (i & 1), 1, 1);
+  }
   else if (st === 'burst') {
     if (i === 0) { body(8, X.hot, B.hot); ring(c, B.ring, cx, cy, 10); }
     else if (i === 1) { body(7, X.hot, B.ring); for (let k = 0; k < 8; k++) { const a = k * .785; line(c, B.ring, cx + Math.cos(a) * 10, cy + Math.sin(a) * 10, cx + Math.cos(a) * 14, cy + Math.sin(a) * 14); R(c, B.hot, cx + Math.cos(a) * 14, cy + Math.sin(a) * 14); } }
     else { ring(c, B.ring, cx, cy, 13); ring(c, B.hot, cx, cy, 10); for (let k = 0; k < 10; k++) { const a = k * .63 + .3; R(c, B.hot, cx + Math.cos(a) * 6, cy + Math.sin(a) * 6); } }
-  } else body(5 + (i & 1), B.scaredEye, PALE);
+  } else { const r = 5 + (i & 1); body(r, B.scaredEye, PALE); ring(c, PALE, cx, cy, r + 2); R(c, PALE, cx - 2, cy - r - 3, 4, 1); }
   return c;
 }
 
@@ -59,23 +67,37 @@ function crawler(st, i) {
     for (let x = 0; x < N; x++) { const h = 2 + Math.round(2 * Math.sin(x * .7 + i * 2.1) + 2); R(c, B.trail, x, 32 - h, 1, h); const k = Math.max(0, h - 2); if (k) R(c, B.hot, x, 32 - k, 1, k); }
     R(c, B.hot, (i * 11 + 5) % 30, 24 - (i * 3) % 4); R(c, B.hot, (i * 7 + 19) % 30, 22 - (i * 2) % 3); return c;
   }
-  for (let k = 0; k < 3; k++) { const h = 6 + ((i + k) % 3 === 0 ? 2 : 0), x = 5 + k * 7; R(c, B.body, x, 31 - h, 7, h - 1); R(c, B.body, x + 1, 30 - h, 5, 1); R(c, B.lift, x + 1, 30 - h, 5, 1); R(c, B.trail, x + 3, 28 - h, 1, 2); }
-  R(c, B.body, 2, 26, 4, 4); R(c, B.body, 0, 28, 3, 2); R(c, B.lift, 2, 26, 3, 1);
-  for (const x of [11, 18]) { R(c, B.trail, x, 24, 1, 6); R(c, B.hot, x, 27); }
-  R(c, B.body, 25, 22, 6, 8); R(c, B.lift, 25, 22, 6, 1); R(c, X.eye, 28, 24, 2, 2);
-  for (let k = 0; k < 3; k++) R(c, B.lift, 7 + k * 7, 30, 3, (i + k) & 1 ? 2 : 2);
+  for (let k = 0; k < 3; k++) {
+    const h = 7 + ((i + k) % 4 === 0 ? 2 : 0), x = 4 + k * 7;
+    R(c, B.body, x, 31 - h, 8, h - 1); R(c, B.body, x + 1, 30 - h, 6, 1);
+    R(c, B.lift, x + 1, 30 - h, 6, 1); R(c, B.lift, x + 1, 28 - h, 4, 1);
+    R(c, B.trail, x + 3, 28 - h, 1, 2); R(c, (i + k) & 1 ? B.hot : B.trail, x + 5, 27 - h, 1, 2);
+  }
+  for (let k = 0; k < 6; k++) {                                  // six scuttling legs
+    const x = 5 + k * 4, lift = (i + k) & 1 ? 1 : 0;
+    R(c, B.lift, x, 30 - lift, 3, 1); R(c, B.body, x + 1, 31 - lift, 2, 1);
+  }
+  R(c, B.body, 0, 27, 4, 3); R(c, B.body, 0, 29, 2, 2); R(c, B.hot, 1, 28);
+  R(c, B.body, 23, 23, 8, 8); R(c, B.lift, 23, 23, 8, 1);        // head
+  const jaw = [1, 2, 1, 0][i];
+  R(c, B.body, 22 - jaw, 25, 4, 2); R(c, B.body, 29, 24 + jaw, 2, 2);
+  R(c, X.eye, 27, 25, 2, 2); R(c, B.hot, 28, 26);
+  for (const x of [11, 18, 24]) { R(c, B.trail, x, 24, 1, 6); R(c, B.hot, x, 27); }
   rim(c, [B.body, B.lift], X.rim); return c;
 }
 
 // ---- VII: Shade — ragged ghost. 'shadow' = dim rim, dithered, untouchable; 'lit' = solid, hittable; 'strike' lunges.
 function shade(st, i) {
-  const c = cell(), B = M.shade, lit = st === 'lit', strike = st === 'strike', bob = Math.round(Math.sin(i * 2.1)), f = strike ? 2 : 0;
+  const c = cell(), B = M.shade, lit = st === 'lit', strike = st === 'strike', bob = Math.round(Math.sin(i * 2.1)), f = strike ? (i ? 3 : 1) : 0;
   const sc = lit ? B.litBody : B.body, lc = lit ? LITLIFT : B.lift;
   R(c, sc, 10 + f, 10 + bob, 12, 14); for (let k = 0; k < 6; k++) R(c, sc, 10 + f + k * 2, 24 + bob, 2, (k + i) & 1 ? 6 : 3);
   R(c, sc, 11 + f, 5 + bob, 10, 7); R(c, sc, 12 + f, 4 + bob, 8, 1); R(c, lc, 10 + f, 10 + bob, 2, 14);
-  if (strike) { R(c, sc, 22, 14, 8, 2); R(c, sc, 29, 12, 1, 2); R(c, sc, 29, 16, 1, 2); } else R(c, sc, 22 + f, 14 + bob, 3, 2);
-  // dither with the dim rim colour rather than punching holes, so the rim pass cannot speckle the body
-  if (st === 'shadow') for (let y = 18; y < N; y++) for (let x = 0; x < N; x++) if ((x + y) & 1 && c[y * N + x]) c[y * N + x] = px(B.shadowRim);
+  if (strike) { R(c, sc, 22 + f, 14, 9, 2); R(c, sc, 29 + f, 12, 1, 2); R(c, sc, 29 + f, 16, 1, 2); }
+  else R(c, sc, 22 + f, 14 + bob, 3, 2);
+  if (st === 'shadow') {                                          // dithered and trailing: untouchable
+    for (let y = 18; y < N; y++) for (let x = 0; x < N; x++) if (((x + y + i) & 1) && c[y * N + x]) c[y * N + x] = px(B.shadowRim);
+    R(c, B.shadowRim, 8 + i, 27, 1, 3); R(c, B.shadowRim, 22 - i, 29, 1, 2);
+  } else R(c, X.rim, 13, 15, 1, 1);                               // lit: an ember glint in the chest
   rim(c, [sc, lc], st === 'shadow' ? B.shadowRim : X.rim);
   const e = lit ? B.litEye : strike ? X.hot : X.eye; R(c, e, 15 + f, 8 + bob, 2, 2); R(c, e, 18 + f, 8 + bob, 2, 2);
   return c;
@@ -91,11 +113,16 @@ function axe(c, B, hx, hy, a) {
 function husk(st, i) {
   const c = cell(), B = M.husk; let lean = 0, b = 0, s = 0, hot = false, a = 1.1, hx = 20, hy = 19;
   if (st === 'idle') { b = i; hy = 19 + b; }
-  else if (st === 'walk') { s = Math.round(Math.sin(i / 4 * 6.283) * 2); b = i & 1; hy = 19 + b; }
+  else if (st === 'walk') {
+    const ph = i / 4 * 6.283;
+    s = Math.round(Math.sin(ph) * 2); b = i & 1;
+    a = 1.1 + Math.sin(ph) * .28; hx = 20 + Math.round(Math.sin(ph)); hy = 19 + b;
+  }
   else if (st === 'cleave_wind') { lean = -1; hot = i === 1; a = [-1.9, -2.5][i]; hx = 19; hy = 13; }
   else if (st === 'cleave') { lean = 3; b = 3; hot = true; a = 1.0; hx = 23; hy = 19; }
   else { lean = 3; b = 3; hot = true; a = 3.0; hx = 15; hy = 22; }               // charge
-  R(c, B.body, 11 + s, 25, 4, 7); R(c, B.body, 17 - s, 25, 4, 7); R(c, B.lift, 10 + s, 30, 5, 2); R(c, B.lift, 16 - s, 30, 5, 2);
+  R(c, B.body, 11 + s, 25, 4, 7); R(c, B.body, 17 - s, 25, 4, 7);
+  R(c, B.lift, 10 + s, 30 - (s > 0 ? 1 : 0), 5, 2); R(c, B.lift, 16 - s, 30 - (s < 0 ? 1 : 0), 5, 2);
   R(c, B.body, 9 + lean, 13 + b, 13, 12); R(c, B.lift, 9 + lean, 13 + b, 3, 12); R(c, B.lift, 9 + lean, 21 + b, 13, 1);
   R(c, B.body, 11 + lean, 5 + b, 10, 9); R(c, B.body, 9 + lean, 2 + b, 2, 5); R(c, B.body, 21 + lean, 2 + b, 2, 5); R(c, B.lift, 11 + lean, 5 + b, 2, 8);
   R(c, B.body, 18 + lean, 15 + b, 4, 2);
@@ -103,7 +130,7 @@ function husk(st, i) {
   const eye = hot ? X.hot : X.eye; R(c, eye, 15 + lean, 9 + b, 2, 1); R(c, eye, 18 + lean, 9 + b, 2, 1);
   R(c, B.crack, 13 + lean, 15 + b, 1, 4); R(c, B.crack, 14 + lean, 18 + b, 1, 3); R(c, B.hot, 13 + lean, 16 + b);
   axe(c, B, hx, hy, a);
-  if (st === 'charge') for (const y of [10, 14, 18]) R(c, B.crack, 0, y, 7, 1);
+  if (st === 'charge') for (const y of i ? [10, 14] : [10, 14, 18]) R(c, B.crack, 0, y, i ? 5 : 7, 1);
   return c;
 }
 
@@ -127,6 +154,7 @@ function hexer(st, i) {
     const kind = st.slice(5), col = kind === 'snuff' ? PALE2 : X.eye;
     if (i === 0) { robe(0); rim(c, [B.body, B.lift], X.rim); eyes(0, 0, kind === 'snuff' ? PALE2 : X.hot); staff(26, 6, 0, col, 3); ring(c, col, 26, 6, 5); if (kind === 'heavy') R(c, B.body, 25, 5, 2, 2); }
     else if (i === 1) { robe(0, 1); rim(c, [B.body, B.lift], X.rim); eyes(0, 1, col === PALE2 ? PALE2 : X.hot); staff(24, 7, 5, col, 3);
+      R(c, col, 26, 2); R(c, col, 31, 10); R(c, col, 24, 11); R(c, X.hot, 29, 7);   // gathered runes
       if (kind === 'smother') { R(c, col, 30, 6, 2, 3); R(c, PALE, 31, 10); R(c, PALE, 30, 4); } else { R(c, col, 28, 14, 4, 1); R(c, kind === 'snuff' ? PALE2 : X.hot, 29, 14, 2, 1); } }
     else { robe(0); rim(c, [B.body, B.lift], X.rim); eyes(0); staff(26, 6, 0, B.orb); R(c, col, 28, 4); R(c, col, 24, 3); wisps(1); }
     return c;

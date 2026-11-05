@@ -474,12 +474,37 @@ function drawEnemy(e) {
   } else if (e.type === 'husk') {
     NEWMOBS.drawMob(ctx, 'husk', 'walk', Math.floor(e.t * 8), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else if (e.type === 'shade') {
+    if (!e.lit) {
+      const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+      const grd = ctx.createRadialGradient(cx, cy, 2, cx, cy, 42);
+      grd.addColorStop(0, 'rgba(122,150,190,.13)'); grd.addColorStop(1, 'rgba(122,150,190,0)');
+      ctx.fillStyle = grd; ctx.fillRect(cx - 42, cy - 42, 84, 84);
+    }
     NEWMOBS.drawMob(ctx, 'shade', e.lit ? 'lit' : 'shadow', Math.floor(e.t * 5), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else if (e.type === 'crawler') {
-    NEWMOBS.drawMob(ctx, 'crawler', 'crawl', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
+    const cx = e.x + e.w / 2, fy = e.y + e.h;
+    const grd = ctx.createRadialGradient(cx, fy, 2, cx, fy, 26);
+    grd.addColorStop(0, 'rgba(255,77,28,.18)'); grd.addColorStop(1, 'rgba(255,77,28,0)');
+    ctx.fillStyle = grd; ctx.fillRect(cx - 26, fy - 26, 52, 52);
+    NEWMOBS.drawMob(ctx, 'crawler', 'crawl', Math.floor(e.t * 6), cx, fy, e.dir, flash);
   } else if (e.type === 'wisp') {
-    NEWMOBS.drawMob(ctx, 'wisp', e.scared ? 'scared' : 'float', Math.floor(e.t * 8), e.x + e.w / 2, e.y + e.h / 2, e.dir, flash);
+    const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+    const col = e.scared ? '143,176,216' : '255,138,61';
+    const grd = ctx.createRadialGradient(cx, cy, 2, cx, cy, 36);
+    grd.addColorStop(0, `rgba(${col},.20)`); grd.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = grd; ctx.fillRect(cx - 36, cy - 36, 72, 72);
+    NEWMOBS.drawMob(ctx, 'wisp', e.scared ? 'scared' : 'float', Math.floor(e.t * 8), cx, cy, e.dir, flash);
   } else if (e.type === 'hexer') {
+    const cx = e.x + e.w / 2, fy = e.y + e.h;
+    if (e.st === 'cast') {                                           // a widening sigil under the caster
+      const k = Math.min(1, e.stT / .9), col = e.hex === 'snuff' ? '207,216,238' : '255,138,61';
+      ctx.strokeStyle = `rgba(${col},${.3 + .4 * k})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, fy, 14 + k * 24, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, fy, 9 + k * 15, e.t * 2.4, e.t * 2.4 + 2.3); ctx.stroke();
+      const grd = ctx.createRadialGradient(cx, fy, 2, cx, fy, 30);
+      grd.addColorStop(0, `rgba(${col},${.12 + .10 * k})`); grd.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = grd; ctx.fillRect(cx - 30, fy - 30, 60, 60);
+    }
     const st = e.dying > 0 ? 'die' : e.st === 'cast' ? 'cast_' + e.hex : e.st;
     const n = e.dying > 0 ? Math.min(2, Math.floor((1 - e.dying / .45) * 3))
       : e.st === 'cast' ? Math.min(2, Math.floor(e.stT / .3))
@@ -496,7 +521,10 @@ function drawEnemy(e) {
   } else if (e.type === 'shield') {
     drawMob(ctx, 'shield', e.st === 'down' ? 'open' : 'guard', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else {
-    drawMob(ctx, 'goblin', 'walk', Math.floor(e.t * 9), e.x + e.w / 2, e.y + e.h, e.dir, flash);
+    const dxp = (g.p.x + g.p.w / 2) - (e.x + e.w / 2);               // face the knight before snarling
+    const near = Math.abs(dxp) < 52 && Math.sign(dxp) === e.dir;
+    drawMob(ctx, 'goblin', near ? 'strike' : 'walk', near ? Math.floor(e.t * 6) : Math.floor(e.t * 9),
+      e.x + e.w / 2, e.y + e.h, e.dir, flash);
   }
 }
 
@@ -1118,9 +1146,18 @@ function renderWorld() {
   for (const e of g.enemies) drawEnemy(e);
   for (const o of g.hexOrbs) {                                     // a hex orb in flight
     const col = o.hex === 'snuff' ? '#cfd8ee' : '#ff8a3d';
+    const d = Math.hypot(o.vx, o.vy) || 1;                         // a short, readable tail
+    for (let k = 1; k <= 3; k++) {
+      ctx.globalAlpha = .28 * (4 - k) / 3; ctx.fillStyle = col;
+      ctx.fillRect(o.x - o.vx / d * k * 8 - 1, o.y - o.vy / d * k * 8 - 1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
     glow(o.x, o.y, 24 + g.dark * 22, .3 + g.dark * .25);
     ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.spin || 0);
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 6, 0, 7); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, 6 + Math.sin(g.t * 9 + o.spin) * 1.2, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 9, .4, 2.6); ctx.stroke();
+    for (let k = 0; k < 2; k++) { const a = o.spin * .5 + k * Math.PI; ctx.fillRect(Math.cos(a) * 9 - 1, Math.sin(a) * 9 - 1, 2, 2); }
     ctx.fillStyle = col; ctx.fillRect(-3, -3, 6, 6);
     ctx.fillStyle = o.hex === 'snuff' ? '#eef3ff' : '#ffd479'; ctx.fillRect(-1, -1, 2, 2);
     ctx.restore();

@@ -23,7 +23,7 @@ export const MOBS = {
   archer:  { body: '#1a1624', lift: '#2e2840', wood: '#5b3d22', arrow: '#ff8a3d', hot: '#ffd08a' },           // V Ashen Gardens (smoky violet)
   wisp:    { body: '#0f0c14', lift: '#241a2e', ring: '#ff8a3d', hot: '#ffd08a', scaredEye: '#e4ecff' },       // V-VI; eyes go pale when light makes it flee
   crawler: { body: '#10151c', lift: '#1f2c3a', trail: '#ff4d1c', hot: '#ffd08a' },                            // VI Drowned Forge (steel blue-black), molten trail
-  shade:   { body: '#0a0b1e', lift: '#1a1d4a', shadowRim: '#7a4420', litBody: '#2a2f6a', litEye: '#ffd08a' }, // VII Archive: dim rim = untouchable, lit = hittable
+  shade:   { body: '#0a0b1e', lift: '#1a1d4a', shadowRim: '#5a6f96', litBody: '#2a2f6a', litEye: '#ffd08a' }, // VII Archive: cold rim = untouchable, lit = hittable
   husk:    { body: '#0e0e16', lift: '#262638', crack: '#ff8a3d', hot: '#ffd08a' },                            // VIII Ember Heart (cold near-black)
   hexer:   { body: '#150f1f', lift: '#2c2140', orb: '#5a6585', orbLift: '#8f9bb8', pale: '#cfd8ee' },         // V-VIII caster: plum robe, cold grey orb (orange when it casts; pale for Snuff Hex)
 };

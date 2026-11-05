@@ -61,6 +61,7 @@ const { dbg } = await import(here('../knightfall/main.js'));
 const { LEVELS, TOTAL_COINS } = await import(here('../knightfall/level.js'));
 const INP = await import(here('../knightfall/input.js'));
 const MS = await import(here('../knightfall/mobsprites.js'));
+const MOBART = await import(here('../knightfall/mobs.js'));
 const { BACKDROP_STYLES } = await import(here('../knightfall/backdrop.js'));
 const { SCENERY_TYPES } = await import(here('../knightfall/scenery.js'));
 globalThis.__k = INP;
@@ -381,6 +382,26 @@ fire('keydown', 'KeyE'); frames(1); fire('keyup', 'KeyE');
 frames(100);
 const lamp = G.lamps[0];
 ok(!!lamp && lamp.t > 4.5, 'a thrown lantern burns for ~6.5s (t=' + (lamp ? lamp.t.toFixed(1) : 'none') + ')');
+
+/* ================= 6c. enemy art and animation ================= */
+const artProblems = [];
+const checkArt = (label, rows, make) => {
+  for (const [st, n] of Object.entries(rows)) {
+    const frames = Array.from({ length: n }, (_, i) => make(st, i));
+    if (!frames.every(c => c.some(v => v !== 0))) artProblems.push(label + '.' + st + ' empty');
+    if (n > 1 && new Set(frames.map(f => f.join(','))).size === 1) artProblems.push(label + '.' + st + ' static');
+  }
+};
+checkArt('goblin', MOBART.ROWS.goblin, (st, i) => MOBART.frame('goblin', st, i));
+checkArt('shield', MOBART.ROWS.shield, (st, i) => MOBART.frame('shield', st, i));
+checkArt('bat', MOBART.ROWS.bat, (st, i) => MOBART.frame('bat', st, i));
+for (const [kind, rows] of Object.entries(MS.MOB_STATES)) checkArt(kind, rows, (st, i) => MS.frame(kind, st, i));
+ok(artProblems.length === 0, 'every enemy state draws, and multi-frame states actually move' + (artProblems.length ? ' -> ' + artProblems.join(', ') : ''));
+ok(MOBART.ROWS.bat.fly === 6 && MOBART.ROWS.goblin.strike === 2, 'bats flap six frames and goblins have a two-frame strike');
+const spriteless = [];
+for (const L of LEVELS) for (const e of L.enemies) if (!(e.type in MOBART.ROWS) && !(e.type in MS.MOB_STATES)) spriteless.push(L.name + ':' + e.type);
+ok(spriteless.length === 0, 'every spawned enemy has a sprite model' + (spriteless.length ? ' -> ' + spriteless.join(', ') : ''));
+ok(LEVELS[3].enemies.some(e => e.type === 'husk'), 'the Ember Husk is a real encounter in the Throne');
 
 /* ================= 7. the menu ================= */
 dbg.loadLevel(0); frames(2); dbg.start();

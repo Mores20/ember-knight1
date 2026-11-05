@@ -18,7 +18,7 @@ the map of the machine.
 | `python -m http.server 8000` | Play from source at `http://127.0.0.1:8000/` (HTTP is required — ES modules and audio won't load from `file://`) |
 | `npm install` | Install the desktop/build dependencies (not needed to play) |
 | `npm start` | Run the game in an Electron window |
-| `npm test` | Headless regression suite (`tools/harness.mjs`, 100 checks, ~2 s) |
+| `npm test` | Headless regression suite (`tools/harness.mjs`, 104 checks, ~2 s) |
 | `npm run smoke` | Launch Electron, verify boot/canvas/audio/a fight, screenshot, exit code |
 | `npm run dist` | Build `dist/Ember-Knight-<version>.exe` (portable) |
 
@@ -215,9 +215,17 @@ Constants: `MAXV 230`, `ACC 1900`, `GRAV 1700`, `JV -620`, `CUT -240`, `DASH_V 4
 | `archer` | 2 | draws, then fires a parryable arrow (level 5) | `mobsprites.js` |
 | `wisp` | 1 | chases; recoils and goes harmless in light | `mobsprites.js` |
 | `crawler` | 2 | slow, ignores knockback, leaves burning slag | `mobsprites.js` |
-| `shade` | 2 | only solid/hittable in light | `mobsprites.js` |
-| `husk` | 2 | walks you down (unused in v1) | `mobsprites.js` |
+| `shade` | 2 | only solid/hittable in light; cold rim when untouchable | `mobsprites.js` |
+| `husk` | 2 | walks you down in the Throne | `mobsprites.js` |
 | `hexer` | 3 | floats, blinks, casts three-orb hexes | `mobsprites.js` |
+
+The old trio in `mobs.js` was redrawn for S6: goblins get a hooded silhouette and a two-frame
+coil→lunge when they face you at close range; shield goblins get a nasal helm, a larger riveted kite
+shield and a readable guard/open shuffle; bats use a six-frame flap. The new mobs animate per state
+(`MOB_STATES`) — the wisp's four-frame drift and halo, the crawler's six legs and snapping mandibles,
+the shade's animated dither and cold rim, the husk's walk, and the hexer's gathered cast runes with a
+widening sigil under it. Hex orbs carry a short tail and an orbiting glyph. `npm test` checks that
+every state draws and that every multi-frame state actually changes.
 
 Adding a mob: sprite rows in `mobsprites.js` (state → frame count) + `DRAW`/`BODY`/`ANCHOR`, colours in
 `themes.MOBS`, a class + `makeEnemy` branch in `enemies.js`, a draw branch in `main.js` `drawEnemy`,
@@ -265,6 +273,10 @@ He floats at a fixed height above the floor; **steel only bites while `st === 's
 - Conventions: 32 px cells for mobs, feet on the bottom row (except floaters), flat shading with a
   "lift" tone, **orange (#ff8a3d family) is reserved for danger** and never used in world colours,
   no outlines, integer scales only (`imageSmoothingEnabled = false`).
+- Animation lives in state→frame-count tables: `mobs.js ROWS` for the goblin/shield/bat and
+  `mobsprites.js MOB_STATES` for the newer mobs. Drawing interfaces take `(kind, state, frame, x, y,
+  face, {flash})`; anchors stay fixed so collisions never move. Add frames to a state's count, not to
+  the cell — the harness rejects empty or still multi-frame states.
 - `themes.js` holds the eight world palettes plus `POP`, `TRAIL`, `FLAME`, `THREAT` and per-mob colours.
 - `ashking.js` exposes `ROWS`/`COUNTS` and `drawKing(ctx, row, frame, cx, feetY, face, {phase, flash, scale})`.
 
@@ -374,7 +386,7 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
 
 ## 14. Testing
 
-`npm test` → `tools/harness.mjs` (100 checks, ~2 s). It stubs `document`, `ImageData`, `localStorage`,
+`npm test` → `tools/harness.mjs` (104 checks, ~2 s). It stubs `document`, `ImageData`, `localStorage`,
 `AudioContext` and `requestAnimationFrame`, imports the real game, and drives it:
 
 - boot + the renderer actually draws
@@ -391,6 +403,8 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
 - the world: eight backdrops, valid in-bounds props, secret alcoves with a one-way ledge + launch pad
   + reward, discovery saves, and the Ember Road niche is reachable by an actual jump
 - checkpoints: the Ember Road keep, the Gardens midpoint and the Archive fallback
+- enemy art: every state draws, multi-frame states animate, every spawned type has a sprite model,
+  and the Ember Husk is placed in the Throne
 - the menu: Esc, CONTINUE, colour persistence, diorama kills
 - story settle, card hold, ending → credits
 

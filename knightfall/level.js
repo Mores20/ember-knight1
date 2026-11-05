@@ -268,6 +268,7 @@ const PHASE4 = {
     { type: 'goblin', x: 700, y: 390, x0: 620, x1: 820, hp: 1 },
     { type: 'bat', x0: 1100, x1: 1350, y0: 300, ay: 60, sp: 1.0, ph: 1.5 },
     { type: 'bat', x0: 300, x1: 600, y0: 280, ay: 40, sp: 1.15, ph: 3.2 },
+    { type: 'husk', x: 880, y: 390, hp: 2 },                     // the Warden's little echo
   ],
   boss: { x: 1900, y: 344, wake: 1350, hp: 16 },               // the Ash Warden
   props: [
