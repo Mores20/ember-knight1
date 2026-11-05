@@ -17,6 +17,104 @@ export class Goblin {
   hit(d) { this.hp--; this.flash = .12; this.x += d * 10; return this.hp <= 0; }
 }
 
+// Road Scavenger: grabs loose coins, bolts when the knight closes in, and drops the sack when
+// killed. If it gets away, the coins reappear where they were: the tally can never be lost.
+export class Scavenger {
+  constructor(o) {
+    Object.assign(this, { type: 'scavenger', w: 24, h: 30, hp: 1, dir: 1, sp: 46, flash: 0, t: 0, carry: [], st: 'patrol', stT: 0, escaped: 0 }, o);
+    this.x0 = o.x0 != null ? o.x0 : (o.x || 0) - 120;
+    this.x1 = o.x1 != null ? o.x1 : (o.x || 0) + 120;
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    if (this.st === 'gone') return;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, near = Math.abs(px - cx) < 110;
+    if (near && this.st !== 'flee') { this.st = 'flee'; this.stT = 0; }
+    if (!near && this.st === 'flee' && this.stT > .8) { this.st = 'patrol'; this.stT = 0; }
+
+    if (this.st === 'flee') {
+      const dir = Math.sign(cx - px) || this.dir;
+      this.dir = dir;
+      this.x += dir * 112 * dt;
+      if (this.x < this.x0 - 150 || this.x > this.x1 + 150) this.escape(g);
+      return;
+    }
+
+    let target = null;
+    if (g && g.coins) for (const c of g.coins) {
+      if (c.got || c.taken) continue;
+      if (Math.abs(c.x - cx) < 260 && Math.abs(c.y - (this.y + this.h)) < 90) { target = c; break; }
+    }
+    if (target) {
+      const dx = target.x - cx;
+      this.dir = dx < 0 ? -1 : 1;
+      this.x += Math.sign(dx) * this.sp * 1.55 * dt;
+      if (Math.abs(dx) < 13) {
+        target.taken = 1;
+        this.carry.push(target);
+        if (g && g.parts) for (let k = 0; k < 4; k++) g.parts.push({ x: target.x, y: target.y, vx: (Math.random() - .5) * 40, vy: -30 - Math.random() * 30, l: .35, col: '#ffd84a' });
+        sfx.land();
+      }
+      return;
+    }
+    const nx = this.x + this.dir * this.sp * dt;
+    if (g && !floorUnder(g, this.dir > 0 ? nx + this.w + 2 : nx - 2, this.y + this.h)) this.dir *= -1;
+    else this.x = nx;
+    if (this.x < this.x0) { this.x = this.x0; this.dir = 1; }
+    if (this.x + this.w > this.x1) { this.x = this.x1 - this.w; this.dir = -1; }
+  }
+  escape(g) {
+    this.st = 'gone'; this.escaped = 1; this.dead = 1;
+    for (const c of this.carry) { c.taken = 0; c.x = c.ox != null ? c.ox : c.x; c.y = c.oy != null ? c.oy : c.y; }
+    this.carry.length = 0;
+    if (g) g.scavEscaped = (g.scavEscaped || 0) + 1;
+  }
+  drop(g) {
+    const n = this.carry.length;
+    this.carry.forEach((c, i) => { c.taken = 0; c.x = this.x + this.w / 2 + (i % 3 - 1) * 18; c.y = this.y + this.h - 5; });
+    this.carry.length = 0;
+    if (g && g.parts) for (let k = 0; k < n * 5; k++) g.parts.push({ x: this.x + this.w / 2, y: this.y + this.h - 8, vx: (Math.random() - .5) * 90, vy: -40 - Math.random() * 70, l: .5, col: '#ffd84a' });
+    return n;
+  }
+  hit() { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
+// Cinder Crow: perched above the causeway, flares its wings, then dives in a straight line.
+// The flare is the tell; the recovery is the punish window.
+export class Crow {
+  constructor(o) {
+    Object.assign(this, { type: 'crow', w: 22, h: 18, hp: 2, t: 0, flash: 0, dir: -1, st: 'perch', stT: 0, vx: 0, vy: 0 }, o);
+    this.x0 = o.x; this.baseY = o.y;
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2;
+    if (this.st === 'perch') {
+      this.dir = px < cx ? -1 : 1;
+      this.x = this.x0; this.y = this.baseY + Math.sin(this.t * 2) * 1.5;
+      if (Math.abs(px - cx) < 300 && this.stT > 1.0) { this.st = 'flare'; this.stT = 0; sfx.wind(); }
+    } else if (this.st === 'flare') {
+      this.dir = px < cx ? -1 : 1;
+      if (this.stT > .55) {
+        this.st = 'dive'; this.stT = 0;
+        const tx = p.x + p.w / 2, ty = p.y + p.h / 2;
+        const dx = tx - (this.x + this.w / 2), dy = ty - (this.y + this.h / 2), d = Math.hypot(dx, dy) || 1;
+        this.vx = dx / d * 430; this.vy = dy / d * 430;
+      }
+    } else if (this.st === 'dive') {
+      this.x += this.vx * dt; this.y += this.vy * dt;
+      if (this.stT > .48 || this.y > 430 || this.x < 0) { this.st = 'recover'; this.stT = 0; this.vx = this.vy = 0; }
+    } else if (this.st === 'recover') {
+      if (this.stT > 1.2) { this.st = 'return'; this.stT = 0; }
+    } else if (this.st === 'return') {
+      const dx = this.x0 - this.x, dy = this.baseY - this.y, d = Math.hypot(dx, dy) || 1;
+      this.x += dx / d * 260 * dt; this.y += dy / d * 260 * dt;
+      if (d < 6) { this.x = this.x0; this.y = this.baseY; this.st = 'perch'; this.stT = 0; }
+    }
+  }
+  hit() { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
 export class Bat {
   constructor(o) { Object.assign(this, { type: 'bat', w: 26, h: 14, t: 0, hp: 1 }, o); this.update(0); }
   update(dt) {
@@ -233,4 +331,5 @@ export class Hexer {
 
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
-  : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o) : new Goblin(o);
+  : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
+  : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o) : new Goblin(o);

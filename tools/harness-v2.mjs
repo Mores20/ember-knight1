@@ -61,6 +61,7 @@ store.set('emberknight.v1', JSON.stringify({
 
 const here = p => new URL(p, import.meta.url);
 const { dbg } = await import(here('../knightfall/v2/main.js'));
+const MOBART = await import(here('../knightfall/mobs.js'));
 const SCENES = dbg.SCENES;
 frames(5);
 
@@ -75,6 +76,14 @@ const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
 ok(hub.l.hub.gates.length === 2, 'the hub has two gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
+
+const crowBad = [];
+for (const [st, n] of Object.entries(MOBART.ROWS.crow)) {
+  const fs = Array.from({ length: n }, (_, i) => MOBART.frame('crow', st, i));
+  if (!fs.every(c => c.some(v => v !== 0))) crowBad.push(st + ':empty');
+  if (n > 1 && new Set(fs.map(f => f.join(','))).size === 1) crowBad.push(st + ':static');
+}
+ok(crowBad.length === 0, 'the Cinder Crow has perch, flare, dive and recover frames' + (crowBad.length ? ' -> ' + crowBad.join(',') : ''));
 
 /* ================= 2. hub interactions ================= */
 hub.p.hp = 1; hub.p.x = hub.l.hub.hearth.x - 12; hub.p.y = 386; frames(2);
@@ -106,6 +115,20 @@ const ledge1 = a1.l.solids.find(s => s.oneway && s.y >= sec1.y + sec1.h - 70 && 
 a1.p.reset(sec1.x + sec1.w / 2 - a1.p.w / 2, ledge1.y - a1.p.h); frames(3);
 ok((dbg.run.secrets.a1 || []).includes(0), 'the Cook\u2019s Satchel is a discoverable secret');
 
+const scav = a1.enemies.find(e => e.type === 'scavenger');
+ok(!!scav, '1-1 has a Road Scavenger');
+const loot = a1.coins.find(c => !c.got && !c.taken && c.x > 1250);
+scav.x = loot.x - 8; a1.p.x = 100; frames(3);
+ok(loot.taken === 1 && scav.carry.length > 0, 'the Scavenger pockets a loose coin');
+a1.p.x = scav.x - 30; a1.p.y = 386; a1.p.face = 1; scav.hp = 1; a1.p.swing = .15; frames(6);
+ok(scav.dead && loot.taken === 0, 'killing the Scavenger drops the sack');
+
+const loot2 = a1.coins.find(c => !c.got && !c.taken);
+scav.dead = 0; scav.hp = 1; scav.st = 'patrol'; scav.carry = []; scav.x = loot2.x - 8;
+a1.enemies.push(scav); a1.p.hits.clear(); a1.p.x = 100; frames(3);
+scav.st = 'flee'; scav.x = scav.x1 + 149; a1.p.x = scav.x - 60; a1.p.y = 386; frames(2);
+ok(scav.dead && loot2.taken === 0 && loot2.x === loot2.ox, 'an escaped Scavenger returns its coins');
+
 a1.p.x = a1.l.exit.x + a1.l.exit.w / 2 - a1.p.w / 2; a1.p.y = a1.l.exit.y + a1.l.exit.h - a1.p.h; frames(40);
 ok(dbg.sceneId === 'a2' && dbg.run.levels.I[0] === true, '1-1 leads to 1-2 and is marked cleared');
 dbg.returnHub(); frames(3);
@@ -115,9 +138,24 @@ hres.p.x = 1480; hres.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
 ok(dbg.sceneId === 'a2', 'Gate I resumes at the first uncleared level');
 const a2 = dbg.g;
+const crow = a2.enemies.find(e => e.type === 'crow');
+a2.p.x = 700; a2.p.y = 326; a2.p.inv = 999; frames(80);
+ok(crow && crow.st !== 'perch', 'the Cinder Crow flares and dives from its perch');
 a2.p.x = a2.l.exit.x + a2.l.exit.w / 2 - a2.p.w / 2; a2.p.y = a2.l.exit.y + a2.l.exit.h - a2.p.h; frames(40);
 ok(dbg.sceneId === 'a3' && dbg.run.levels.I[1] === true, '1-2 leads to 1-3 and is marked cleared');
 const a3 = dbg.g;
+const boss = a3.boss;
+ok(boss && boss.st === 'dormant', 'the Gatekeeper Brute waits in 1-3');
+a3.p.x = 910; a3.p.y = 226; a3.p.inv = 999; frames(20);
+ok(boss.st !== 'dormant', 'the Brute wakes on the keep roof');
+boss.hp = 8; boss.st = 'charge'; boss.stT = 0; boss.vx = 400; boss.dir = 1; boss.x = 1000; boss.hitDone = 0;
+a3.p.x = 1030; a3.p.y = 226; a3.p.face = -1; a3.p.inv = 0;
+fire('keydown', 'KeyL'); frames(1);
+ok(boss.st === 'stunned', 'a perfect guard stuns the Brute\u2019s charge');
+fire('keyup', 'KeyL');
+boss.st = 'stunned'; boss.stunT = 9; boss.stT = 0; boss.hp = 1;
+a3.p.x = 990; a3.p.y = 226; a3.p.face = 1; a3.p.swing = .15; frames(8);
+ok(boss.hp === 0 && boss.st === 'dead', 'the Brute falls and the gate opens');
 a3.p.x = a3.l.exit.x + a3.l.exit.w / 2 - a3.p.w / 2; a3.p.y = a3.l.exit.y + a3.l.exit.h - a3.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.I === true && dbg.run.levels.I[2] === true, '1-3 returns to the hub and completes Area I');
 ok(JSON.parse(store.get('emberknight.v2')).cleared.I === true, 'area progress is saved');

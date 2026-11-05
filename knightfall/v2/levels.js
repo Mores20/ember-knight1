@@ -134,7 +134,8 @@ export const A1_1 = {
   hearts: [[470, 385], [878, 285]],
   enemies: [
     { type: 'bat', x0: 300, x1: 650, y0: 230, ay: 30, sp: .5, ph: 0 },
-    { type: 'goblin', x: 1150, y: 390, x0: 1000, x1: 1350, hp: 1 },
+    { type: 'goblin', x: 1050, y: 390, x0: 950, x1: 1120, hp: 1 },
+    { type: 'scavenger', x: 1250, y: 390, x0: 1180, x1: 1450 },
     { type: 'bat', x0: 1200, x1: 1550, y0: 230, ay: 60, sp: 1.1, ph: 2.1 },
   ],
   props: [
@@ -183,6 +184,7 @@ export const A1_2 = {
   enemies: [
     { type: 'bat', x0: 320, x1: 700, y0: 250, ay: 55, sp: 1.0, ph: 0 },
     { type: 'bat', x0: 700, x1: 1100, y0: 240, ay: 80, sp: 1.2, ph: 2.2 },
+    { type: 'crow', x: 880, y: 362 },
     { type: 'goblin', x: 1350, y: 390, x0: 1250, x1: 1500, hp: 1 },
   ],
   props: [
@@ -224,8 +226,9 @@ export const A1_3 = {
   hearts: [[450, 385]],
   enemies: [
     { type: 'bat', x0: 600, x1: 900, y0: 250, ay: 40, sp: 1.0, ph: 1.4 },
-    { type: 'goblin', x: 950, y: 230, x0: 890, x1: 1080, hp: 2 },
+    { type: 'goblin', x: 700, y: 270, x0: 680, x1: 760, hp: 2 },
   ],
+  boss: { type: 'brute', x: 1000, y: 216, wake: 900, hp: 8 },
   props: [
     { type: 'grave', x: 350, y: 420 },
     { type: 'rubble', x: 1050, y: 260 },

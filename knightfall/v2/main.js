@@ -12,6 +12,7 @@ import { drawProps, drawSecretVeil } from '../scenery.js';
 import { THEMES, POP } from '../themes.js';
 import { SCENES, TOTAL_COINS } from './levels.js';
 import { bootRun, saveRun as persist, readV1, importV1Run, freshRun } from './save.js';
+import { GatekeeperBrute } from './brute.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const VW = 960, VH = 540, BAR = 34, BARB = 18, BOT = VH - BARB;
@@ -76,9 +77,11 @@ function loadScene(id) {
   g = {
     l, id, p, abil: run.abil, stage,
     enemies: (l.enemies || []).map(makeEnemy),
-    coins: l.coins.map(([x, y], k) => ({ x, y, k, got: got.c.includes(k) ? 1 : 0 })),
+    coins: l.coins.map(([x, y], k) => ({ x, y, ox: x, oy: y, k, taken: 0, got: got.c.includes(k) ? 1 : 0 })),
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: got.h.includes(k) ? 1 : 0 })),
     secrets: l.secrets, props: l.props, got,
+    boss: l.boss ? new GatekeeperBrute(l.boss) : null,
+    bossSeen: 0, bossMsg: 0,
     parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: 0 }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
@@ -249,6 +252,7 @@ function update(dt) {
   if (g.grant > 0) g.grant -= dt;
   if (g.healMsg > 0) g.healMsg -= dt;
   if (g.stageMsg > 0) g.stageMsg -= dt;
+  if (g.bossMsg > 0) g.bossMsg -= dt;
   if (g.parryMsg > 0) g.parryMsg -= dt;
   if (g.dummyT > 0) g.dummyT -= dt;
   if (g.cpT > 0) g.cpT -= dt;
@@ -257,6 +261,11 @@ function update(dt) {
   if (g.sealMsg > 0) g.sealMsg -= dt;
 
   p.update(dt, g.l.solids, g);
+  if (g.boss) {
+    const was = g.boss.st;
+    g.boss.update(dt, p, g);
+    if (g.boss.st === 'wake' && was !== 'wake' && !g.bossSeen) { g.bossSeen = 1; g.bossMsg = 2.6; }
+  }
   if (p.hp <= 0) { p.hp = 3; A.sfx.die(); respawn(); save(); }
 
   // checkpoints
@@ -290,7 +299,8 @@ function update(dt) {
   // exits
   const ex = g.l.exit;
   if (ex && hit(p, ex)) {
-    if (g.l.ward && g.wardHp > 0) {
+    const held = (g.l.ward && g.wardHp > 0) || (g.boss && g.boss.hp > 0);
+    if (held) {
       if (g.sealMsg <= 0) { g.sealMsg = 2.4; A.sfx.block(); }
     } else {
       transition(ex.to, () => {
@@ -337,8 +347,19 @@ function update(dt) {
     for (const e of g.enemies) if (!p.hits.has(e) && hit(s, { x: e.x - 4, y: e.y - 4, w: e.w + 8, h: e.h + 8 })) {
       p.hits.add(e);
       const dead = e.hit(p.face);
+      if (dead && e.type === 'scavenger') e.drop(g);
       g.stop(.07); g.shake(5); A.sfx.hit(); spark(e.x + e.w / 2, e.y + e.h / 2, dead ? 18 : 8, C.ember);
       if (dead) { e.dead = 1; g.kills++; A.sfx.kill(); }
+    }
+    if (g.boss && g.boss.hp > 0 && !p.hits.has(g.boss)
+      && hit(s, { x: g.boss.x - 4, y: g.boss.y - 4, w: g.boss.w + 8, h: g.boss.h + 8 })) {
+      p.hits.add(g.boss);
+      const r = g.boss.takeHit();
+      if (r === 2) { A.sfx.block(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 24, 7, '#c9d4f0'); g.shake(3); g.stop(.04); }
+      else if (r === 1) {
+        A.sfx.hit(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 24, g.boss.hp <= 0 ? 40 : 9, C.ember);
+        g.stop(.06); g.shake(g.boss.hp <= 0 ? 16 : 5);
+      }
     }
   }
   g.enemies = g.enemies.filter(e => !e.dead);
@@ -348,7 +369,7 @@ function update(dt) {
   }
 
   // pickups
-  for (const c of g.coins) if (!c.got && hit(p, { x: c.x - 9, y: c.y - 9, w: 18, h: 18 })) {
+  for (const c of g.coins) if (!c.got && !c.taken && hit(p, { x: c.x - 9, y: c.y - 9, w: 18, h: 18 })) {
     c.got = 1; run.coins++; run.gold++; g.got.c.push(c.k); A.sfx.coin(); save();
   }
   for (const h of g.hearts) if (!h.got && p.hp < 3 && hit(p, { x: h.x - 11, y: h.y - 11, w: 22, h: 22 })) {
@@ -742,11 +763,12 @@ function drawWorld() {
       if (g.near && g.near.obj === gate) T(gate.label, gate.x + gate.w / 2, gate.y - 34, 12, 'center', gateOpen(gate) ? '#ffd27a' : '#8f9bb8');
     }
   } else if (g.l.gate) {
-    drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, !g.l.ward || g.wardHp <= 0);
+    const open = (!g.l.ward || g.wardHp <= 0) && (!g.boss || g.boss.hp <= 0);
+    drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, open);
   }
   if (g.l.ward) drawWard(g.l.ward.x, g.l.ward.y, g.t, g.wardT, g.wardHp, g.kills > 0);
 
-  for (const c of g.coins) if (!c.got) drawCoin(ctx, c.x, c.y + Math.sin(g.t * 3 + c.x) * 2, g.t + c.x * .11);
+  for (const c of g.coins) if (!c.got && !c.taken) drawCoin(ctx, c.x, c.y + Math.sin(g.t * 3 + c.x) * 2, g.t + c.x * .11);
   for (const h of g.hearts) if (!h.got) drawHeartPickup(ctx, h.x, h.y - 8 + Math.sin(g.t * 3) * 2, 22);
 
   for (const sec of g.secrets) {
@@ -757,6 +779,7 @@ function drawWorld() {
   }
 
   for (const e of g.enemies) drawEnemy(e);
+  if (g.boss) drawBrute(g.boss);
   for (const o of g.orbs) {
     glow(o.x, o.y, o.reflected ? 34 : 24, .3);
     ctx.strokeStyle = o.reflected ? '#fff2b0' : C.ember; ctx.lineWidth = 1.5;
@@ -768,6 +791,7 @@ function drawWorld() {
   ctx.globalAlpha = 1;
 
   drawHud();
+  if (g.boss) drawBossBar(g.boss);
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   if (g.l.kind === 'tutorial' && g.prompt && !g.paused && !g.dialog) {
     const w = 720, x = (VW - w) / 2;
@@ -814,7 +838,14 @@ function drawWorld() {
   }
   if (g.sealMsg > 0 && g.wardMsg <= 0) {
     ctx.globalAlpha = Math.min(1, g.sealMsg) * Math.min(1, (2.4 - g.sealMsg) * 5 + .5);
-    T('THE WARD SEALS THE GATE', VW / 2, g.parryMsg > 0 ? 162 : 130, 20, 'center', C.ember);
+    T(g.boss && g.boss.hp > 0 ? 'THE GATEKEEPER HOLDS THE GATE' : 'THE WARD SEALS THE GATE',
+      VW / 2, g.parryMsg > 0 ? 162 : 130, 20, 'center', C.ember);
+    ctx.globalAlpha = 1;
+  }
+  if (g.bossMsg > 0 && g.parryMsg <= 0 && g.sealMsg <= 0) {
+    ctx.globalAlpha = Math.min(1, g.bossMsg) * Math.min(1, (2.6 - g.bossMsg) * 4 + .4);
+    T('THE GATEKEEPER BRUTE', VW / 2, 130, 28, 'center', C.ember);
+    T('THE GATE IS SEALED', VW / 2, 160, 14, 'center', '#8f9bb8');
     ctx.globalAlpha = 1;
   }
   if (g.cpT > 0) {
@@ -856,7 +887,18 @@ function drawWorld() {
 
 function drawEnemy(e) {
   const flash = { flash: e.flash > 0 };
-  if (e.type === 'bat') {
+  if (e.type === 'crow') {
+    drawMob(ctx, 'crow', e.st === 'return' ? 'dive' : e.st, Math.floor(e.t * 10), e.x + e.w / 2, e.y + e.h, e.dir, flash);
+  } else if (e.type === 'scavenger') {
+    const fleeing = e.st === 'flee';
+    drawMob(ctx, 'goblin', 'walk', Math.floor(e.t * (fleeing ? 14 : 9)), e.x + e.w / 2, e.y + e.h, e.dir, flash);
+    if (e.carry.length) {
+      const sx = e.x + e.w / 2 - e.dir * 9, sy = e.y + 13;
+      ctx.fillStyle = '#5b3d22'; ctx.beginPath(); ctx.ellipse(sx, sy, 7, 9, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#8a5a3a'; ctx.fillRect(sx - 3, sy - 3, 6, 3);
+      ctx.fillStyle = '#ffd84a'; ctx.fillRect(sx - 1, sy + 2, 2, 2);
+    }
+  } else if (e.type === 'bat') {
     const face = Math.cos(e.t * e.sp + e.ph) >= 0 ? 1 : -1;
     drawMob(ctx, 'bat', 'fly', Math.floor(e.t * 14 + e.ph * 3), e.x + e.w / 2, e.y + e.h / 2, face, flash);
   } else if (e.type === 'shield') {
@@ -867,6 +909,70 @@ function drawEnemy(e) {
     drawMob(ctx, 'goblin', near ? 'strike' : 'walk', near ? Math.floor(e.t * 6) : Math.floor(e.t * 9),
       e.x + e.w / 2, e.y + e.h, e.dir, flash);
   }
+}
+
+function drawBrute(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.2) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2, by = b.y + b.h;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cx, by - 2, 26, 6, 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(cx, by); ctx.scale(b.dir, 1);
+  const crouch = dead ? 12 : b.st === 'stunned' ? 7 : b.st === 'act' ? 4 : 0;
+  const lean = b.st === 'charge' ? 7 : b.st === 'wind' ? -3 : 0;
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(-14, -18 + crouch, 10, 18 - crouch); ctx.fillRect(4, -18 + crouch, 10, 18 - crouch);
+  ctx.fillStyle = '#7b5530'; ctx.fillRect(-15, -6, 12, 6); ctx.fillRect(3, -6, 12, 6);
+  ctx.fillStyle = '#3a4262'; ctx.fillRect(-16 + lean, -38 + crouch, 32, 22);
+  ctx.fillStyle = '#5a6585'; ctx.fillRect(-16 + lean, -38 + crouch, 32, 4);
+  ctx.fillStyle = '#7b5530'; ctx.fillRect(-18 + lean, -36 + crouch, 8, 13);
+  ctx.fillStyle = '#a97a44'; ctx.fillRect(-18 + lean, -36 + crouch, 8, 3);
+  ctx.fillStyle = '#7b5530'; ctx.fillRect(10 + lean, -36 + crouch, 8, 11);
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(-11 + lean, -54 + crouch, 22, 17);
+  ctx.fillStyle = '#565c78'; ctx.fillRect(-11 + lean, -54 + crouch, 22, 4);
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(-16 + lean, -60 + crouch, 5, 12); ctx.fillRect(11 + lean, -60 + crouch, 5, 12);
+  const hot = b.st === 'wind' || b.st === 'charge' || b.st === 'wake';
+  ctx.fillStyle = hot ? '#ffd08a' : C.ember;
+  ctx.fillRect(-6 + lean, -47 + crouch, 4, 3); ctx.fillRect(2 + lean, -47 + crouch, 4, 3);
+  ctx.fillStyle = '#05070f'; ctx.fillRect(-8 + lean, -40 + crouch, 16, 2);
+  // hammer
+  let hx = 18, hy = -27 + crouch, a = -.15;
+  if (b.st === 'wake') { hx = 10; hy = -52 + crouch; a = -1.5; }
+  else if (b.st === 'wind' && b.atk === 'slam') { hx = 12; hy = -48 + crouch; a = -1.4; }
+  else if (b.st === 'wind') { hx = 20; hy = -30 + crouch; a = .25; }
+  else if (b.st === 'act') { hx = 24; hy = -9 + crouch; a = 1.25; }
+  else if (b.st === 'charge') { hx = 24; hy = -30 + crouch; a = .05; }
+  else if (b.st === 'stunned') { hx = 16; hy = -8 + crouch; a = 1.0; }
+  else if (dead) { hx = 24; hy = -4; a = 1.45; }
+  ctx.save(); ctx.translate(hx, hy); ctx.rotate(a);
+  ctx.strokeStyle = '#5b3d22'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -30); ctx.stroke();
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(-10, -40, 20, 13);
+  ctx.fillStyle = '#cfd8ee'; ctx.fillRect(-10, -40, 20, 3);
+  ctx.fillStyle = '#7b5530'; ctx.fillRect(-3, -16, 6, 4);
+  ctx.restore();
+  ctx.restore();
+  if (b.st === 'wind') glow(cx, b.y + 18, 38, .25);
+  if (b.st === 'act') glow(cx + b.dir * 22, by - 6, 46, .3);
+  if (b.st === 'charge') {
+    ctx.strokeStyle = 'rgba(207,216,238,.35)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 3; k++) { const x = cx - b.dir * (24 + k * 12); ctx.beginPath(); ctx.moveTo(x, b.y + 18 + k * 7); ctx.lineTo(x - b.dir * 16, b.y + 18 + k * 7); ctx.stroke(); }
+  }
+  if (b.st === 'stunned') {
+    for (let k = 0; k < 3; k++) {
+      const a = b.t * 4 + k * 2.09;
+      ctx.fillStyle = '#ffd27a'; ctx.fillRect(cx + Math.cos(a) * 18 - 1, b.y - 8 + Math.sin(a) * 5, 3, 3);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function drawBossBar(b) {
+  if (!b || b.st === 'dormant' || b.st === 'dead') return;
+  ctx.setTransform(1, 0, 0, 1, 0, BAR);
+  const w = 300, x = (VW - w) / 2, y = 58;
+  T('THE GATEKEEPER BRUTE', VW / 2, 50, 11, 'center', '#8f9bb8');
+  ctx.fillStyle = 'rgba(5,7,15,.82)'; ctx.fillRect(x, y, w, 9);
+  ctx.fillStyle = C.ember; ctx.fillRect(x + 1, y + 1, (w - 2) * Math.max(0, b.hp / b.maxHp), 7);
+  ctx.strokeStyle = '#3a4265'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, w - 1, 8);
 }
 
 function drawPlayer(p) {

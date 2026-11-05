@@ -1,8 +1,24 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4)
 
 A separate branch (`v2-vertical-slice`) proving the shape of the world-design document:
 **tutorial road → Cinderhaven → Area I → back to Cinderhaven**. The shipped v1 game on `main`
 is untouched.
+
+## V4 - the three encounters
+
+**Road Scavenger (1-1).** A goblin with a sack that grabs loose coins. Get close and it bolts.
+Killing it drops the sack where it falls; if it escapes the patrol it returns the coins to where
+they were. The run tally can never be permanently lost.
+
+**Cinder Crow (1-2).** Perched on the causeway. It flares its wings as a clear tell, then dives in a
+straight line at the knight. Dodge the dive, then punish the recovery before it flies back.
+
+**The Gatekeeper Brute (1-3).** The keep-roof boss: 8 HP, an overhead slam and a shoulder charge,
+both telegraphed. The gate is sealed while he lives. A normal guard holds the hit; a **perfect
+guard** against the charge stuns him for 1.5 s. He has a health bar and a wake banner; killing him
+opens the gate and completes the area.
+
+The 1-3 goblin has moved down to the steps so the roof is a clean boss arena.
 
 ## V3 - Area I in three levels
 
@@ -12,7 +28,7 @@ The old single Ember Road is now the three-level area from the design document:
 |---|---|---|
 | 1-1 | The Torchlit Ledge | The road in, the first gap, the wagon secret, a goblin and two bats |
 | 1-2 | The Broken Causeway | The chasm, broken stones, two bats, the Keeper's Niche |
-| 1-3 | The Keep Steps and Gate | Ascending steps, the keep roof, a goblin guard and the Warden's gate |
+| 1-3 | The Keep Steps and Gate | Ascending steps, a goblin on the stairs, the Gatekeeper Brute, and the Warden's gate |
 
 - **The Cook's Satchel** sits on a one-way wagon ledge above the first gap in 1-1: three coins and a
   heart. **The Keeper's Niche** is the optional upper route above the causeway in 1-2, marked by an
@@ -21,8 +37,8 @@ The old single Ember Road is now the three-level area from the design document:
   area cleared and returns to Cinderhaven.
 - `run.levels.I` tracks the three levels. Gate I resumes at the first uncleared level, and its town
   sign shows progress (0/3 to 3/3). After 1-3, the town wakes.
-- Each level has its own checkpoint, collectibles, torches and exit. The Gatekeeper Brute, Road
-  Scavenger and Cinder Crow still arrive in V4; 1-3 currently ends at the open gate.
+- Each level has its own checkpoint, collectibles, torches and exit. 1-3 ends with the Gatekeeper
+  Brute; the gate is sealed until he falls.
 - The v2 coin total is now **46** across the tutorial and the three area levels.
 
 ## V2 - Cinderhaven
@@ -102,15 +118,15 @@ npm test          # the shipped 104-check suite; must stay green
 | Everything else | same as v1 (`A/D`, `Space`, `J`, `Shift`, `E`, `F`, `Esc`) |
 
 Blocking slows movement, drops the dash, and cannot be used while Heavy Hexed. Projectiles that hit
-the guard are destroyed; a perfect parry reflects them. Melee contact damage is not yet blocked —
-that lands with the Brute in V4.
+the guard are destroyed; a perfect parry reflects them. The Gatekeeper Brute's slam and charge can be
+guarded too; a perfect guard on the charge stuns him.
 
 ## Flow
 
 1. New browser with no save → tutorial.
 2. Tutorial gate → Cinderhaven, `tutorialDone = true`.
-3. Gate I → 1-1 → 1-2 → 1-3 → Cinderhaven, `cleared.I = true`. Gate I resumes at the first
-   uncleared level if you return to town early.
+3. Gate I → 1-1 → 1-2 → 1-3 (the Gatekeeper Brute) → Cinderhaven, `cleared.I = true`. Gate I
+   resumes at the first uncleared level if you return to town early.
 4. Gate II then says the market lane is open (the merchant arrives in V5).
 5. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
@@ -121,12 +137,11 @@ that lands with the Brute in V4.
 - V2 done: stage lighting, the Market Lane barrier, the rebuilt street and the full Clint/Patino
   conversations.
 - V3 done: the three Ember Road levels, per-level exits, the Cook's Satchel and the Keeper's Niche.
-- V4: Road Scavenger (steals, drops, never permanently loses coins), Cinder Crow, Gatekeeper Brute.
+- V4 done: the Road Scavenger, Cinder Crow and Gatekeeper Brute, plus the sealed keep gate.
 - V5: D2 Market Lane, merchant payoff, tuning, screenshots, docs.
 
 ## Known placeholders
 
 - The hub uses the road backdrop plus town silhouettes; it is not the final art.
 - There is no title menu yet: the build boots into the tutorial or the imported hub.
-- 1-3 ends at an open gate until the Gatekeeper Brute lands in V4; the Scavenger and Cinder Crow
-  are also V4.
+- The Market Lane shop and merchant payoff land in V5.

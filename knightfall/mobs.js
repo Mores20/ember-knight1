@@ -9,6 +9,7 @@ const M = {
   steel: '#cfd8ee', steelL: '#eef3ff', steelD: '#8f9bb8',
   bronze: '#7b5530', bronzeL: '#a97a44', bronzeD: '#4a3219',
   wing: '#3a4460', wingL: '#a3aecb', wingD: '#1c2438',
+  crow: { body: '#161b26', lift: '#2f3a50', hot: '#ff8a3d' },
 };
 const B = kit(32, 24);                                        // bat cell
 const G = kit(32, 40);                                        // goblin cell
@@ -17,8 +18,7 @@ const STEELISH = [M.skin, M.skinL, M.skinD, M.steel, M.steelL, M.steelD, M.bronz
 /* ---------------- bat ---------------- */
 // Six-frame flap: the wing tip sweeps from high to low, the membrane follows one frame late,
 // and the body bobs against it. Swoop uses two tighter frames for the dive.
-function batFrame(i, swoop) {
-  const c = B.newCell(), cx = 16, cy = 12 + (swoop ? 0 : [0, -1, -1, 0, 1, 1][i] ?? 0);
+function batFrame(i, swoop) {  const c = B.newCell(), cx = 16, cy = 12 + (swoop ? 0 : [0, -1, -1, 0, 1, 1][i] ?? 0);
   const tip = swoop ? [-3, -6][i] ?? -4 : [-7, -5, 0, 4, 1, -4][i] ?? -4;
   const spread = swoop ? [9, 11][i] ?? 10 : [13, 15, 14, 12, 11, 12][i] ?? 13;
   const droop = swoop ? 6 : [5, 7, 8, 7, 5, 4][i] ?? 5;
@@ -37,7 +37,50 @@ function batFrame(i, swoop) {
   return c;
 }
 
-/* ---------------- goblin ---------------- */
+/* ---------------- cinder crow ---------------- */
+// Perches, flares its wings, then dives in a straight line. The flare is the tell; the
+// recovery on the ground is the punish window.
+function crowFrame(state, i) {
+  const c = B.newCell(), cx = 16, cy = state === 'recover' ? 16 : 10 + (state === 'perch' ? (i & 1) : 0);
+  const B2 = M.crow;
+  const body = (w, h, y = cy) => {
+    B.shape(c, [B.ell(cx, y, w, h, 10)], [B2.body, B2.lift, B2.body]);
+    B.shape(c, [[[cx - w + 2, y - 1], [cx - w - 4, y + 3], [cx - w + 1, y + 3]]], [B2.body, B2.lift, B2.body]);   // tail
+  };
+  if (state === 'perch') {
+    body(6, 4.5);
+    B.shape(c, [[[cx + 3, cy - 4], [cx + 7, cy - 7], [cx + 5, cy - 2]]], [B2.body, B2.lift, B2.body]);             // folded wing
+    B.shape(c, [[[cx - 2, cy - 4], [cx + 2, cy - 6], [cx + 3, cy - 2]]], [B2.body, B2.lift, B2.body]);
+    B.shape(c, [B.ell(cx + 5, cy - 4, 3, 2.6, 8)], [B2.body, B2.lift, B2.body]);                                    // head
+    B.dpoly(c, [B.rect(cx + 8, cy - 4, 3, 1)], M.bronzeL);                                                          // beak
+    B.dpoly(c, [B.rect(cx + 6, cy - 5, 2, 2)], M.em);
+    B.dpoly(c, [B.rect(cx - 1, cy + 4, 1, 2), B.rect(cx + 2, cy + 4, 1, 2)], M.bronzeD);                            // talons
+  } else if (state === 'flare') {
+    body(5, 4);
+    for (const s of [-1, 1]) {
+      B.shape(c, [[[cx + s * 2, cy - 3], [cx + s * 9, cy - 12 - i], [cx + s * 13, cy - 10], [cx + s * 4, cy + 1]]], [B2.body, B2.lift, B2.body]);
+    }
+    B.shape(c, [B.ell(cx, cy - 5, 3, 2.5, 8)], [B2.body, B2.lift, B2.body]);
+    B.dpoly(c, [B.rect(cx - 2, cy - 6, 2, 2), B.rect(cx + 2, cy - 6, 2, 2)], M.em);
+    B.dpoly(c, [B.rect(cx + 4, cy - 6, 3, 1)], M.bronzeL);
+  } else if (state === 'dive') {
+    body(7, 3, 12);
+    B.shape(c, [[[cx - 7, 12], [cx - 15, 7 + i], [cx - 14, 12], [cx - 6, 14]]], [B2.body, B2.lift, B2.body]);
+    B.shape(c, [B.ell(cx + 6, 12, 3, 2.5, 8)], [B2.body, B2.lift, B2.body]);
+    B.dpoly(c, [B.rect(cx + 9, 12, 3, 1)], M.bronzeL);
+    B.dpoly(c, [B.rect(cx + 6, 10, 2, 1)], M.em);
+    for (let k = 0; k < 3; k++) B.put(c, cx - 3 + k * 3, 15 + (k & 1), B2.hot);                                  // dove trail
+  } else {
+    body(6, 3, 17);
+    B.shape(c, [[[cx - 5, 16], [cx - 12, 19 + (i & 1)], [cx - 5, 20]]], [B2.body, B2.lift, B2.body]);
+    B.shape(c, [B.ell(cx + 5, 16 + (i & 1), 3, 2.5, 8)], [B2.body, B2.lift, B2.body]);
+    B.dpoly(c, [B.rect(cx + 8, 16 + (i & 1), 3, 1)], M.bronzeL);
+    B.dpoly(c, [B.rect(cx + 6, 14 + (i & 1), 2, 1)], M.em);
+    B.dpoly(c, [B.rect(cx - 2, 21, 1, 2), B.rect(cx + 2, 21, 1, 2)], M.bronzeD);
+  }
+  return c;
+}
+
 // Hunched raider: hooded head, long ears, a ragged tunic and a notched dagger. Four-step walk
 // (leg stride, arm swing, torso bob) and a two-frame strike: coil, then lunge.
 function goblinFrame(state, i, shield) {
@@ -111,11 +154,13 @@ function goblinFrame(state, i, shield) {
 /* ---------------- rows / drawing ---------------- */
 export const ROWS = {
   bat: { fly: 6, swoop: 2 },
+  crow: { perch: 2, flare: 2, dive: 2, recover: 2 },
   goblin: { walk: 4, idle: 2, strike: 2 },
   shield: { guard: 2, open: 2 },
 };
 export const META = {
   bat: { w: 32, h: 24, ax: 16, ay: 12 },
+  crow: { w: 32, h: 24, ax: 16, ay: 24 },
   goblin: { w: 32, h: 40, ax: 16, ay: 38 },
   shield: { w: 32, h: 40, ax: 16, ay: 38 },
 };
@@ -124,6 +169,7 @@ export function frame(kind, state, i = 0, o = {}) {
   const idx = i % ROWS[kind][state];
   let c;
   if (kind === 'bat') c = batFrame(idx, state === 'swoop');
+  else if (kind === 'crow') c = crowFrame(state, idx);
   else c = goblinFrame(state, idx, kind === 'shield' ? state : null);
   if (o.flash) { const h = px(M.hit); for (let k = 0; k < c.length; k++) if (STEELISH.includes(c[k])) c[k] = h; }
   return c;
