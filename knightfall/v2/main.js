@@ -15,6 +15,8 @@ import { bootRun, saveRun as persist, readV1, importV1Run, freshRun } from './sa
 import { GatekeeperBrute } from './brute.js';
 import { CryptWarden, CryptMatron } from './crypt.js';
 import { ClapperGolem, CrackedCarillon } from './tower.js';
+import { FallenCaptain, ThroneWarden } from './throne.js';
+import { drawWarden as drawWardenSprite, drawMote } from '../ashwarden.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const VW = 960, VH = 540, BAR = 34, BARB = 18, BOT = VH - BARB;
@@ -86,7 +88,7 @@ function loadScene(id) {
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: got.h.includes(k) ? 1 : 0 })),
     secrets: l.secrets, props: l.props, got,
     boss: makeBoss(l.boss),
-    bossSeen: 0, bossMsg: 0,
+    bossSeen: 0, bossMsg: 0, bossLine: 0, bossLineText: '', bossLineDone: 0,
     water: l.water || null,
     bells: (l.bells || []).map(b => ({ ...b, ring: 0 })),
     ringFx: [],
@@ -96,8 +98,8 @@ function loadScene(id) {
     paused: false, pauseSel: 0, dialog: null, prompt: '', near: null, shop: null,
     shopStock: id === 'hub' ? [2, 1, 1, 1] : null,
     found: 0, foundName: '', grant: 0, grantKind: 'dash', healMsg: 0,
-    stageMsg: id === 'hub' && (stage === 2 || run.cleared.III) ? 3.2 : 0,
-    stageMsgKind: run.cleared.III ? 'bells' : 'wake',
+    stageMsg: id === 'hub' && (stage === 2 || run.cleared.III || run.cleared.IV) ? 3.2 : 0,
+    stageMsgKind: run.cleared.IV ? 'throne' : run.cleared.III ? 'bells' : 'wake',
     dummyT: 0, parryMsg: 0, state: 'play', blockEnabled: true,
     tutStep: 0, wardHp: l.ward ? (l.ward.hp || 3) : 0, wardBroken: !l.ward,
     wardBlocks: 0, dummyHits: 0, kills: 0, cpT: 0, wardMsg: 0, blockMsg: 0, sealMsg: 0,
@@ -134,7 +136,7 @@ const gateOpen = gate => {
   return m ? !!run.cleared[m[1]] : false;
 };
 
-const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'], III: ['c1', 'c2', 'c3', 'c4'] };
+const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'], III: ['c1', 'c2', 'c3', 'c4'], IV: ['d1', 'd2', 'd3', 'd4', 'd5'] };
 function areaStart(area) {
   const ids = AREA_LEVELS[area] || [];
   const arr = run.levels[area] || [];
@@ -151,6 +153,8 @@ const makeBoss = o => !o ? null
   : o.kind === 'matron' ? new CryptMatron(o)
   : o.kind === 'clappergolem' ? new ClapperGolem(o)
   : o.kind === 'carillon' ? new CrackedCarillon(o)
+  : o.kind === 'captain' ? new FallenCaptain(o)
+  : o.kind === 'warden' ? new ThroneWarden(o)
   : new GatekeeperBrute(o);
 
 /* ---- the Sketchy Merchant: the D2 shop, paid from the gold purse ---- */
@@ -338,6 +342,7 @@ function update(dt) {
   if (g.healMsg > 0) g.healMsg -= dt;
   if (g.stageMsg > 0) g.stageMsg -= dt;
   if (g.bossMsg > 0) g.bossMsg -= dt;
+  if (g.bossLine > 0) g.bossLine -= dt;
   if (g.parryMsg > 0) g.parryMsg -= dt;
   if (g.dummyT > 0) g.dummyT -= dt;
   if (g.cpT > 0) g.cpT -= dt;
@@ -361,8 +366,12 @@ function update(dt) {
   p.update(dt, g.l.solids, g);
   if (g.boss) {
     const was = g.boss.st;
+    if (g.boss.parry) g.boss.parry(p, g);
     g.boss.update(dt, p, g);
-    if (g.boss.st === 'wake' && was !== 'wake' && !g.bossSeen) { g.bossSeen = 1; g.bossMsg = 2.6; }
+    if ((g.boss.st === 'wake' || g.boss.st === 'rise') && was !== g.boss.st && !g.bossSeen) { g.bossSeen = 1; g.bossMsg = 2.6; }
+    if (g.boss.deathLine && g.boss.hp <= 0 && !g.bossLineDone) {
+      g.bossLineDone = 1; g.bossLine = 5.5; g.bossLineText = g.boss.deathLine;
+    }
   }
   if (p.hp <= 0) { p.hp = 3; A.sfx.die(); respawn(); save(); }
 
@@ -455,7 +464,7 @@ function update(dt) {
     if (g.boss && g.boss.hp > 0 && !p.hits.has(g.boss)
       && hit(s, { x: g.boss.x - 4, y: g.boss.y - 4, w: g.boss.w + 8, h: g.boss.h + 8 })) {
       p.hits.add(g.boss);
-      const r = g.boss.takeHit();
+      const r = g.boss.takeHit(s);
       if (r === 2) { A.sfx.block(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 24, 7, '#c9d4f0'); g.shake(3); g.stop(.04); }
       else if (r === 1) {
         A.sfx.hit(); spark(g.boss.x + g.boss.w / 2, g.boss.y + 24, g.boss.hp <= 0 ? 40 : 9, C.ember);
@@ -906,6 +915,26 @@ function drawHubWorld(h, p, stage) {
   }
   T('BELL TOWER', 3030, 92, 11, 'center', warm ? '#e8c96a' : '#5d6a8a');
 
+  // Throne Approach: the ruined royal gate
+  ctx.fillStyle = '#12141f'; ctx.fillRect(3660, 170, 380, 250);
+  ctx.fillStyle = '#1c1f30';
+  for (let i = 0; i < 6; i++) ctx.fillRect(3670 + i * 62, 150, 34, 22);
+  ctx.fillStyle = '#0a0c14'; ctx.beginPath();
+  ctx.moveTo(3830, 420); ctx.lineTo(3830, 286);
+  ctx.arc(3890, 286, 60, Math.PI, Math.PI * 1.55);
+  ctx.lineTo(3980, 250); ctx.lineTo(3980, 420); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#2a2f45'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(3890, 286, 60, Math.PI, Math.PI * 1.55); ctx.stroke();
+  ctx.fillStyle = '#4a1c28'; ctx.fillRect(3868, 206, 44, 82);
+  ctx.fillStyle = '#6b2a3a'; ctx.fillRect(3868, 206, 44, 6);
+  ctx.fillStyle = '#3a1420'; ctx.beginPath(); ctx.moveTo(3868, 288); ctx.lineTo(3890, 272); ctx.lineTo(3912, 288); ctx.closePath(); ctx.fill();
+  if (run.cleared.IV) {
+    goldGlow(3890, 286, 90, .18);
+    ctx.strokeStyle = 'rgba(183,156,255,.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(3890, 286, 70 + Math.sin(g.t * 1.3) * 5, Math.PI, Math.PI * 1.55); ctx.stroke();
+  }
+  T('THE THRONE', 3890, 130, 11, 'center', run.cleared.IV ? '#b79cff' : '#5d6a8a');
+
   drawLamp(300, 420, g.t, true);
   drawLamp(900, 420, g.t, warm);
   drawLamp(1300, 420, g.t, warm);
@@ -915,6 +944,9 @@ function drawHubWorld(h, p, stage) {
   drawLamp(2700, 420, g.t, warm);
   drawLamp(2950, 420, g.t, warm);
   drawLamp(3240, 420, g.t, warm);
+  drawLamp(3450, 420, g.t, run.cleared.III);
+  drawLamp(3700, 420, g.t, run.cleared.III);
+  drawLamp(3950, 420, g.t, run.cleared.III);
 
   drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a', `${(run.levels.I || []).filter(Boolean).length}/3`);
   drawSign(1795, 292, 'MARKET LANE', warm ? '#ffd27a' : '#8f9bb8', warm ? 'OPEN' : '');
@@ -922,6 +954,8 @@ function drawHubWorld(h, p, stage) {
   if (warm) drawSign(2380, 246, 'II  THE SUNKEN CRYPT', '#7fe3ff', `${(run.levels.II || []).filter(Boolean).length}/4`);
   drawSign(2620, 292, 'III  BELL PLAZA', run.cleared.II ? '#e8c96a' : '#8f9bb8', run.cleared.II ? 'OPEN' : '');
   if (warm) drawSign(3180, 246, 'III  THE BELL TOWER', '#e8c96a', `${(run.levels.III || []).filter(Boolean).length}/4`);
+  drawSign(3420, 292, 'IV  THRONE APPROACH', run.cleared.III ? '#b79cff' : '#8f9bb8', run.cleared.III ? 'OPEN' : '');
+  if (warm) drawSign(3980, 246, 'IV  THE THRONE', '#b79cff', `${(run.levels.IV || []).filter(Boolean).length}/5`);
   if (!warm && h.barrier) drawBarrier(h.barrier.x, h.barrier.y, h.barrier.w, h.barrier.h, g.t);
   if (warm) {
     ctx.fillStyle = 'rgba(255,210,122,.10)'; ctx.fillRect(1680, 300, 120, 120);
@@ -1018,6 +1052,8 @@ function drawWorld() {
     else if (g.boss.kind === 'matron') drawMatron(g.boss);
     else if (g.boss.kind === 'clappergolem') drawClapperGolem(g.boss);
     else if (g.boss.kind === 'carillon') drawCarillon(g.boss);
+    else if (g.boss.kind === 'captain') drawCaptain(g.boss);
+    else if (g.boss.kind === 'warden') drawThroneWarden(g.boss);
     else drawBrute(g.boss);
   }
   for (const o of g.orbs) {
@@ -1088,6 +1124,11 @@ function drawWorld() {
     T(g.boss ? g.boss.sealed : 'THE GATE IS SEALED', VW / 2, 158, 13, 'center', '#8f9bb8');
     ctx.globalAlpha = 1;
   }
+  if (g.bossLine > 0) {
+    ctx.globalAlpha = Math.min(1, g.bossLine) * Math.min(1, (5.5 - g.bossLine) * 3 + .4);
+    T('"' + g.bossLineText + '"', VW / 2, 196, 15, 'center', '#cfd8ee');
+    ctx.globalAlpha = 1;
+  }
   if (g.cpT > 0) {
     ctx.globalAlpha = Math.min(1, g.cpT) * Math.min(1, (2.2 - g.cpT) * 5 + .5);
     T('CHECKPOINT SET', VW / 2, 160, 18, 'center', '#ffd27a');
@@ -1100,7 +1141,7 @@ function drawWorld() {
   }
   if (g.stageMsg > 0 && g.l.kind === 'hub') {
     ctx.globalAlpha = Math.min(1, g.stageMsg) * Math.min(1, (3.2 - g.stageMsg) * 4 + .4);
-    T(g.stageMsgKind === 'bells' ? 'THE BELLS RING CLEAN' : 'THE TOWN IS WAKING', VW / 2, 160, 22, 'center', '#ffd27a');
+    T(g.stageMsgKind === 'throne' ? 'THE THRONE IS QUIET' : g.stageMsgKind === 'bells' ? 'THE BELLS RING CLEAN' : 'THE TOWN IS WAKING', VW / 2, 160, 22, 'center', '#ffd27a');
     ctx.globalAlpha = 1;
   }
   if (g.msg > 0 && g.l.kind !== 'hub') {
@@ -1196,6 +1237,45 @@ function drawEnemy(e) {
     ctx.fillStyle = '#e8c96a';
     ctx.beginPath(); ctx.arc(cx, e.y + 22, 4, Math.PI, 0); ctx.fill();
     ctx.fillRect(cx - 4, e.y + 22, 8, 3);
+  } else if (e.type === 'revenant') {
+    const cx = e.x + e.w / 2, by = e.y + e.h;
+    if (e.st === 'down') {
+      ctx.fillStyle = '#3a4262'; ctx.fillRect(e.x + 1, by - 11, e.w - 2, 9);
+      ctx.fillStyle = '#5a6585'; ctx.fillRect(e.x + 4, by - 14, e.w - 8, 4);
+      ctx.fillStyle = '#8f9bb8'; ctx.fillRect(e.x + 3, by - 8, 4, 6); ctx.fillRect(e.x + e.w - 9, by - 6, 6, 3);
+      return;
+    }
+    const rise = e.st === 'rise' ? Math.min(1, e.stT / .8) : 1;
+    ctx.globalAlpha = rise;
+    ctx.fillStyle = 'rgba(127,227,255,.10)';
+    ctx.beginPath(); ctx.ellipse(cx, by - 5, 14, 15, 0, 0, 7); ctx.fill();
+    const hot = e.st === 'wind' || e.st === 'thrust';
+    ctx.fillStyle = e.flash > 0 ? '#e4ecff' : '#454f70';
+    ctx.fillRect(cx - 9, e.y + 9, 18, 22);
+    ctx.fillStyle = '#5a6585'; ctx.fillRect(cx - 9, e.y + 9, 18, 3);
+    ctx.fillStyle = '#8f9bb8'; ctx.fillRect(cx - 6, e.y + 2, 12, 9);
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 5, e.y + 5, 4, 3); ctx.fillRect(cx + 1, e.y + 5, 4, 3);
+    ctx.fillStyle = hot ? '#fff2b0' : C.ember;
+    ctx.fillRect(cx - 4, e.y + 6, 2, 2); ctx.fillRect(cx + 2, e.y + 6, 2, 2);
+    // the spear
+    let reach = 44, lift = -20;
+    if (e.st === 'wind') { reach = 40; lift = -28; }
+    else if (e.st === 'thrust') { reach = 104; lift = -18; }
+    ctx.strokeStyle = '#cfd8ee'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - e.dir * 8, by - 16); ctx.lineTo(cx + e.dir * reach, by + lift); ctx.stroke();
+    ctx.fillStyle = '#e4ecff';
+    ctx.beginPath();
+    ctx.moveTo(cx + e.dir * (reach + 10), by + lift - 3);
+    ctx.lineTo(cx + e.dir * (reach - 2), by + lift - 7);
+    ctx.lineTo(cx + e.dir * (reach - 2), by + lift + 3);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    if (e.st === 'wind') {
+      const p = .55 + .45 * Math.abs(Math.sin(e.t * 9));
+      ctx.strokeStyle = 'rgba(255,190,110,' + (.85 * p) + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx + e.dir * 16, by - 26); ctx.lineTo(cx + e.dir * 108, by - 26); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + e.dir * 30, by - 34); ctx.lineTo(cx + e.dir * 48, by - 26); ctx.lineTo(cx + e.dir * 30, by - 18); ctx.stroke();
+    }
   } else if (e.type === 'shield') {
     drawMob(ctx, 'shield', e.st === 'down' ? 'open' : 'guard', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else {
@@ -1472,6 +1552,181 @@ function drawCarillon(b) {
     ctx.stroke();
   }
   if (b.st === 'wind') glow(cx, 120, 90, .18);
+  ctx.globalAlpha = 1;
+}
+
+function wardenFrame(b) {
+  const o = { phase2: b.phase === 2, flash: b.flash > 0 };
+  const loop = (s, n, fps) => [s, Math.floor(b.t * fps) % n, o];
+  switch (b.st) {
+    case 'dormant': return ['enrage', 0, o];
+    case 'rise': return ['enrage', Math.min(1, Math.floor(b.t / 1.15 * 2)), o];
+    case 'guard': return b.moving ? loop('stalk', 4, 8) : loop('guard', 2, 2);
+    case 'open': case 'recover': return loop('open', 2, 5);
+    case 'rest': return loop('rest', 2, 2);
+    case 'stun': return loop('stun', 2, 6);
+    case 'enrage': return ['enrage', Math.min(3, Math.floor(b.t / 1.3 * 4)), o];
+    case 'dead': case 'gone': return ['dead', Math.min(3, Math.floor(b.t / 1.8 * 4)), o];
+    case 'charge': return loop('charge', 3, 10);
+    case 'act': return ['cleave_slam', Math.min(1, Math.floor(b.t / (b.act || .3) * 2)), o];
+    case 'volley': return ['volley_throw', 0, o];
+    case 'wind': {
+      const k = Math.min(1, b.t / (b.wind || 1));
+      if (b.atk === 'volley') return ['volley_wind', Math.min(2, Math.floor(k * 3)), o];
+      if (b.atk === 'charge') return ['charge_wind', Math.min(1, Math.floor(k * 2)), o];
+      return ['cleave_wind', Math.min(2, Math.floor(k * 3)), o];
+    }
+    default: return loop('guard', 2, 2);
+  }
+}
+
+function drawThroneWarden(b) {
+  const cx = b.x + b.w / 2, fy = b.y + b.h;
+  const dead = b.st === 'dead' || b.st === 'gone';
+  if (b.st === 'gone') return;
+  if (b.st === 'wind') {
+    const p = .55 + .45 * Math.abs(Math.sin(g.t * 9));
+    if (b.atk === 'cleave') {
+      ctx.fillStyle = 'rgba(255,77,28,' + (.3 * p) + ')';
+      ctx.beginPath(); ctx.moveTo(cx, fy); ctx.lineTo(cx + b.dir * 250, fy); ctx.lineTo(cx + b.dir * 250, fy - 34); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,190,110,' + (.95 * p) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx + b.dir * 22, fy - 1); ctx.lineTo(cx + b.dir * 250, fy - 1); ctx.stroke();
+    } else if (b.atk === 'double') {
+      for (const d of [-1, 1]) {
+        ctx.fillStyle = 'rgba(255,77,28,' + (.26 * p) + ')';
+        ctx.beginPath(); ctx.moveTo(cx, fy); ctx.lineTo(cx + d * 230, fy); ctx.lineTo(cx + d * 230, fy - 30); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(255,190,110,' + (.9 * p) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx - 230, fy - 1); ctx.lineTo(cx + 230, fy - 1); ctx.stroke();
+    } else if (b.atk === 'charge') {
+      ctx.strokeStyle = 'rgba(255,77,28,' + (.6 * p) + ')'; ctx.lineWidth = 3;
+      ctx.setLineDash([16, 12]); ctx.lineDashOffset = -g.t * 90;
+      ctx.beginPath(); ctx.moveTo(cx, fy - 3); ctx.lineTo(cx + b.dir * 500, fy - 3); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    }
+  }
+  if (b.st === 'enrage') {
+    const k = b.t / 1.3;
+    for (let i = 0; i < 3; i++) {
+      const f = (k * 2.4 + i / 3) % 1, r = 40 + f * 210;
+      ctx.strokeStyle = 'rgba(255,130,60,' + (.55 * (1 - f)) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, fy - 38, r, 0, 7); ctx.stroke();
+    }
+    glow(cx, fy - 38, 170, .5);
+  }
+  if (!dead && b.st !== 'dormant') glow(cx, fy - 44, b.phase === 2 ? 88 : 66, b.phase === 2 ? .24 : .14);
+  // the shield reads pale while it is actually up; the opening reads gold
+  if (b.st === 'guard' || b.st === 'charge') {
+    ctx.strokeStyle = 'rgba(207,216,238,.55)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(cx + b.dir * 16, fy - 44, 30, b.dir > 0 ? -1.1 : Math.PI - 1.1, b.dir > 0 ? 1.1 : Math.PI + 1.1); ctx.stroke();
+  }
+  if (!dead && (b.st === 'open' || b.st === 'recover' || b.st === 'rest' || b.st === 'stun')) {
+    goldGlow(cx, fy - 42, 58, .22);
+  }
+  ctx.globalAlpha = b.st === 'rise' ? .25 + .75 * Math.min(1, b.t / 1.1) : 1;
+  const fr = wardenFrame(b);
+  drawWardenSprite(ctx, fr[0], fr[1], cx, fy, b.dir, fr[2]);
+  ctx.globalAlpha = 1;
+  if (b.st === 'wind' && b.atk === 'volley') {
+    for (let i = 0; i < 4; i++) {
+      const aa = g.t * 7 + i * 1.57, ox = cx + b.dir * 34 + Math.cos(aa) * 16, oy = b.y + 12 + Math.sin(aa) * 10;
+      glow(ox, oy, 22, .3); drawMote(ctx, i % 2, ox, oy);
+    }
+  }
+  if (b.st === 'stun') {
+    for (let i = 0; i < 3; i++) {
+      const aa = g.t * 5 + i * 2.09, sx = cx + Math.cos(aa) * 26, sy = b.y - 10 + Math.sin(aa) * 7;
+      glow(sx, sy, 16, .3); ctx.fillStyle = '#ffd479';
+      ctx.beginPath(); ctx.arc(sx, sy, 4, 0, 7); ctx.fill();
+    }
+  }
+  // ember spikes
+  for (const s of b.shots) {
+    glow(s.x, s.y, s.reflected ? 30 : 20, .3);
+    ctx.fillStyle = s.reflected ? '#fff2b0' : '#ff8a3d';
+    ctx.beginPath(); ctx.arc(s.x, s.y, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = s.reflected ? '#fff' : '#ffd479';
+    ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, 7); ctx.fill();
+  }
+  // ground shockwaves
+  for (const w of b.waves) {
+    ctx.fillStyle = 'rgba(255,138,61,.5)';
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    ctx.fillStyle = 'rgba(255,210,122,.8)';
+    ctx.fillRect(w.x + 4, w.y + 4, w.w - 8, 4);
+    glow(w.x + w.w / 2, w.y + w.h / 2, 34, .22);
+  }
+}
+
+function drawCaptain(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.2) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2, by = b.y + b.h;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,.38)'; ctx.beginPath(); ctx.ellipse(cx, by - 2, 24, 6, 0, 0, 7); ctx.fill();
+  const open = b.st === 'recover' || b.st === 'stun';
+  if (open) goldGlow(cx, by - 28, 46, .24);
+  ctx.save(); ctx.translate(cx, by); ctx.scale(b.dir, 1);
+  const crouch = dead ? 14 : b.st === 'act' ? 4 : b.st === 'leap' ? -6 : 0;
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(-12, -18 + crouch, 9, 18 - crouch); ctx.fillRect(4, -18 + crouch, 9, 18 - crouch);
+  ctx.fillStyle = '#3a4262'; ctx.fillRect(-13, -6, 11, 6); ctx.fillRect(3, -6, 11, 6);
+  // cape
+  ctx.fillStyle = '#5a2436'; ctx.beginPath();
+  ctx.moveTo(-15, -40 + crouch); ctx.lineTo(10, -40 + crouch); ctx.lineTo(16, -12 + crouch); ctx.lineTo(-20, -12 + crouch); ctx.closePath(); ctx.fill();
+  // plate
+  ctx.fillStyle = '#454f70'; ctx.fillRect(-14, -42 + crouch, 28, 24);
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(-14, -42 + crouch, 28, 4);
+  ctx.fillStyle = '#5a6585'; ctx.fillRect(-14, -26 + crouch, 28, 3);
+  // helm
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(-10, -58 + crouch, 20, 16);
+  ctx.fillStyle = '#cfd8ee'; ctx.fillRect(-10, -58 + crouch, 20, 3);
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(-6, -52 + crouch, 12, 3);
+  ctx.fillStyle = C.ember; ctx.fillRect(-4, -51 + crouch, 2, 2); ctx.fillRect(2, -51 + crouch, 2, 2);
+  ctx.fillStyle = '#e8c96a'; ctx.fillRect(-2, -64 + crouch, 4, 7);             // plume
+  // spear
+  let reach = 52, ang = -.1;
+  if (b.st === 'wind') { reach = 34; ang = b.atk === 'sweep' ? -.3 : -.55; }
+  else if (b.st === 'act') { reach = b.atk === 'sweep' ? 96 : 84; ang = b.atk === 'sweep' ? .12 : .02; }
+  ctx.strokeStyle = '#7b5530'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(10, -30 + crouch); ctx.lineTo(reach, -30 + crouch + ang * 40); ctx.stroke();
+  ctx.fillStyle = '#e4ecff';
+  ctx.beginPath();
+  ctx.moveTo(reach + 14, -30 + crouch + ang * 44);
+  ctx.lineTo(reach, -30 + crouch + ang * 40 - 4);
+  ctx.lineTo(reach, -30 + crouch + ang * 40 + 4);
+  ctx.closePath(); ctx.fill();
+  // kite shield
+  const shieldUp = !(b.st === 'recover' || b.st === 'stun' || dead);
+  ctx.fillStyle = shieldUp ? '#8f9bb8' : '#3a4262';
+  ctx.beginPath();
+  ctx.moveTo(-20, -42 + crouch); ctx.lineTo(-6, -42 + crouch); ctx.lineTo(-8, -22 + crouch);
+  ctx.lineTo(-14, -16 + crouch); ctx.lineTo(-20, -22 + crouch); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#cfd8ee'; ctx.fillRect(-18, -40 + crouch, 10, 3);
+  if (open) { ctx.fillStyle = '#ffd27a'; ctx.fillRect(-15, -32 + crouch, 4, 6); }
+  ctx.restore();
+  // tells
+  if (b.st === 'wind') {
+    const p = .55 + .45 * Math.abs(Math.sin(b.t * 9));
+    const w = b.atk === 'sweep' ? 150 : b.atk === 'leap' ? 80 : 78;
+    ctx.fillStyle = 'rgba(255,77,28,' + (.22 * p) + ')';
+    ctx.fillRect(b.dir > 0 ? cx : cx - w, by - 40, w, 40);
+    ctx.strokeStyle = 'rgba(255,190,110,' + (.9 * p) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + b.dir * 10, by - 2); ctx.lineTo(cx + b.dir * w, by - 2); ctx.stroke();
+  }
+  if (b.st === 'act') glow(cx + b.dir * 46, by - 28, 56, .28);
+  if (b.st === 'stun') {
+    for (let i = 0; i < 3; i++) {
+      const a = b.t * 4 + i * 2.09;
+      ctx.fillStyle = '#ffd27a'; ctx.fillRect(cx + Math.cos(a) * 18 - 1, b.y - 8 + Math.sin(a) * 5, 3, 3);
+    }
+  }
+  for (const w of b.waves) {
+    ctx.strokeStyle = 'rgba(232,201,106,.55)'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(w.x - w.dir * 8, w.y + 18, 14, w.dir > 0 ? -Math.PI / 2 : Math.PI / 2, w.dir > 0 ? Math.PI / 2 : Math.PI * 1.5);
+    ctx.stroke();
+  }
   ctx.globalAlpha = 1;
 }
 

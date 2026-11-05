@@ -74,7 +74,7 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
-ok(hub.l.hub.gates.length === 5, 'the hub has five gates');
+ok(hub.l.hub.gates.length === 7, 'the hub has seven gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 const crowBad = [];
@@ -277,7 +277,11 @@ ok(dbg.sceneId === 'hub' && dbg.run.cleared.II === true && dbg.run.levels.II.eve
 
 /* ================= 4d. Area III: the Bell Tower ================= */
 const bHub = dbg.g;
-ok(bHub.l.w >= 3200, 'Bell Plaza extends Cinderhaven past the crypt');
+ok(bHub.l.w >= 4100, 'Bell Plaza and the Throne Approach extend Cinderhaven');
+bHub.p.x = 3960; bHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(bHub.dialog && bHub.dialog.pages[0].who === 'SEALED GATE', 'Gate IV is sealed before Area III is cleared');
+bHub.dialog = null;
 bHub.p.x = 3160; bHub.p.y = 386; frames(2);
 ok(bHub.near && bHub.near.type === 'gate' && bHub.near.obj.area === 'III', 'the Bell Plaza gate reaches the tower');
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
@@ -345,6 +349,77 @@ ok(carillon.hp === 0 && carillon.st === 'dead', 'the Carillon cracks and falls')
 c4.p.x = c4.l.exit.x + c4.l.exit.w / 2 - c4.p.w / 2; c4.p.y = c4.l.exit.y + c4.l.exit.h - c4.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.III === true && dbg.run.levels.III.every(Boolean), '3-4 returns to town and completes Area III');
 ok(dbg.g.stageMsg > 0 && dbg.g.stageMsgKind === 'bells', 'the town rings a clean note after Area III');
+
+/* ================= 4e. Area IV: The Throne ================= */
+const tHub = dbg.g;
+ok(tHub.l.w >= 4100, 'the Throne Approach reaches the royal gate');
+tHub.p.x = 3960; tHub.p.y = 386; frames(2);
+ok(tHub.near && tHub.near.type === 'gate' && tHub.near.obj.area === 'IV', 'Gate IV reaches the Throne');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'd1' && dbg.g.l.area === 'IV', 'Gate IV opens 4-1 The Gate Hall');
+
+const d1 = dbg.g;
+const rev = d1.enemies.find(e => e.type === 'revenant');
+ok(rev && rev.st === 'down', 'a Royal Revenant waits collapsed in a pile');
+d1.p.x = 1120; d1.p.y = 386; d1.p.inv = 999; frames(30);
+ok(rev.st !== 'down', 'the Royal Revenant rises when the knight nears');
+rev.st = 'thrust'; rev.stT = 0; rev.hitDone = 0; rev.dir = 1;
+d1.p.x = rev.x + 50; d1.p.y = 386; d1.p.face = -1; d1.p.inv = 0;
+fire('keydown', 'KeyL'); frames(1);
+ok(rev.st === 'stagger', 'a perfect guard staggers the Revenant\u2019s thrust');
+fire('keyup', 'KeyL');
+d1.p.x = d1.l.exit.x + d1.l.exit.w / 2 - d1.p.w / 2; d1.p.y = d1.l.exit.y + d1.l.exit.h - d1.p.h; frames(40);
+ok(dbg.sceneId === 'd2' && dbg.run.levels.IV[0] === true, '4-1 leads to 4-2 and is marked cleared');
+
+const d2 = dbg.g;
+ok(d2.l.secrets.length && d2.l.secrets[0].name === 'THE CHESS ROOM', 'the Armory hides the chess room');
+d2.p.x = d2.l.exit.x + d2.l.exit.w / 2 - d2.p.w / 2; d2.p.y = d2.l.exit.y + d2.l.exit.h - d2.p.h; frames(40);
+ok(dbg.sceneId === 'd3' && dbg.run.levels.IV[1] === true, '4-2 leads to 4-3 and is marked cleared');
+
+const d3 = dbg.g;
+ok(d3.l.secrets.length && d3.l.secrets[0].name === 'THE HALF-WRITTEN LETTER', 'the Gallery hides the unfinished letter');
+d3.p.x = d3.l.exit.x + d3.l.exit.w / 2 - d3.p.w / 2; d3.p.y = d3.l.exit.y + d3.l.exit.h - d3.p.h; frames(40);
+ok(dbg.sceneId === 'd4' && dbg.run.levels.IV[2] === true, '4-3 leads to 4-4 and is marked cleared');
+
+const d4 = dbg.g, cap = d4.boss;
+ok(cap && cap.kind === 'captain' && cap.st === 'dormant', 'the Fallen Royal Guard waits at his post');
+d4.p.x = 1100; d4.p.y = 386; d4.p.inv = 999; frames(40);
+ok(cap.st !== 'dormant', 'the Captain wakes when the knight enters');
+cap.hp = 8; cap.st = 'idle'; cap.stT = 0;
+d4.p.x = cap.x - 30; d4.p.y = 386; d4.p.face = 1; d4.p.swing = .15; d4.p.hits.clear(); frames(8);
+ok(cap.hp === 8, 'the Captain\u2019s shield turns the blade');
+cap.st = 'act'; cap.atk = 'bash'; cap.stT = 0; cap.hitDone = 0; cap.dir = 1;
+d4.p.x = cap.x + 50; d4.p.y = 386; d4.p.face = -1; d4.p.inv = 0;
+fire('keydown', 'KeyL'); frames(1);
+ok(cap.st === 'stun', 'a perfect guard stuns the Captain');
+fire('keyup', 'KeyL');
+cap.hp = 1; cap.st = 'stun'; cap.stunT = 9; cap.stT = 0;
+d4.p.x = cap.x - 30; d4.p.y = 386; d4.p.face = 1; d4.p.swing = .15; d4.p.hits.clear(); frames(20);
+ok(cap.hp === 0 && cap.st === 'dead', 'striking the stunned Captain finishes him');
+ok(dbg.g.bossLine > 0 && /Hold the door/.test(dbg.g.bossLineText), 'the Captain\u2019s last line plays');
+d4.p.x = d4.l.exit.x + d4.l.exit.w / 2 - d4.p.w / 2; d4.p.y = d4.l.exit.y + d4.l.exit.h - d4.p.h; frames(40);
+ok(dbg.sceneId === 'd5' && dbg.run.levels.IV[3] === true, '4-4 leads to the Throne Room and is marked cleared');
+
+const d5 = dbg.g, ward = d5.boss;
+ok(ward && ward.kind === 'warden' && ward.st === 'dormant', 'the Ash Warden waits before the throne');
+d5.p.x = 1250; d5.p.y = 386; d5.p.inv = 999; frames(40);
+ok(ward.st !== 'dormant', 'the Ash Warden rises');
+ward.hp = 10; ward.phase = 1; ward.st = 'guard'; ward.guardT = 99; ward.iframe = 0;
+d5.p.x = 1460; d5.p.y = 386; d5.p.face = 1; d5.p.swing = .15; d5.p.hits.clear(); frames(8);
+ok(ward.hp === 10, 'the Warden\u2019s raised shield blocks the blade');
+ward.st = 'open'; ward.cool = 99; ward.iframe = 0; ward.hp = 10;
+d5.p.x = 1460; d5.p.y = 386; d5.p.face = 1; d5.p.swing = .15; d5.p.hits.clear(); frames(8);
+ok(ward.hp === 9, 'the open Warden takes a hit');
+ward.st = 'open'; ward.cool = 99; ward.iframe = 0; ward.hp = 6;
+d5.p.x = 1460; d5.p.y = 386; d5.p.face = 1; d5.p.swing = .15; d5.p.hits.clear(); frames(8);
+ok(ward.hp === 5 && ward.phase === 2, 'the Ash Warden burns brighter at half health');
+ward.st = 'open'; ward.cool = 99; ward.iframe = 0; ward.hp = 1;
+d5.p.x = 1460; d5.p.y = 386; d5.p.face = 1; d5.p.swing = .15; d5.p.hits.clear(); frames(20);
+ok(ward.hp === 0 && (ward.st === 'dead' || ward.st === 'gone'), 'the Ash Warden falls');
+ok(/hold the door/i.test(dbg.g.bossLineText), 'the Warden\u2019s dying line plays');
+d5.p.x = d5.l.exit.x + d5.l.exit.w / 2 - d5.p.w / 2; d5.p.y = d5.l.exit.y + d5.l.exit.h - d5.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.IV === true && dbg.run.levels.IV.every(Boolean), '4-5 returns to town and completes Area IV');
+ok(dbg.g.stageMsgKind === 'throne', 'the hub settles into the quiet after the throne');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);

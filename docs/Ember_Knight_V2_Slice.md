@@ -1,8 +1,35 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8)
 
 The v2 slice now lives on `main` alongside the shipped game and proves the shape of the world-design document:
-**tutorial road → Cinderhaven → Area I → back to Cinderhaven → Area II → Bell Plaza → Area III**. The shipped v1 game is
+**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV**. The shipped v1 game is
 still available at `index.html` and is untouched.
+
+## V8 - Area IV: The Throne
+
+Gate IV opens at the end of the **Throne Approach**, the ruined royal approach after Bell Plaza, once
+Area III is cleared. The area uses the violet-and-gold throne theme with torn banners and long shadows.
+
+| Level | Name | Shape |
+|---|---|---|
+| 4-1 | The Gate Hall | Revenant pairs, one rising from a pile |
+| 4-2 | The Armory | Rack-to-rack platforming, the Chess Room secret |
+| 4-3 | The Portrait Gallery | Upper route, the Half-Written Letter secret, a rising revenant |
+| 4-4 | The Captain's Post | The Fallen Royal Guard |
+| 4-5 | The Throne Room | The Ash Warden |
+
+- **Royal Revenant.** A ghostly spear guard. Slow patrol, a long telegraphed thrust; a perfect guard
+  (L) or a normal guard holds it, and a perfect guard **staggers** it. Some start collapsed and rise
+  when the knight comes near.
+- **The Fallen Royal Guard (the Captain)** — 8 HP. Shield bash, wide sweep and a leaping thrust, each
+  with a long tell. His shield turns the blade outside recovery; a **perfect guard stuns him**. His
+  last line plays as he falls.
+- **The Ash Warden** — 10 HP, reusing the shipped v1 moveset: cleave shockwaves, ember volleys,
+  charges, the shielded guard and recovery openings. Below half health he enters **phase two** with
+  the two-direction Ash Quake and faster chains. The shield is steel-pale, the opening glows gold,
+  and his dying line plays after the fight.
+- The Throne Approach sign tracks **0/5 → 5/5**. 4-5 returns to Cinderhaven, completes Area IV and
+  leaves the hub **THE THRONE IS QUIET**.
+- The v2 coin total is now **164** across the tutorial and all four areas.
 
 ## V7 - Area III: The Bell Tower
 
@@ -29,7 +56,7 @@ purple-and-gold theme, with hanging bells, a belfry silhouette and the moonlit C
   **cracked bell** swings low and is the only opening. At half health the beat speeds up and the
   opening shortens.
 - The Bell Plaza sign tracks **0/4 → 4/4**. 3-4 returns to Cinderhaven and completes Area III.
-- The v2 coin total is now **125** across the tutorial and all three areas.
+- The v2 coin total is now **125** across the tutorial and all three areas (164 with Area IV).
 
 ## V6 - Area II: The Sunken Crypt
 
@@ -211,7 +238,9 @@ guarded too; a perfect guard on the charge stuns him.
    2-3 (the Crypt Warden) → 2-4 (the Crypt Matron) → Cinderhaven, `cleared.II = true`.
 5. Bell Plaza opens Gate III after Area II. Ring the tower bells: 3-1 → 3-2 → 3-3 (the Clapper
    Golem) → 3-4 (the Cracked Carillon) → Cinderhaven, `cleared.III = true`.
-6. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
+6. The Throne Approach opens Gate IV after Area III: 4-1 → 4-2 → 4-3 → 4-4 (the Fallen Royal
+   Guard) → 4-5 (the Ash Warden) → Cinderhaven, `cleared.IV = true`.
+7. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
 
 ## Deliberately deferred
@@ -226,8 +255,10 @@ guarded too; a perfect guard on the charge stuns him.
   and Crypt Matron, plus the Area II gate and progression.
 - V7 done: Bell Plaza, the four Bell Tower levels, bell switches and lifts, the Peal Wraith, Clapper
   Golem and Cracked Carillon.
-- Beyond the slice: the other five areas, hub rooftops, district stages S3-S5, the Bell Plaza bard
-  (Aldrin and Daryl) and the full unlock map for the shop.
+- V8 done: the Throne Approach, the five Throne levels, the Royal Revenant, the Fallen Royal Guard
+  and the Ash Warden, plus the Captain/Warden death lines.
+- Beyond the slice: the other four areas, Gate V and the next merchant stock, hub rooftops, district
+  stages S3-S5, the Bell Plaza bard (Aldrin and Daryl) and the full unlock map for the shop.
 
 ## Known placeholders
 

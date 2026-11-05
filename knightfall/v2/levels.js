@@ -63,14 +63,14 @@ export const HUB = {
   style: 'road', theme: 0,
   line: 'The one place nothing is trying to kill you.',
   spawn: [80, 386],
-  w: 3300, h: 540,
+  w: 4100, h: 540,
   darkZones: [], lights: [], hazards: [],
   solids: [
     wallL,
-    { x: 0, y: 420, w: 3300, h: 120 },                         // the street, through Market Lane to Bell Plaza
-    wallR(3300),
+    { x: 0, y: 420, w: 4100, h: 120 },                         // the street: Ash Square -> Market Lane -> Bell Plaza -> Throne Approach
+    wallR(4100),
   ],
-  torches: [[180, 420], [980, 420], [1360, 420], [2600, 420], [3050, 420]],
+  torches: [[180, 420], [980, 420], [1360, 420], [2600, 420], [3050, 420], [3500, 420], [3900, 420]],
   coins: [], hearts: [], enemies: [],
   props: [
     { type: 'banner', x: 560, y: 150, h: 190 },
@@ -80,6 +80,9 @@ export const HUB = {
     { type: 'banner', x: 2750, y: 110, h: 200 },
     { type: 'statue', x: 2950, y: 420 },
     { type: 'rubble', x: 3120, y: 420 },
+    { type: 'banner', x: 3560, y: 96, h: 210 },
+    { type: 'statue', x: 3780, y: 420 },
+    { type: 'rubble', x: 4050, y: 420 },
   ],
   hub: {
     hearth: { x: 420, y: 420 },
@@ -112,6 +115,10 @@ export const HUB = {
         closed: 'The plaza is dark. The bells have not rung since the Matron fell silent.' },
       { x: 3180, y: 330, w: 90, h: 90, to: 'c1', area: 'III', label: 'GATE III \u2014 THE BELL TOWER', short: 'THE BELL TOWER', openWhen: 'IICleared',
         closed: 'The tower is sealed. The crypt has not been quieted.' },
+      { x: 3380, y: 330, w: 90, h: 90, to: null, pass: true, label: 'GATE IV \u2014 THE THRONE', short: 'THRONE APPROACH', openWhen: 'IIICleared',
+        closed: 'The way to the throne is dark. The bells have not rung clean.' },
+      { x: 3980, y: 330, w: 90, h: 90, to: 'd1', area: 'IV', label: 'GATE IV \u2014 THE THRONE', short: 'THE THRONE', openWhen: 'IIICleared',
+        closed: 'The throne is sealed. The tower still rings.' },
     ],
   },
   gate: { x: 1500, y: 330, w: 90, h: 90 },
@@ -596,6 +603,195 @@ export const C4 = {
   cps: [[80, 420], [1200, 420]],
 };
 
-export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4, c1: C1, c2: C2, c3: C3, c4: C4 };
+/* ---------------- Area IV: the Throne ---------------- */
+export const D1 = {
+  kind: 'level', area: 'IV',
+  title: '4-1  THE GATE HALL',
+  name: 'THE GATE HALL',
+  style: 'throne', theme: 3,
+  line: 'The court used to be loud. Now the statues are the only ones standing guard.',
+  spawn: [80, 386],
+  w: 1900, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 840, h: 220 },
+    { x: 700, y: 380, w: 120, h: 16, oneway: 1 },
+    { x: 860, y: 340, w: 140, h: 16, oneway: 1 },
+    { x: 1040, y: 420, w: 860, h: 220 },
+    wallR(1900),
+  ],
+  torches: [[150, 420], { x: 1050, y: 420, lit: 0, cp: 1 }, [1750, 420]],
+  coins: [[250, 385], [290, 385], [740, 345], [900, 305],
+          [1100, 385], [1140, 385], [1500, 385], [1540, 385]],
+  hearts: [[200, 385], [1180, 385]],
+  enemies: [
+    { type: 'revenant', x: 1150, y: 380, rise: 1 },
+    { type: 'revenant', x: 1500, y: 380 },
+    { type: 'shield', x: 1650, y: 390, x0: 1580, x1: 1750 },
+  ],
+  props: [
+    { type: 'statue', x: 300, y: 420 },
+    { type: 'statue', x: 600, y: 420 },
+    { type: 'banner', x: 800, y: 100, h: 180 },
+    { type: 'rubble', x: 1800, y: 420 },
+  ],
+  signs: [{ x: 300, y: 420, text: 'THE GATE HALL', sub: 'THE COURT IS QUIET' }],
+  gate: { x: 1780, y: 330, w: 80, h: 90 },
+  exit: { x: 1784, y: 328, w: 72, h: 92, to: 'd2', area: 'IV', level: 0 },
+  cps: [[80, 420], [1050, 420]],
+};
+
+export const D2 = {
+  kind: 'level', area: 'IV',
+  title: '4-2  THE ARMORY',
+  name: 'THE ARMORY',
+  style: 'throne', theme: 3,
+  line: 'Every rack is full. None of the owners came back for their weapons.',
+  spawn: [80, 386],
+  w: 2000, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 800, h: 220 },
+    { x: 620, y: 370, w: 110, h: 16, oneway: 1 },
+    { x: 760, y: 310, w: 120, h: 16, oneway: 1 },
+    { x: 900, y: 250, w: 120, h: 16, oneway: 1 },
+    { x: 880, y: 190, w: 160, h: 14, oneway: 1 },               // the chess room
+    { x: 1040, y: 320, w: 120, h: 16, oneway: 1 },
+    { x: 1180, y: 380, w: 100, h: 16, oneway: 1 },
+    { x: 1280, y: 420, w: 720, h: 220 },
+    wallR(2000),
+  ],
+  torches: [[150, 420], { x: 1300, y: 420, lit: 0, cp: 1 }, [1850, 420]],
+  coins: [[200, 385], [240, 385], [650, 335], [790, 275], [930, 215],
+          [970, 215], [1080, 285], [1210, 345], [1350, 385], [1390, 385], [1500, 385]],
+  hearts: [[1000, 385], [950, 215]],
+  enemies: [
+    { type: 'shield', x: 1400, y: 390, x0: 1320, x1: 1520 },
+    { type: 'revenant', x: 1650, y: 380, rise: 1 },
+    { type: 'bat', x0: 700, x1: 1300, y0: 210, ay: 45, sp: 1.0, ph: .7 },
+  ],
+  props: [
+    { type: 'anvil', x: 400, y: 420 },
+    { type: 'shelf', x: 1450, y: 420 },
+    { type: 'banner', x: 1600, y: 110, h: 180 },
+    { type: 'statue', x: 1800, y: 420 },
+  ],
+  secrets: [{ x: 860, y: 140, w: 200, h: 110, name: 'THE CHESS ROOM' }],
+  signs: [{ x: 320, y: 420, text: 'THE ARMORY', sub: 'TAKE ONLY WHAT YOU NEED' }],
+  gate: { x: 1880, y: 330, w: 80, h: 90 },
+  exit: { x: 1884, y: 328, w: 72, h: 92, to: 'd3', area: 'IV', level: 1 },
+  cps: [[80, 420], [1300, 420]],
+};
+
+export const D3 = {
+  kind: 'level', area: 'IV',
+  title: '4-3  THE PORTRAIT GALLERY',
+  name: 'THE PORTRAIT GALLERY',
+  style: 'throne', theme: 3,
+  line: 'Someone scratched out every royal face. They missed the frames.',
+  spawn: [80, 386],
+  w: 2100, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 900, h: 220 },
+    { x: 740, y: 360, w: 140, h: 16, oneway: 1 },
+    { x: 920, y: 300, w: 160, h: 16, oneway: 1 },
+    { x: 1120, y: 250, w: 160, h: 14, oneway: 1 },
+    { x: 760, y: 230, w: 160, h: 14, oneway: 1 },               // the half-written letter
+    { x: 1300, y: 420, w: 800, h: 220 },
+    wallR(2100),
+  ],
+  torches: [[150, 420], { x: 1350, y: 420, lit: 0, cp: 1 }, [1950, 420]],
+  coins: [[250, 385], [290, 385], [770, 325], [950, 265], [1150, 215],
+          [800, 195], [840, 195], [1350, 385], [1390, 385], [1700, 385]],
+  hearts: [[180, 385], [820, 195], [1600, 385]],
+  enemies: [
+    { type: 'revenant', x: 1100, y: 380 },
+    { type: 'revenant', x: 1500, y: 380, rise: 1 },
+    { type: 'goblin', x: 1750, y: 390, x0: 1650, x1: 1850, hp: 1 },
+    { type: 'bat', x0: 900, x1: 1300, y0: 200, ay: 40, sp: 1.1, ph: 1.3 },
+  ],
+  props: [
+    { type: 'banner', x: 500, y: 96, h: 180 },
+    { type: 'statue', x: 900, y: 420 },
+    { type: 'banner', x: 1700, y: 90, h: 190 },
+    { type: 'rubble', x: 2000, y: 420 },
+  ],
+  secrets: [{ x: 740, y: 180, w: 200, h: 100, name: 'THE HALF-WRITTEN LETTER' }],
+  signs: [{ x: 320, y: 420, text: 'THE PORTRAIT GALLERY', sub: 'MIND THE EYES' }],
+  gate: { x: 1980, y: 330, w: 80, h: 90 },
+  exit: { x: 1984, y: 328, w: 72, h: 92, to: 'd4', area: 'IV', level: 2 },
+  cps: [[80, 420], [1350, 420]],
+};
+
+export const D4 = {
+  kind: 'level', area: 'IV',
+  title: '4-4  THE CAPTAIN\u2019S POST',
+  name: 'THE CAPTAIN\u2019S POST',
+  style: 'throne', theme: 3,
+  line: 'The last guard never left his post. He just stopped being alive about it.',
+  spawn: [80, 386],
+  w: 1900, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 2100, h: 220 },
+    { x: 700, y: 340, w: 140, h: 16, oneway: 1 },
+    { x: 1000, y: 300, w: 140, h: 16, oneway: 1 },
+    wallR(1900),
+  ],
+  torches: [[150, 420], { x: 1050, y: 420, lit: 0, cp: 1 }, [1750, 420]],
+  coins: [[250, 385], [290, 385], [740, 305], [1040, 265], [1250, 385]],
+  hearts: [[200, 385], [900, 385]],
+  enemies: [
+    { type: 'revenant', x: 500, y: 380 },
+    { type: 'shield', x: 800, y: 390, x0: 700, x1: 920 },
+  ],
+  boss: { kind: 'captain', name: 'THE FALLEN ROYAL GUARD', x: 1400, y: 374, wake: 1050, hp: 8, sealed: 'THE CAPTAIN HOLDS THE POST' },
+  props: [
+    { type: 'banner', x: 600, y: 100, h: 180 },
+    { type: 'statue', x: 1200, y: 420 },
+    { type: 'rubble', x: 1800, y: 420 },
+  ],
+  signs: [{ x: 320, y: 420, text: 'THE CAPTAIN\u2019S POST', sub: 'HOLD THE DOOR' }],
+  gate: { x: 1780, y: 330, w: 80, h: 90 },
+  exit: { x: 1784, y: 328, w: 72, h: 92, to: 'd5', area: 'IV', level: 3 },
+  cps: [[80, 420], [1050, 420]],
+};
+
+export const D5 = {
+  kind: 'level', area: 'IV',
+  title: '4-5  THE THRONE ROOM',
+  name: 'THE THRONE ROOM',
+  style: 'throne', theme: 3,
+  line: 'The throne is empty. The Warden is not.',
+  spawn: [80, 386],
+  w: 2200, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 2400, h: 220 },
+    wallR(2200),
+  ],
+  torches: [[150, 420], { x: 1200, y: 420, lit: 0, cp: 1 }, [1900, 420]],
+  coins: [[250, 385], [290, 385], [600, 385], [1100, 385], [1150, 385]],
+  hearts: [[200, 385], [1050, 385]],
+  enemies: [],
+  boss: { kind: 'warden', name: 'THE ASH WARDEN', x: 1500, y: 344, wake: 1200, hp: 10, sealed: 'THE WARDEN HOLDS THE THRONE' },
+  props: [
+    { type: 'banner', x: 1500, y: 60, h: 220 },
+    { type: 'statue', x: 800, y: 420 },
+    { type: 'rubble', x: 2000, y: 420 },
+  ],
+  signs: [{ x: 300, y: 420, text: 'THE THRONE ROOM', sub: 'HE KEPT THE SEAT WARM' }],
+  gate: { x: 2080, y: 330, w: 80, h: 90 },
+  exit: { x: 2084, y: 328, w: 72, h: 92, to: 'hub', area: 'IV', level: 4, complete: true },
+  cps: [[80, 420], [1200, 420]],
+};
+
+export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4, c1: C1, c2: C2, c3: C3, c4: C4, d1: D1, d2: D2, d3: D3, d4: D4, d5: D5 };
 export const SCENE_IDS = Object.keys(SCENES);
 export const TOTAL_COINS = SCENE_IDS.reduce((n, id) => n + SCENES[id].coins.length, 0);

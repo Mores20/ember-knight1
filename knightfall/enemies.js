@@ -1,4 +1,5 @@
 import { sfx } from './audio.js';
+import { hit } from './player.js';
 
 // Is there floor under this point? Walking enemies use it so they never patrol off a ledge.
 const floorUnder = (g, x, feet) => !!g && g.l.solids.some(s => typeof s.x === 'number' && !s.pass && !s.off
@@ -433,9 +434,80 @@ export class PealWraith {
   }
 }
 
+// Royal Revenant: a ghostly guard with a long spear. It patrols slowly, then
+// telegraphs a long thrust. A perfect guard turns the thrust into a stagger.
+export class RoyalRevenant {
+  constructor(o) {
+    Object.assign(this, { type: 'revenant', w: 26, h: 40, hp: 2, x: o.x, y: o.y, y0: o.y, t: 0,
+      st: o.rise ? 'down' : 'patrol', stT: 0, flash: 0, dir: -1, cool: .6, hitDone: 0, rise: o.rise ? 1 : 0 }, o);
+  }
+  strike(p, g) {
+    if (p.inv > 0) return;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2;
+    const front = (px - cx) * this.dir > -12;
+    const gd = p.guard && p.guard();
+    if (gd && front && p.parry > 0) {
+      this.st = 'stagger'; this.stT = 0; p.inv = .5;
+      g.shake(6); g.stop(.05); sfx.parry(); g.parryMsg = 2.2;
+      return;
+    }
+    if (gd && front) {
+      p.vx = this.dir * 180; p.inv = .35;
+      g.shake(3); sfx.block(); g.blockMsg = 1;
+      return;
+    }
+    p.hurt(cx, g);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, dx = px - cx, dist = Math.abs(dx);
+    if (this.st === 'down') {
+      if (dist < 220) { this.st = 'rise'; this.stT = 0; sfx.wind(); }
+      return;
+    }
+    if (this.st === 'rise') {
+      if (this.stT > .8) { this.st = 'patrol'; this.stT = 0; this.cool = .4; }
+      return;
+    }
+    this.dir = dx < 0 ? -1 : 1;
+    if (this.st === 'patrol') {
+      this.cool -= dt;
+      if (dist > 90) this.x += this.dir * 26 * dt;
+      if (dist < 150 && this.cool <= 0) { this.st = 'wind'; this.stT = 0; sfx.wind(); }
+      return;
+    }
+    if (this.st === 'wind') {
+      if (this.stT > .55) { this.st = 'thrust'; this.stT = 0; this.hitDone = 0; sfx.swing(); }
+      return;
+    }
+    if (this.st === 'thrust') {
+      if (!this.hitDone) {
+        const box = this.dir > 0
+          ? { x: cx + 4, y: this.y + 8, w: 100, h: 26 }
+          : { x: cx - 104, y: this.y + 8, w: 100, h: 26 };
+        if (hit(p, box)) { this.hitDone = 1; this.strike(p, g); }
+      }
+      if (this.stT > .22) { this.st = 'recover'; this.stT = 0; }
+      return;
+    }
+    if (this.st === 'recover') {
+      if (this.stT > .8) { this.st = 'patrol'; this.stT = 0; this.cool = .9; }
+      return;
+    }
+    if (this.st === 'stagger') {
+      if (this.stT > 1.2) { this.st = 'patrol'; this.stT = 0; this.cool = .8; }
+    }
+  }
+  hit(d) {
+    this.hp--; this.flash = .12; this.x += (d || 0) * 8;
+    this.st = 'recover'; this.stT = 0;
+    return this.hp <= 0;
+  }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
   : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o)
   : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o)
-  : o.type === 'pealwraith' ? new PealWraith(o) : new Goblin(o);
+  : o.type === 'pealwraith' ? new PealWraith(o) : o.type === 'revenant' ? new RoyalRevenant(o) : new Goblin(o);
