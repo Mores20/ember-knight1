@@ -8,10 +8,13 @@
 // torches  = [x, y] pairs (always lit) or { x, y, lit, cp } — cp torches are checkpoints once lit
 // enemies  = { type: 'goblin' | 'bat' | 'shield', ... } — see enemies.js
 // solids   = static, plus { kind: 'crumble' } and { kind: 'move', x0, y0, ax, ay, sp, ph }
+// props    = scenery { type, x, y, h? } — no collision, drawn behind the knight
+// secrets  = { x, y, w, h, name } alcoves: a veil hides the reward until the knight is close
 
 const PHASE1 = {
   title: 'THE EMBER ROAD',
   style: 'road',
+  theme: 0,
   name: 'THE EMBER ROAD',
   line: 'The last torch on the road still burns. Follow it.',
   lore: 'Every torch on this road was lit by someone who did not make it further.',
@@ -32,12 +35,14 @@ const PHASE1 = {
     { x: 2480, y: 380, w: 100, h: 160 }, { x: 2580, y: 340, w: 100, h: 200 },
     { x: 2680, y: 300, w: 100, h: 240 }, { x: 2780, y: 260, w: 470, h: 280 },
     { x: 3250, y: -200, w: 40, h: 800 },                      // keep wall
+    { x: 1700, y: 250, w: 140, h: 14, oneway: 1 },            // S5: the keeper's niche
   ],
   torches: [[150, 420], [560, 420], [1000, 420], [1390, 420], [2300, 420], [2820, 260], [3090, 260], [3210, 260]],
   coins: [[300, 380], [345, 380], [390, 380], [1230, 330], [1270, 310], [1310, 330],
           [1705, 290], [1735, 275], [1765, 290], [1720, 318], [1752, 318],     // risky cluster
-          [2530, 340], [2630, 300], [2730, 260], [2900, 215]],
-  hearts: [[470, 385]],
+          [2530, 340], [2630, 300], [2730, 260], [2900, 215],
+          [1720, 215], [1755, 215], [1795, 215]],              // the hidden niche
+  hearts: [[470, 385], [1828, 215]],
   enemies: [
     { type: 'goblin', x: 900, y: 390, x0: 820, x1: 1140, hp: 1 },
     { type: 'goblin', x: 2900, y: 230, x0: 2830, x1: 3070, hp: 2 },
@@ -49,13 +54,22 @@ const PHASE1 = {
     { type: 'bat', x0: 2350, x1: 2750, y0: 230, ay: 90, sp: 1.2, ph: 1.0 },
   ],
   merchant: { x: 380, y: 420 },                              // the first safe room
+  props: [
+    { type: 'grave', x: 230, y: 420 },
+    { type: 'cart', x: 760, y: 420 },
+    { type: 'arch', x: 1560, y: 385 },
+    { type: 'bones', x: 2440, y: 420 },
+    { type: 'banner', x: 3200, y: 90, h: 190 },
+  ],
+  secrets: [{ x: 1690, y: 200, w: 165, h: 100, name: 'THE KEEPER\u2019S NICHE' }],
   gate: { x: 3110, y: 170, w: 80, h: 90 },
-  cps: [[80, 420], [1150, 420], [2260, 420]],                 // respawn points
+  cps: [[80, 420], [1150, 420], [2260, 420], [2780, 260]],    // the keep roof is its own checkpoint
 };
 
 const PHASE2 = {
   title: 'THE SUNKEN CRYPT',
   style: 'crypt',
+  theme: 1,
   name: 'THE SUNKEN CRYPT',
   line: 'The fallen knights kept their embers. Light them.',
   lore: 'The fallen kept their embers. The order still tends them, though no one remembers the order.',
@@ -77,6 +91,7 @@ const PHASE2 = {
     { x: 1610, y: 360, w: 100, h: 16 },
     { kind: 'crumble', x: 1770, y: 380, w: 100, h: 16 },
     { x: 1930, y: 400, w: 100, h: 16 },
+    { x: 1520, y: 270, w: 150, h: 14, oneway: 1 },             // S5: the drowned reliquary
     { x: 2100, y: 420, w: 1320, h: 200 },                     // far landing + shielded hall
     { x: 3420, y: -200, w: 40, h: 800 },
   ],
@@ -93,8 +108,9 @@ const PHASE2 = {
           [980, 330], [1020, 310], [1060, 330],
           [1320, 350], [1480, 330], [1640, 310], [1800, 330], [1960, 350],   // over the chasm
           [2250, 380], [2950, 380],
-          [3000, 300], [3100, 360]],
-  hearts: [[520, 385], [2220, 385]],                          // before each new threat
+          [3000, 300], [3100, 360],
+          [1550, 235], [1595, 235], [1640, 235]],             // the reliquary
+  hearts: [[520, 385], [2220, 385], [1660, 235]],             // before each new threat
   enemies: [
     { type: 'shield', x: 2500, y: 388, x0: 2440, x1: 2640, hp: 2 },
     { type: 'shield', x: 2920, y: 388, x0: 2880, x1: 3080, hp: 2 },
@@ -107,6 +123,14 @@ const PHASE2 = {
     { type: 'bat', x0: 2200, x1: 2500, y0: 250, ay: 60, sp: 1.1, ph: 1.3 },
   ],
   gate: { x: 3300, y: 330, w: 80, h: 90 },
+  props: [
+    { type: 'bones', x: 360, y: 420 },
+    { type: 'grave', x: 700, y: 420 },
+    { type: 'chain', x: 1150, y: 40, h: 120 },
+    { type: 'statue', x: 2200, y: 420 },
+    { type: 'rubble', x: 2480, y: 420 },
+  ],
+  secrets: [{ x: 1510, y: 210, w: 175, h: 110, name: 'THE DROWNED RELIQUARY' }],
   cps: [[80, 420], [2150, 420]],
 };
 
@@ -115,6 +139,7 @@ const PHASE2 = {
 const PHASE3 = {
   title: 'THE BELL TOWER',
   style: 'tower',
+  theme: 2,
   name: 'THE BELL TOWER',
   line: 'The bell has been silent since the ash came. Climb.',
   lore: 'The bell has rung once since the ash: the day the King sealed himself in.',
@@ -133,6 +158,7 @@ const PHASE3 = {
     { x: 680, y: 2140, w: 150, h: 18 },
     { x: 800, y: 2060, w: 150, h: 18 },
     { x: 950, y: 1980, w: 400, h: 20 },                        // landing A
+    { x: 1180, y: 1880, w: 140, h: 14, oneway: 1 },            // S5: the bellkeeper's cache
     { kind: 'move', x0: 560, y0: 1900, w: 130, h: 18, ax: 170, ay: 0, sp: 1.6, ph: 0 },   // 2: shuttle
     { x: 180, y: 1820, w: 280, h: 20 },                        // landing B
     { kind: 'move', x0: 520, y0: 1700, w: 120, h: 18, ax: 0, ay: 100, sp: 1.7, ph: 1.57 },// the lift
@@ -171,7 +197,8 @@ const PHASE3 = {
           [1930, 1560], [2070, 1560],
           [1620, 1320], [1680, 1310],                         // swarm 2
           [700, 1160], [820, 1160],
-          [1000, 1080]],
+          [1000, 1080],
+          [1210, 1845], [1250, 1845], [1290, 1845]],           // the cache
 
   hearts: [[300, 2265], [1400, 1565], [1920, 1565]],          // before each new threat
   enemies: [
@@ -186,6 +213,14 @@ const PHASE3 = {
     { type: 'bat', x0: 950, x1: 1200, y0: 1620, ay: 45, sp: 1.05, ph: 3.0 },
   ],
   sigil: { x: 900, y: 1470 },                                 // the ember dash, earned here
+  props: [
+    { type: 'banner', x: 520, y: 2170, h: 120 },
+    { type: 'bones', x: 1120, y: 1980 },
+    { type: 'chain', x: 1650, y: 1300, h: 160 },
+    { type: 'statue', x: 380, y: 960 },
+    { type: 'rubble', x: 1740, y: 1600 },
+  ],
+  secrets: [{ x: 1170, y: 1820, w: 165, h: 110, name: 'THE BELLKEEPER\u2019S CACHE' }],
   bell: true,                                                 // the tower's name hangs over its door
   gate: { x: 460, y: 870, w: 90, h: 90 },
   cps: [[150, 2300]],
@@ -196,6 +231,7 @@ const PHASE3 = {
 const PHASE4 = {
   title: 'THE THRONE',
   style: 'throne',
+  theme: 3,
   name: 'THE THRONE',
   line: 'The Warden guarded the Hearth to keep the flame out. Only the flame can pass.',
   lore: 'The Warden stayed loyal. He was told the flame had to be kept out.',
@@ -234,6 +270,12 @@ const PHASE4 = {
     { type: 'bat', x0: 300, x1: 600, y0: 280, ay: 40, sp: 1.15, ph: 3.2 },
   ],
   boss: { x: 1900, y: 344, wake: 1350, hp: 16 },               // the Ash Warden
+  props: [
+    { type: 'statue', x: 420, y: 420 },
+    { type: 'grave', x: 980, y: 420 },
+    { type: 'banner', x: 1200, y: 70, h: 220 },
+    { type: 'rubble', x: 1600, y: 420 },
+  ],
   throne: { x: 2120, y: 300, w: 120, h: 120 },
   gate: { x: 2260, y: 330, w: 90, h: 90 },
   cps: [[120, 420], [1180, 420]],
@@ -266,6 +308,7 @@ const PHASE5 = {
     { x: 1240, y: 320, w: 240, h: 18 },                         // the safe ledge (lantern)
     { x: 1800, y: 340, w: 170, h: 18 },                         // archer perch
     { x: 2350, y: 330, w: 190, h: 18 },
+    { x: 2520, y: 320, w: 150, h: 14, oneway: 1 },              // S5: the gardener's hollow
   ],
   torches: [
     { x: 300, y: 420, lit: 0, cp: 1 },
@@ -277,8 +320,9 @@ const PHASE5 = {
   coins: [[220, 385], [360, 385], [560, 385], [700, 295], [840, 385],
           [1120, 385], [1270, 285], [1430, 285], [1460, 385],
           [1700, 385], [1830, 305], [1980, 385],
-          [2260, 385], [2420, 295], [2560, 385], [2740, 385], [2830, 385], [2860, 330]],
-  hearts: [[520, 385], [1290, 285], [2200, 385]],
+          [2260, 385], [2420, 295], [2560, 385], [2740, 385], [2830, 385], [2860, 330],
+          [2550, 285], [2590, 285], [2630, 285]],              // the hollow
+  hearts: [[520, 385], [1290, 285], [2200, 385], [2660, 285]],
   enemies: [
     { type: 'archer', x: 690, y: 298, hp: 2 },
     { type: 'archer', x: 1840, y: 308, hp: 2 },
@@ -296,8 +340,16 @@ const PHASE5 = {
   ],
   lantern: { x: 1380, y: 250 },                                // the Ember Lantern, earned here
   merchant: { x: 2700, y: 420 },
+  props: [
+    { type: 'tree', x: 480, y: 420 },
+    { type: 'statue', x: 1150, y: 420 },
+    { type: 'grave', x: 1900, y: 420 },
+    { type: 'bones', x: 2300, y: 420 },
+    { type: 'tree', x: 2800, y: 420 },
+  ],
+  secrets: [{ x: 2510, y: 270, w: 175, h: 100, name: 'THE GARDENER\u2019S HOLLOW' }],
   gate: { x: 2880, y: 330, w: 90, h: 90 },
-  cps: [[80, 420], [2200, 420]],
+  cps: [[80, 420], [1620, 420], [2200, 420]],
 };
 
 // Phase VI: a climb against a rising ember tide. Pressure only - it never chases faster than you
@@ -360,6 +412,12 @@ const PHASE6 = {
     { type: 'crawler', x: 880, y: 1180, x0: 820, x1: 1120, hp: 2 },
   ],
   gate: { x: 1000, y: 1110, w: 90, h: 90 },
+  props: [
+    { type: 'anvil', x: 520, y: 2300 },
+    { type: 'rubble', x: 450, y: 2060 },
+    { type: 'chain', x: 1800, y: 1420, h: 140 },
+    { type: 'cart', x: 1900, y: 1600 },
+  ],
   cps: [[200, 2300]],
 };
 
@@ -388,6 +446,7 @@ const PHASE7 = {
     { x: 1760, y: 420, w: 380, h: 120 },
     { x: 2360, y: 420, w: 200, h: 120 },
     { x: 1100, y: 320, w: 160, h: 18 },                         // a reading ledge
+    { x: 1220, y: 260, w: 150, h: 14, oneway: 1 },              // S5: the margin note
     { x: 800, y: 380, w: 180, h: 16, litOnly: 1 },              // bridge A: lantern only
     { x: 1480, y: 380, w: 220, h: 16, litOnly: 1 },             // bridge B: lantern only
     { x: 2160, y: 340, w: 180, h: 16, litOnly: 1, group: 'a' }, // bridge C: the switch locks it solid
@@ -404,7 +463,8 @@ const PHASE7 = {
   coins: [[300, 385], [460, 385], [700, 385], [860, 340], [1120, 285],
           [1230, 285], [1250, 385], [1400, 385], [1560, 340], [1680, 340],
           [1830, 385], [2000, 385], [2200, 300], [2300, 300],
-          [2400, 385], [2480, 385]],
+          [2400, 385], [2480, 385],
+          [1260, 225], [1305, 225], [1350, 225]],              // the margin
   hearts: [[560, 385], [1300, 385], [2400, 385]],
   enemies: [
     { type: 'shade', x: 1200, y: 388, x0: 1120, x1: 1300, hp: 2 },
@@ -419,8 +479,16 @@ const PHASE7 = {
     { type: 'hexer', x: 2000, y: 300, hp: 3 },
   ],
   merchant: { x: 300, y: 420 },
+  props: [
+    { type: 'shelf', x: 420, y: 420 },
+    { type: 'bones', x: 1000, y: 420 },
+    { type: 'shelf', x: 1500, y: 420 },
+    { type: 'shelf', x: 2250, y: 420 },
+    { type: 'chain', x: 700, y: 40, h: 130 },
+  ],
+  secrets: [{ x: 1210, y: 200, w: 175, h: 110, name: 'THE MARGIN NOTE' }],
   gate: { x: 2420, y: 330, w: 90, h: 90 },
-  cps: [[80, 420], [1100, 420]],
+  cps: [[80, 420], [1100, 420], [1900, 420]],
 };
 
 // Phase VIII: the Ash King. Three phases, adds in the second, darkness in the third.
@@ -449,6 +517,7 @@ const PHASE8 = {
     { x: 880, y: 340, w: 180, h: 16, oneway: 1 },
     { x: 1240, y: 340, w: 160, h: 16, oneway: 1 },
     { x: 330, y: 272, w: 140, h: 16, oneway: 1 },
+    { x: 690, y: 250, w: 140, h: 14, oneway: 1 },               // S5: the first hearth
     { x: 1010, y: 272, w: 150, h: 16, oneway: 1 },
   ],
   torches: [
@@ -456,10 +525,18 @@ const PHASE8 = {
     { x: 1480, y: 420, lit: 1 },
   ],
   coins: [[190, 385], [240, 385], [420, 385], [520, 385], [700, 385],
-          [900, 385], [1100, 385], [1300, 385], [1450, 385], [1520, 385]],
+          [900, 385], [1100, 385], [1300, 385], [1450, 385], [1520, 385],
+          [730, 215], [770, 215], [810, 215]],                  // the first hearth
   hearts: [[230, 385]],                                        // one heart, right before the throne
   enemies: [],
   king: { x: 1080, y: 328, wake: 640, hp: 24, anchors: [300, 620, 990, 1330] },
+  props: [
+    { type: 'crystal', x: 250, y: 420 },
+    { type: 'bones', x: 760, y: 420 },
+    { type: 'banner', x: 600, y: 80, h: 170 },
+    { type: 'crystal', x: 1400, y: 420 },
+  ],
+  secrets: [{ x: 680, y: 200, w: 165, h: 100, name: 'THE FIRST HEARTH' }],
   gate: { x: 1420, y: 330, w: 90, h: 90 },
   cps: [[120, 420], [260, 420]],
 };

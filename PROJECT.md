@@ -18,7 +18,7 @@ the map of the machine.
 | `python -m http.server 8000` | Play from source at `http://127.0.0.1:8000/` (HTTP is required — ES modules and audio won't load from `file://`) |
 | `npm install` | Install the desktop/build dependencies (not needed to play) |
 | `npm start` | Run the game in an Electron window |
-| `npm test` | Headless regression suite (`tools/harness.mjs`, 88 checks, ~1 s) |
+| `npm test` | Headless regression suite (`tools/harness.mjs`, 100 checks, ~2 s) |
 | `npm run smoke` | Launch Electron, verify boot/canvas/audio/a fight, screenshot, exit code |
 | `npm run dist` | Build `dist/Ember-Knight-<version>.exe` (portable) |
 
@@ -137,6 +137,8 @@ Every level is an object; `LEVELS` is the array of all eight, and `TOTAL_COINS` 
   torches: [{ x, y, lit: 0|1, cp: 0|1 }],   // cp = checkpoint when lit
   coins: [[x, y], ...], hearts: [[x, y], ...],
   enemies: [ ... ],                     // same fields as enemies.js constructors
+  props: [{ type, x, y, h? }],          // scenery, no collision
+  secrets: [{ x, y, w, h, name }],      // hidden alcove; a veil hides it until entered
   gate: { x, y, w, h }, cps: [[x, y], ...],
   sigil: { x, y },                      // ember dash pickup
   lantern: { x, y },                    // ember lantern pickup
@@ -161,6 +163,18 @@ Every level is an object; `LEVELS` is the array of all eight, and `TOTAL_COINS` 
 | `off` | runtime flag: crumbled / cracked / gone |
 | `pass` | runtime flag: no collision (unlit bridge) |
 | `broken` | visual flag for the chasm stones |
+
+### World art (S5)
+
+`backdrop.js` draws eight layered, parallaxed environments (`road, crypt, tower, throne, ash, forge,
+archive, heart`) with their own silhouettes and drifting particles — ash, mist, dust, embers, pages,
+sparks. Far layers lag the camera horizontally, and climb levels also drift vertically. `OUTDOOR`
+keeps the stars and moon only for the Road, Tower, Gardens and Heart; the interiors get their own
+ceiling. `scenery.js` draws the `props` list (`grave, statue, bones, cart, anvil, shelf, crystal,
+tree, arch, chain, banner, rubble`) behind the knight, and the `drawSecretVeil` arch that hides each
+alcove until the knight is within ~200 px. Entering a secret records it in `run.secrets[phase]`, shows
+the `A HIDDEN ALCOVE` banner, and the veil is gone for good. All secret ledges are `oneway` so the
+knight can jump up through them; the Road, Crypt, Tower, Gardens, Archive and Heart each hide one.
 
 > Add a level by copying a neighbour and filling every field. `npm test` checks that the spawn sits
 > on a solid, the gate/checkpoints exist, and no walking enemy floats.
@@ -326,13 +340,16 @@ Key: `emberknight.v1` in `localStorage` (on the app's stable origin).
   abil: { dash, lantern },
   got: { [phase]: { c: [coinIndex], h: [heartIndex] } },
   lit: { [phase]: [torchIndex] },
+  secrets: { [phase]: [secretIndex] },
   cleared: [bool × 8],
   skin, emberSword, titled
 }
 ```
 
-`coins` is the lifetime tally (the 124-coin completion count); **`gold`** is the spendable purse,
-filled by the same pickups. v1 saves migrate once: `gold` is seeded from `coins`.
+`coins` is the lifetime tally (the 142-coin completion count); **`gold`** is the spendable purse,
+filled by the same pickups. `secrets` records which alcoves have been opened (it only removes veils;
+the coins and hearts are already in `got`). v1 saves migrate once: `gold` is seeded from `coins` and
+`secrets` defaults to `{}`.
 
 Written on pickups, purchases, level loads, phase completion, respawn, before unload, and after the
 ending. Further shape changes still need a version bump (or defensive defaults).
@@ -357,7 +374,7 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
 
 ## 14. Testing
 
-`npm test` → `tools/harness.mjs` (88 checks, ~1 s). It stubs `document`, `ImageData`, `localStorage`,
+`npm test` → `tools/harness.mjs` (100 checks, ~2 s). It stubs `document`, `ImageData`, `localStorage`,
 `AudioContext` and `requestAnimationFrame`, imports the real game, and drives it:
 
 - boot + the renderer actually draws
@@ -371,6 +388,9 @@ Build config lives in `package.json → build` (asar, portable target, `build/ic
   and killing the caster clears its hex
 - the merchant: F opens the shop, a potion heals and charges 15, a poor knight is refused, the flask
   cleanses, the shield unlocks after the Warden and eats a hit, F leaves, coins fill the purse
+- the world: eight backdrops, valid in-bounds props, secret alcoves with a one-way ledge + launch pad
+  + reward, discovery saves, and the Ember Road niche is reachable by an actual jump
+- checkpoints: the Ember Road keep, the Gardens midpoint and the Archive fallback
 - the menu: Esc, CONTINUE, colour persistence, diorama kills
 - story settle, card hold, ending → credits
 

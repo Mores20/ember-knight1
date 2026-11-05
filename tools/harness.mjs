@@ -61,6 +61,8 @@ const { dbg } = await import(here('../knightfall/main.js'));
 const { LEVELS, TOTAL_COINS } = await import(here('../knightfall/level.js'));
 const INP = await import(here('../knightfall/input.js'));
 const MS = await import(here('../knightfall/mobsprites.js'));
+const { BACKDROP_STYLES } = await import(here('../knightfall/backdrop.js'));
+const { SCENERY_TYPES } = await import(here('../knightfall/scenery.js'));
 globalThis.__k = INP;
 dbg.start();
 
@@ -70,7 +72,7 @@ ok(dbg.g.state === 'play', 'boots into play');
 ok(Object.keys(calls).length > 10 && (calls.fillRect || 0) > 200, 'the renderer actually draws (' + Object.keys(calls).length + ' calls, ' + (calls.fillRect || 0) + ' rects)');
 ok(texts.some(t => t === 'x 0/' + TOTAL_COINS), 'the HUD strip shows the campaign coin total');
 ok(LEVELS.length === 8, 'eight phases');
-ok(TOTAL_COINS === 124, '124 coins in the campaign');
+ok(TOTAL_COINS === 142, '142 coins in the campaign');
 
 /* ================= 2. every phase loads and is sane ================= */
 let badSpawn = [], badEnemy = [], badLevel = [];
@@ -107,6 +109,54 @@ for (let lv = 0; lv < 7; lv++) {
   }
 }
 ok(offEdge.length === 0, 'patrolling enemies stay on solid ground' + (offEdge.length ? ' -> ' + offEdge.join(', ') : ''));
+
+/* ================= 2b. world expansion: backdrops, scenery, secrets ================= */
+ok(BACKDROP_STYLES.length === 8 && LEVELS.every(L => BACKDROP_STYLES.includes(L.style)),
+  'every phase has its own backdrop style');
+const badProps = [];
+for (const L of LEVELS) for (const p of L.props || []) {
+  if (!SCENERY_TYPES.includes(p.type)) badProps.push(L.name + ':' + p.type);
+  if (p.x < 0 || p.x > L.w || p.y < 0 || p.y > L.h) badProps.push(L.name + ':out of bounds');
+}
+ok(badProps.length === 0, 'every scenery prop is a known type inside its level' + (badProps.length ? ' -> ' + badProps.join(', ') : ''));
+ok(LEVELS.every(L => (L.props || []).length >= 4), 'all eight phases carry scenery props');
+ok(LEVELS.filter(L => (L.secrets || []).length).length >= 5, 'secret alcoves are spread through the kingdom');
+
+const badSecret = [];
+for (const L of LEVELS) for (const s of L.secrets || []) {
+  if (s.x < 0 || s.y < 0 || s.x + s.w > L.w || s.y + s.h > L.h) badSecret.push(L.name + ' bounds');
+  const ledge = L.solids.find(o => o.oneway && o.y >= s.y + s.h - 70 && o.y <= s.y + s.h);
+  const launch = ledge && L.solids.some(o => o !== ledge && o.y > ledge.y + 40 && o.y <= ledge.y + 125 && o.x < s.x + s.w + 40 && o.x + o.w > s.x - 40);
+  const reward = L.coins.concat(L.hearts).some(([x, y]) => x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h);
+  if (!ledge || !launch || !reward) badSecret.push(L.name + ' ' + s.name);
+}
+ok(badSecret.length === 0, 'every secret has a one-way ledge, a launch pad and a reward' + (badSecret.length ? ' -> ' + badSecret.join(', ') : ''));
+
+const S5 = LEVELS[0].secrets[0];
+const L5 = LEVELS[0].solids.find(o => o.oneway && o.y >= S5.y + S5.h - 70 && o.y <= S5.y + S5.h);
+dbg.loadLevel(0); frames(2);
+let G5 = dbg.g, P5 = G5.p;
+P5.reset(S5.x + S5.w / 2 - P5.w / 2, L5.y - P5.h); frames(3);
+ok((dbg.run.secrets[0] || []).includes(0) && G5.found > 0, 'walking into a secret marks it found and banners it');
+ok(JSON.parse(store.get('emberknight.v1')).secrets[0].includes(0), 'the secret ledger is saved');
+dbg.loadLevel(0); frames(2); G5 = dbg.g;
+ok(G5.found === 0, 'a found secret stays found and does not banner again');
+
+// the roadway niche is reachable on foot: stand on the lower platform and jump
+dbg.loadLevel(0); frames(2); G5 = dbg.g; P5 = G5.p;
+G5.enemies.length = 0;
+P5.reset(1800, 345 - P5.h); frames(2);
+fire('keydown', 'Space');
+for (let i = 0; i < 24; i++) frames(1);
+fire('keyup', 'Space');
+for (let i = 0; i < 42; i++) frames(1);
+ok(Math.abs(P5.y + P5.h - 250) < 3 && P5.ground, 'the roadway niche ledge is reachable by jumping');
+
+ok(LEVELS[0].cps.length === 4 && LEVELS[0].cps.some(c => c[0] === 2780), 'the Ember Road gained a keep checkpoint');
+ok(LEVELS[4].cps.length === 3 && LEVELS[6].cps.length === 3, 'the long middle phases gained checkpoints');
+const rects5 = calls.fillRect || 0;
+dbg.loadLevel(1); frames(2);
+ok((calls.fillRect || 0) > rects5, 'the backdrop renderer actually draws');
 
 /* ================= 3. player: jump, dash, gaps ================= */
 dbg.loadLevel(0); frames(2);

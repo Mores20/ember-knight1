@@ -14,6 +14,8 @@ import { drawMob } from './mobs.js';
 import * as NEWMOBS from './mobsprites.js';
 import { THEMES, POP } from './themes.js';
 import { drawSolid, drawTorch, drawCoin, drawHeartPickup, drawSpikes, SWATCH } from './tiles.js';
+import { drawBackdrop, OUTDOOR } from './backdrop.js';
+import { drawProps, drawSecretVeil } from './scenery.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d'), VW = 960, VH = 540;
 const GAME_VERSION = '1.0.0';
@@ -26,7 +28,7 @@ let g;
 
 /* ---- persistent run (S1/S9): hearts, coins and unlocks survive phases AND reloads ---- */
 const SAVE_KEY = 'emberknight.v1';
-const freshRun = () => ({ lvl: 0, hp: 2, coins: 0, gold: 0, time: 0, abil: { dash: false, lantern: false }, got: {}, lit: {}, cleared: LEVELS.map(() => false),
+const freshRun = () => ({ lvl: 0, hp: 2, coins: 0, gold: 0, time: 0, abil: { dash: false, lantern: false }, got: {}, lit: {}, secrets: {}, cleared: LEVELS.map(() => false),
   skin: 'iron', emberSword: false, titled: false });
 function loadRun() {
   try {
@@ -47,6 +49,7 @@ function loadRun() {
 let run = loadRun();
 setKnight(run.skin, run.emberSword);
 if (typeof run.gold !== 'number') run.gold = run.coins || 0;   // v1 saves: coins become the purse
+if (!run.secrets || typeof run.secrets !== 'object') run.secrets = {};   // old saves have no secret ledger
 
 function saveRun() { try { if (typeof localStorage !== 'undefined') localStorage.setItem(SAVE_KEY, JSON.stringify(run)); } catch (e) {} }
 const picked = (i, k) => (run.got[i] = run.got[i] || { c: [], h: [] })[k];   // per-phase pickup ledger
@@ -74,8 +77,9 @@ function loadLevel(i) {
     coins: l.coins.map(([x, y], k) => ({ x, y, k, got: gotC.includes(k) ? 1 : 0 })),
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: gotH.includes(k) ? 1 : 0 })),
     sigil: l.sigil ? { ...l.sigil, got: run.abil.dash ? 1 : 0 } : null,   // already earned stays earned
+    secrets: (l.secrets || []).map((s, k) => ({ ...s, k })), props: l.props || [],
     bossCue: 0, bossPhaseCue: 1, bossPrev: null,
-    grant: 0, grantKind: 'dash', boss: l.king ? new AshKing(l.king) : l.boss ? new AshWarden(l.boss) : null, sealT: 0, slain: 0,
+    grant: 0, grantKind: 'dash', found: 0, foundName: '', boss: l.king ? new AshKing(l.king) : l.boss ? new AshWarden(l.boss) : null, sealT: 0, slain: 0,
     lamps: [], sparks: [], arrows: [], hexOrbs: [], lamp: run.abil.lantern ? 3 : 0, wind: l.wind || [],
     tide: l.tide ? { y: l.tide.y0 } : null, tideT: l.tide ? 5 : 2, trails: [],
     switches: (l.switches || []).map(s => ({ ...s, on: 0 })), reveal: 0, revealShown: 0,
@@ -242,6 +246,15 @@ function update(dt) {
   if (g.reveal > 0) g.reveal -= dt;
   p.update(dt, g.l.solids, g);
   if (p.crushed) { A.sfx.crumble(); g.shake(7); respawn(); }       // squeezed by a moving solid: a clean reset, not a teleport
+  for (const s of g.secrets) {                                    // S5: hidden alcoves
+    const ledger = run.secrets[g.lvl] = run.secrets[g.lvl] || [];
+    if (ledger.includes(s.k)) continue;
+    const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    if (cx > s.x && cx < s.x + s.w && cy > s.y && cy < s.y + s.h) {
+      ledger.push(s.k); g.found = 3.4; g.foundName = s.name;
+      spark(cx, cy, 16, C.ember); A.sfx.grant(); saveRun();
+    }
+  }
   if (pressed.talk && g.state === 'play' && merchantNear()) openShop();
   if (g.l.vscroll) {                                             // tower: the highest lit checkpoint wins
     let best = g.l.cps[0];
@@ -389,6 +402,7 @@ function update(dt) {
     A.sfx.grant(); spark(g.sigil.x, g.sigil.y, 26, C.ember); g.shake(4);
   }
   if (g.grant > 0) g.grant -= dt;
+  if (g.found > 0) g.found -= dt;
   const fell = p.y > g.l.h; if (fell) p.hp--;
   if (p.hp <= 0) { p.hp = 3; respawn(); A.sfx.die(); saveRun(); } else if (fell) { respawn(); A.sfx.hurt(); }
   for (const hz of g.l.hazards) if (hz.type === 'spike' && p.inv <= 0 && hit(p, hz)) {   // S6: damage + respawn
@@ -424,11 +438,6 @@ function update(dt) {
 
 const T = (s, x, y, size, al = 'left', col = C.moon) => { ctx.font = `bold ${size}px "Courier New",monospace`; ctx.textAlign = al; ctx.fillStyle = col; ctx.fillText(s, x, y); };
 function heart(x, y, s) { ctx.beginPath(); ctx.moveTo(x, y + s * .8); ctx.bezierCurveTo(x - s * .9, y + s * .2, x - s * .5, y - s * .4, x, y + s * .05); ctx.bezierCurveTo(x + s * .5, y - s * .4, x + s * .9, y + s * .2, x, y + s * .8); }
-function ridge(k, col, base, amp, wd) {
-  const o = g.cam.x * k; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, VH);
-  for (let i = Math.floor(o / wd) - 1; i <= Math.ceil((o + VW) / wd) + 1; i++) { const x = i * wd - o, h = amp * (.5 + .5 * Math.sin(i * 2.7 + 1)); ctx.lineTo(x, base - h); ctx.lineTo(x + wd / 2, base - h * .4); }
-  ctx.lineTo(VW + wd, VH); ctx.fill();
-}
 function glow(x, y, r, a) {
   ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(x, y, 2, x, y, r);
   gr.addColorStop(0, `rgba(255,138,61,${a})`); gr.addColorStop(1, 'rgba(255,138,61,0)');
@@ -976,11 +985,13 @@ function renderWorld() {
   const th = g.l.theme != null ? THEMES[g.l.theme] : null;
   const sky = ctx.createLinearGradient(0, 0, 0, VH); sky.addColorStop(0, th ? th.sky : C.bg); sky.addColorStop(1, th ? th.sky2 : '#18203f');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
-  ctx.fillStyle = C.moon; for (const [x, y, z] of stars) { ctx.globalAlpha = .3 + .4 * Math.abs(Math.sin(g.t * .8 + x)); ctx.fillRect(x, y, z, z); } ctx.globalAlpha = 1;
-  const mx = 760 - g.cam.x * .04;
-  ctx.globalCompositeOperation = 'lighter'; const mg = ctx.createRadialGradient(mx, 110, 20, mx, 110, 150); mg.addColorStop(0, 'rgba(180,200,255,.25)'); mg.addColorStop(1, 'rgba(180,200,255,0)'); ctx.fillStyle = mg; ctx.fillRect(mx - 150, -40, 300, 300); ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = '#e8efff'; ctx.beginPath(); ctx.arc(mx, 110, 34, 0, 7); ctx.fill();
-  ridge(.25, '#0f1730', 330, 100, 240); ridge(.5, '#131c3a', 400, 70, 170);
+  if (OUTDOOR[g.style]) {                                          // S5: interiors keep their own ceiling
+    ctx.fillStyle = C.moon; for (const [x, y, z] of stars) { ctx.globalAlpha = .3 + .4 * Math.abs(Math.sin(g.t * .8 + x)); ctx.fillRect(x, y, z, z); } ctx.globalAlpha = 1;
+    const mx = 760 - g.cam.x * .04;
+    ctx.globalCompositeOperation = 'lighter'; const mg = ctx.createRadialGradient(mx, 110, 20, mx, 110, 150); mg.addColorStop(0, 'rgba(180,200,255,.25)'); mg.addColorStop(1, 'rgba(180,200,255,0)'); ctx.fillStyle = mg; ctx.fillRect(mx - 150, -40, 300, 300); ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#e8efff'; ctx.beginPath(); ctx.arc(mx, 110, 34, 0, 7); ctx.fill();
+  }
+  drawBackdrop(ctx, g.style, g.t, g.cam.x, g.cam.y, VW, VH);
 
   ctx.setTransform(1, 0, 0, 1, -g.cam.x + (Math.random() - .5) * g.shk * 2, BAR - g.cam.y + (Math.random() - .5) * g.shk * 2);
   for (const s of g.l.solids) {
@@ -994,6 +1005,7 @@ function renderWorld() {
     drawSolid(ctx, { x: s.x + rx, y: s.y, w: s.w, h: s.h }, g.style, s.broken);
     if (s.fade !== undefined && s.fade < 1) ctx.globalAlpha = 1;
   }
+  drawProps(ctx, g.props, g.style, g.t);                           // S5: the kingdom's leftovers
   for (const wz of g.wind) if (wz.active) {                       // V: visible ash streaks
     ctx.strokeStyle = 'rgba(207,216,238,.20)'; ctx.lineWidth = 2;
     for (let k = 0; k < 9; k++) { const t = (g.t * 240 + k * 97) % (wz.w + 140), x = wz.x - 70 + (wz.dir > 0 ? t : wz.w + 70 - t), y = 290 + (k * 53) % 140; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + wz.dir * 28, y - 3); ctx.stroke(); }
@@ -1096,6 +1108,13 @@ function renderWorld() {
     ctx.stroke();
     for (let k = 0; k < 8; k++) glow(((g.t * 60 + k * 271) % (g.l.w + 200)) - 100, ty + 12, 70, .18);
   }
+  for (const s of g.secrets) {                                     // S5: dark alcoves, until you are near
+    if ((run.secrets[g.lvl] || []).includes(s.k)) continue;
+    const cx = g.p.x + g.p.w / 2, cy = g.p.y + g.p.h / 2;
+    const dx = Math.max(s.x - cx, 0, cx - (s.x + s.w)), dy = Math.max(s.y - cy, 0, cy - (s.y + s.h));
+    const d = Math.hypot(dx, dy);
+    drawSecretVeil(ctx, s, g.style, Math.max(0, Math.min(1, (d - 30) / 170)), g.t);
+  }
   for (const e of g.enemies) drawEnemy(e);
   for (const o of g.hexOrbs) {                                     // a hex orb in flight
     const col = o.hex === 'snuff' ? '#cfd8ee' : '#ff8a3d';
@@ -1124,6 +1143,13 @@ function renderWorld() {
     ctx.fillStyle = 'rgba(5,7,15,.72)'; ctx.fillRect(VW / 2 - 250, 166, 500, 76);
     T(g.grantKind === 'lantern' ? 'EMBER LANTERN' : 'EMBER DASH', VW / 2, 205, 32, 'center', C.ember);
     T(g.grantKind === 'lantern' ? 'E \u2014 throw a spark of light' : 'SHIFT \u2014 one surge per jump', VW / 2, 232, 16, 'center');
+    ctx.globalAlpha = 1;
+  }
+  if (g.found > 0) {                                               // S5: a secret is only a secret once
+    ctx.globalAlpha = Math.min(1, g.found / .5) * Math.min(1, (3.4 - g.found) * 2.5);
+    ctx.fillStyle = 'rgba(5,7,15,.74)'; ctx.fillRect(VW / 2 - 230, 420, 460, 58);
+    T('A HIDDEN ALCOVE', VW / 2, 448, 25, 'center', C.ember);
+    T(g.foundName, VW / 2, 468, 13, 'center', '#cfd8ee');
     ctx.globalAlpha = 1;
   }
   if (g.boss && g.boss.st === 'enrage') {

@@ -43,7 +43,9 @@ modules and recorded audio, and `file://` blocks both.
 ## What's inside
 
 - **Eight phases**, from the Ember Road to the Ember Heart, each with its own palette,
-  story line and lore, phase select, 124 coins, and a save that survives reloads
+  story line and lore, phase select, 142 coins, and a save that survives reloads
+- **A wider kingdom** — every phase has its own parallax backdrop, drifting ash, mist, dust or
+  embers, hand-placed ruins and scenery, and six hidden alcoves holding extra coins and hearts
 - **The Ash Warden** — a melee bruiser whose every move is painted orange first
 - **The Ash King** — a mage who floats above the arena and denies the floor. Steel only
   bites while he is stunned: swing his own Ember Bolt back into him to break the ward.
@@ -82,7 +84,7 @@ Rebuild `dist/` after changing the game — the exe bundles everything.
 
 [`PROJECT.md`](PROJECT.md) is the full reference: architecture, level format, the art and audio
 pipelines, how to add a phase/mob/boss/ability, and the gotchas. `npm test` runs the headless suite
-(88 checks, about a second).
+(100 checks, about two seconds).
 
 ## Credits
 
