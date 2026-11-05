@@ -14,6 +14,7 @@ import { SCENES, TOTAL_COINS } from './levels.js';
 import { bootRun, saveRun as persist, readV1, importV1Run, freshRun } from './save.js';
 import { GatekeeperBrute } from './brute.js';
 import { CryptWarden, CryptMatron } from './crypt.js';
+import { ClapperGolem, CrackedCarillon } from './tower.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const VW = 960, VH = 540, BAR = 34, BARB = 18, BOT = VH - BARB;
@@ -70,6 +71,7 @@ function loadScene(id) {
   };
   const stage = run.cleared.I ? 2 : 1;
   for (const s of l.solids) if (s.kind === 'sink') { s.baseY = s.baseY != null ? s.baseY : s.y; s.depth = s.depth || 16; s.dy = 0; }
+  for (const s of l.solids) if (s.kind === 'lift') { s.baseY = s.baseY != null ? s.baseY : s.y; s.rise = s.rise || 90; s.on = 0; s.dy = 0; }
   if (id === 'hub' && stage === 1 && l.hub && l.hub.barrier) {
     l.solids.push({ ...l.hub.barrier, barrier: 1 });              // Market Lane is shut until Area I falls
   }
@@ -86,13 +88,16 @@ function loadScene(id) {
     boss: makeBoss(l.boss),
     bossSeen: 0, bossMsg: 0,
     water: l.water || null,
+    bells: (l.bells || []).map(b => ({ ...b, ring: 0 })),
+    ringFx: [],
     parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: 0 }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
     paused: false, pauseSel: 0, dialog: null, prompt: '', near: null, shop: null,
     shopStock: id === 'hub' ? [2, 1, 1, 1] : null,
     found: 0, foundName: '', grant: 0, grantKind: 'dash', healMsg: 0,
-    stageMsg: id === 'hub' && stage === 2 ? 3.2 : 0,
+    stageMsg: id === 'hub' && (stage === 2 || run.cleared.III) ? 3.2 : 0,
+    stageMsgKind: run.cleared.III ? 'bells' : 'wake',
     dummyT: 0, parryMsg: 0, state: 'play', blockEnabled: true,
     tutStep: 0, wardHp: l.ward ? (l.ward.hp || 3) : 0, wardBroken: !l.ward,
     wardBlocks: 0, dummyHits: 0, kills: 0, cpT: 0, wardMsg: 0, blockMsg: 0, sealMsg: 0,
@@ -123,9 +128,13 @@ function tickFade(dt) {
   if (to) loadScene(to);
 }
 
-const gateOpen = gate => !!(gate.open || (gate.openWhen === 'ICleared' && run.cleared.I));
+const gateOpen = gate => {
+  if (gate.open) return true;
+  const m = /^(.+)Cleared$/.exec(gate.openWhen || '');
+  return m ? !!run.cleared[m[1]] : false;
+};
 
-const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'] };
+const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'], III: ['c1', 'c2', 'c3', 'c4'] };
 function areaStart(area) {
   const ids = AREA_LEVELS[area] || [];
   const arr = run.levels[area] || [];
@@ -140,6 +149,8 @@ function markLevel(area, index) {
 const makeBoss = o => !o ? null
   : o.kind === 'cryptwarden' ? new CryptWarden(o)
   : o.kind === 'matron' ? new CryptMatron(o)
+  : o.kind === 'clappergolem' ? new ClapperGolem(o)
+  : o.kind === 'carillon' ? new CrackedCarillon(o)
   : new GatekeeperBrute(o);
 
 /* ---- the Sketchy Merchant: the D2 shop, paid from the gold purse ---- */
@@ -254,6 +265,14 @@ function fireWard() {
   A.sfx.ember();
 }
 
+function ringBell(b) {
+  b.ring = 1.1;
+  g.ringFx.push({ x: b.x, y: b.y + 26, t: 0 });
+  A.sfx.bell(); g.shake(3);
+  for (const e of g.enemies) if (Math.abs(e.x + e.w / 2 - b.x) < 380 && Math.abs(e.y - b.y) < 260) e.stun = 2;
+  for (const s of g.l.solids) if (s.kind === 'lift' && s.bell === b.id) s.on = 1;
+}
+
 function breakWard() {
   if (g.wardBroken) return;
   g.wardHp = 0; g.wardBroken = true; g.wardMsg = 3.2; g.shake(8);
@@ -332,6 +351,13 @@ function update(dt) {
     s.y += (target - s.y) * Math.min(1, dt * (on ? 5 : 2.5));
     s.dy = s.y - old;
   }
+  for (const s of g.l.solids) if (s.kind === 'lift') {            // a rung bell raises its platform
+    const target = s.baseY - (s.on ? s.rise : 0), old = s.y;
+    s.y += (target - s.y) * Math.min(1, dt * 3.2);
+    s.dy = s.y - old;
+  }
+  for (const b of g.bells) if (b.ring > 0) b.ring -= dt;
+  g.ringFx = g.ringFx.filter(f => (f.t += dt) < .9);
   p.update(dt, g.l.solids, g);
   if (g.boss) {
     const was = g.boss.st;
@@ -423,6 +449,9 @@ function update(dt) {
       g.stop(.07); g.shake(5); A.sfx.hit(); spark(e.x + e.w / 2, e.y + e.h / 2, dead ? 18 : 8, C.ember);
       if (dead) { e.dead = 1; g.kills++; A.sfx.kill(); }
     }
+    for (const b of g.bells) if (!p.hits.has(b) && hit(s, { x: b.x - 16, y: b.y, w: 32, h: 50 })) {
+      p.hits.add(b); ringBell(b);
+    }
     if (g.boss && g.boss.hp > 0 && !p.hits.has(g.boss)
       && hit(s, { x: g.boss.x - 4, y: g.boss.y - 4, w: g.boss.w + 8, h: g.boss.h + 8 })) {
       p.hits.add(g.boss);
@@ -436,6 +465,11 @@ function update(dt) {
   }
   g.enemies = g.enemies.filter(e => !e.dead);
   for (const e of g.enemies) {
+    if (e.stun > 0) {                                              // a bell ring stops the tower dead
+      e.stun -= dt;
+      if (e.type === 'pealwraith') { e.ring = null; if (e.st === 'scream') { e.st = 'float'; e.stT = 0; } }
+      continue;
+    }
     e.update(dt, p, g);
     if (hit(p, e) && p.inv <= 0) p.hurt(e.x + e.w / 2, g);
   }
@@ -481,6 +515,35 @@ function update(dt) {
 }
 
 /* ---------------- world drawing ---------------- */
+function drawBell(b, t) {
+  const cx = b.x, top = b.y;
+  ctx.strokeStyle = 'rgba(232,205,176,.30)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, top - 74); ctx.lineTo(cx, top - 2); ctx.stroke();
+  const swing = Math.sin(t * 1.6 + cx * .01) * .05;
+  ctx.save(); ctx.translate(cx, top); ctx.rotate(swing);
+  ctx.fillStyle = '#5a4030'; ctx.fillRect(-11, -5, 22, 5);
+  ctx.fillStyle = b.ring > 0 ? '#ffe6a0' : '#c9a14a';
+  ctx.beginPath();
+  ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.lineTo(11, 17); ctx.lineTo(15, 27);
+  ctx.lineTo(-15, 27); ctx.lineTo(-11, 17); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8a6a2a'; ctx.fillRect(-16, 25, 32, 4);
+  ctx.fillStyle = b.ring > 0 ? '#fff2b0' : '#e8cdb0';
+  ctx.beginPath(); ctx.arc(0, 32, 4, 0, 7); ctx.fill();
+  ctx.restore();
+  if (b.ring > 0) goldGlow(cx, top + 18, 110 * (1.5 - b.ring), .22);
+}
+
+function drawTowerBell(x, top, w, h, col, rim) {
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(x - w * .35, top); ctx.lineTo(x + w * .35, top);
+  ctx.lineTo(x + w * .5, top + h * .72); ctx.lineTo(x + w * .62, top + h);
+  ctx.lineTo(x - w * .62, top + h); ctx.lineTo(x - w * .5, top + h * .72);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = rim; ctx.fillRect(x - w * .66, top + h - 3, w * 1.32, 4);
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, top + h + 3, w * .17, 0, 7); ctx.fill();
+}
+
 function drawGate(x, y, w, h, open = true) {
   ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 14, y - 16, w + 28, h + 16);
   if (open) {
@@ -821,17 +884,44 @@ function drawHubWorld(h, p, stage) {
   drawStall(2200, 420, g.t, warm, 2);
   drawMerchantStall(1980, 420, g.t, warm);
 
+  // Bell Plaza: the belfry behind Gate III
+  ctx.fillStyle = '#141a28'; ctx.fillRect(2880, 150, 300, 270);
+  ctx.fillStyle = '#1f2740'; ctx.fillRect(2900, 120, 260, 40);
+  ctx.fillStyle = '#26304a';
+  for (let i = 0; i < 6; i++) ctx.fillRect(2904 + i * 44, 108, 26, 18);
+  ctx.fillStyle = '#0a0e18'; ctx.beginPath();
+  ctx.moveTo(2970, 420); ctx.lineTo(2970, 250);
+  ctx.arc(3030, 250, 60, Math.PI, 0); ctx.lineTo(3090, 420); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#3a4262'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(3030, 250, 60, Math.PI, 0); ctx.stroke();
+  if (run.cleared.II) {
+    goldGlow(3030, 232, run.cleared.III ? 110 : 70, run.cleared.III ? .30 : .20);
+    drawTowerBell(3030, 196, 46, 44, '#c9a14a', '#ffe6a0');
+    if (run.cleared.III) {
+      ctx.strokeStyle = 'rgba(255,242,176,.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(3030, 236, 52 + Math.sin(g.t * 1.4) * 5, 0, 7); ctx.stroke();
+    }
+  } else {
+    drawTowerBell(3030, 196, 46, 44, '#4a3b33', '#6b4a2a');
+  }
+  T('BELL TOWER', 3030, 92, 11, 'center', warm ? '#e8c96a' : '#5d6a8a');
+
   drawLamp(300, 420, g.t, true);
   drawLamp(900, 420, g.t, warm);
   drawLamp(1300, 420, g.t, warm);
   drawLamp(1850, 420, g.t, warm);
   drawLamp(2150, 420, g.t, warm);
   drawLamp(2350, 420, g.t, warm);
+  drawLamp(2700, 420, g.t, warm);
+  drawLamp(2950, 420, g.t, warm);
+  drawLamp(3240, 420, g.t, warm);
 
   drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a', `${(run.levels.I || []).filter(Boolean).length}/3`);
   drawSign(1795, 292, 'MARKET LANE', warm ? '#ffd27a' : '#8f9bb8', warm ? 'OPEN' : '');
   if (warm) drawSign(1880, 246, 'THE SKETCHY MERCHANT', '#ffd27a');
   if (warm) drawSign(2380, 246, 'II  THE SUNKEN CRYPT', '#7fe3ff', `${(run.levels.II || []).filter(Boolean).length}/4`);
+  drawSign(2620, 292, 'III  BELL PLAZA', run.cleared.II ? '#e8c96a' : '#8f9bb8', run.cleared.II ? 'OPEN' : '');
+  if (warm) drawSign(3180, 246, 'III  THE BELL TOWER', '#e8c96a', `${(run.levels.III || []).filter(Boolean).length}/4`);
   if (!warm && h.barrier) drawBarrier(h.barrier.x, h.barrier.y, h.barrier.w, h.barrier.h, g.t);
   if (warm) {
     ctx.fillStyle = 'rgba(255,210,122,.10)'; ctx.fillRect(1680, 300, 120, 120);
@@ -876,6 +966,14 @@ function drawWorld() {
     ctx.globalAlpha = 1;
   }
 
+  for (const b of g.bells) drawBell(b, g.t);
+  for (const s of g.l.solids) if (s.kind === 'lift' && s.on) goldGlow(s.x + s.w / 2, s.y, 52, .16);
+  for (const f of g.ringFx) {
+    const k = f.t / .9, r = 18 + k * 160;
+    ctx.strokeStyle = 'rgba(232,201,106,' + (.55 * (1 - k)) + ')'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); ctx.stroke();
+  }
+
   for (const [x, y] of g.l.lights || []) { ctx.fillStyle = C.ember; ctx.beginPath(); ctx.arc(x, y - 6, 3, 0, 7); ctx.fill(); }
   for (const t of g.l.torches) {
     const f = 1 + Math.sin(g.t * 12 + t.x) * .15;
@@ -918,6 +1016,8 @@ function drawWorld() {
   if (g.boss) {
     if (g.boss.kind === 'cryptwarden') drawCryptWarden(g.boss);
     else if (g.boss.kind === 'matron') drawMatron(g.boss);
+    else if (g.boss.kind === 'clappergolem') drawClapperGolem(g.boss);
+    else if (g.boss.kind === 'carillon') drawCarillon(g.boss);
     else drawBrute(g.boss);
   }
   for (const o of g.orbs) {
@@ -1000,7 +1100,7 @@ function drawWorld() {
   }
   if (g.stageMsg > 0 && g.l.kind === 'hub') {
     ctx.globalAlpha = Math.min(1, g.stageMsg) * Math.min(1, (3.2 - g.stageMsg) * 4 + .4);
-    T('THE TOWN IS WAKING', VW / 2, 160, 22, 'center', '#ffd27a');
+    T(g.stageMsgKind === 'bells' ? 'THE BELLS RING CLEAN' : 'THE TOWN IS WAKING', VW / 2, 160, 22, 'center', '#ffd27a');
     ctx.globalAlpha = 1;
   }
   if (g.msg > 0 && g.l.kind !== 'hub') {
@@ -1074,6 +1174,28 @@ function drawEnemy(e) {
     const f = 1 + Math.sin(e.t * 14) * .3;
     ctx.fillStyle = flare ? '#fff2b0' : '#ffd27a';
     ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx - 3, cy - 17 - f * 2); ctx.lineTo(cx + 3, cy - 17 - f * 2); ctx.closePath(); ctx.fill();
+  } else if (e.type === 'pealwraith') {
+    const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+    if (e.ring) {
+      const k = 1 - e.ring.r / e.ring.max;
+      ctx.strokeStyle = 'rgba(232,201,106,' + (.55 * k) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, e.ring.r, 0, 7); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,242,176,' + (.25 * k) + ')'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, e.ring.r + 5, 0, 7); ctx.stroke();
+    }
+    if (e.st === 'scream') glow(cx, cy, 34, .22);
+    ctx.fillStyle = e.flash > 0 ? '#e4ecff' : '#cfd8ee';
+    ctx.beginPath();
+    ctx.moveTo(cx, e.y - 2); ctx.lineTo(cx + 11, e.y + 14); ctx.lineTo(cx + 8, e.y + 28);
+    ctx.lineTo(cx + 3, e.y + 23); ctx.lineTo(cx, e.y + 28); ctx.lineTo(cx - 3, e.y + 23);
+    ctx.lineTo(cx - 8, e.y + 28); ctx.lineTo(cx - 11, e.y + 14); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#9fb0c8'; ctx.fillRect(cx - 8, e.y + 11, 16, 3);
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 5, e.y + 7, 3, 4); ctx.fillRect(cx + 2, e.y + 7, 3, 4);
+    ctx.fillStyle = e.st === 'scream' ? '#fff2b0' : '#e8c96a';
+    ctx.fillRect(cx - 4, e.y + 8, 2, 2); ctx.fillRect(cx + 3, e.y + 8, 2, 2);
+    ctx.fillStyle = '#e8c96a';
+    ctx.beginPath(); ctx.arc(cx, e.y + 22, 4, Math.PI, 0); ctx.fill();
+    ctx.fillRect(cx - 4, e.y + 22, 8, 3);
   } else if (e.type === 'shield') {
     drawMob(ctx, 'shield', e.st === 'down' ? 'open' : 'guard', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else {
@@ -1081,6 +1203,13 @@ function drawEnemy(e) {
     const near = Math.abs(dxp) < 52 && Math.sign(dxp) === e.dir;
     drawMob(ctx, 'goblin', near ? 'strike' : 'walk', near ? Math.floor(e.t * 6) : Math.floor(e.t * 9),
       e.x + e.w / 2, e.y + e.h, e.dir, flash);
+  }
+  if (e.stun > 0) {                                               // dazed from a bell ring
+    for (let k = 0; k < 3; k++) {
+      const a = g.t * 5 + k * 2.09;
+      ctx.fillStyle = '#e8c96a';
+      ctx.fillRect(e.x + e.w / 2 + Math.cos(a) * 14 - 1, e.y - 6 + Math.sin(a) * 4, 3, 3);
+    }
   }
 }
 
@@ -1243,6 +1372,106 @@ function drawMatron(b) {
     ctx.strokeStyle = 'rgba(220,245,240,.6)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(b.wave.x - 18, wy + 20); ctx.lineTo(b.wave.x - 6, wy - 6); ctx.lineTo(b.wave.x + 6, wy + 6); ctx.stroke();
   }
+  ctx.globalAlpha = 1;
+}
+
+function drawClapperGolem(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.2) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2, by = b.y + b.h;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,.38)'; ctx.beginPath(); ctx.ellipse(cx, by - 2, 26, 7, 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(cx, by); ctx.scale(b.dir, 1);
+  const crouch = dead ? 14 : b.st === 'act' ? 4 : 0;
+  // legs
+  ctx.fillStyle = '#3a2f2a'; ctx.fillRect(-14, -18 + crouch, 10, 18 - crouch); ctx.fillRect(4, -18 + crouch, 10, 18 - crouch);
+  ctx.fillStyle = '#6b4a2a'; ctx.fillRect(-15, -6, 12, 6); ctx.fillRect(3, -6, 12, 6);
+  // bell-shaped torso
+  ctx.fillStyle = '#6b4a2a';
+  ctx.beginPath(); ctx.moveTo(-13, -46 + crouch); ctx.lineTo(13, -46 + crouch);
+  ctx.lineTo(17, -26 + crouch); ctx.lineTo(20, -14 + crouch); ctx.lineTo(-20, -14 + crouch); ctx.lineTo(-17, -26 + crouch); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#a97a44'; ctx.fillRect(-21, -16 + crouch, 42, 4);
+  ctx.fillStyle = '#4a3823'; for (let i = 0; i < 3; i++) ctx.fillRect(-14, -40 + crouch + i * 8, 28, 2);
+  // the bell-core
+  const open = b.st === 'recover';
+  if (open) glow(cx, by - 28, 46, .34);
+  ctx.fillStyle = open ? '#ffd27a' : '#2a3348';
+  ctx.beginPath(); ctx.arc(0, -28 + crouch, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = open ? '#fff2b0' : '#5a6585'; ctx.fillRect(-2, -31 + crouch, 4, 6);
+  // head (a little bell)
+  ctx.fillStyle = '#3a2f2a'; ctx.fillRect(-11, -60 + crouch, 22, 16);
+  ctx.fillStyle = '#a97a44'; ctx.fillRect(-12, -46 + crouch, 24, 3);
+  const hot = b.st === 'wind' || b.st === 'act';
+  ctx.fillStyle = hot ? '#ffd08a' : C.ember;
+  ctx.fillRect(-6, -55 + crouch, 4, 3); ctx.fillRect(2, -55 + crouch, 4, 3);
+  // clapper arms
+  let a = .3;
+  if (b.st === 'wind') a = b.atk === 'pendulum' ? -1.2 : -.6;
+  else if (b.st === 'act') a = b.atk === 'pendulum' ? 1.25 : .7;
+  else if (open) a = .9;
+  ctx.save(); ctx.translate(16, -42 + crouch); ctx.rotate(a);
+  ctx.strokeStyle = '#7b5530'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 42); ctx.stroke();
+  ctx.fillStyle = '#a97a44'; ctx.beginPath(); ctx.arc(0, 46, 7, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+  if (b.st === 'wind') glow(cx, b.y + 16, 46, .22);
+  if (b.st === 'act' && b.atk === 'pendulum') glow(cx + b.dir * 46, by - 34, 54, .28);
+  for (const w of b.waves) {
+    ctx.strokeStyle = 'rgba(232,201,106,.55)'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(w.x - w.dir * 8, w.y + 22, 16, w.dir > 0 ? -Math.PI / 2 : Math.PI / 2, w.dir > 0 ? Math.PI / 2 : Math.PI * 1.5);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCarillon(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.4) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2;
+  ctx.globalAlpha = alpha;
+  // the frame above the arena
+  ctx.fillStyle = '#2a2030'; ctx.fillRect(cx - 110, 56, 220, 12);
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(cx - 104, 68, 7, 34); ctx.fillRect(cx + 97, 68, 7, 34);
+  ctx.fillStyle = '#4a3b33'; ctx.fillRect(cx - 74, 96, 148, 6);
+  // chains and the cluster bells
+  const bells = [[-64, 102, 34, 42], [-22, 88, 46, 58], [24, 96, 40, 50], [66, 104, 32, 40]];
+  for (const [ox, top, w, h] of bells) {
+    ctx.strokeStyle = 'rgba(232,205,176,.28)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + ox, 62); ctx.lineTo(cx + ox, top); ctx.stroke();
+    drawTowerBell(cx + ox, top, w, h, '#7a5a2a', '#c9a14a');
+  }
+  // the cracked small bell hangs low only in the opening
+  if (b.st === 'open' || dead) {
+    if (!dead) glow(cx, b.y + 18, 66, .34);
+    ctx.strokeStyle = 'rgba(232,201,106,.45)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, b.y - 20); ctx.lineTo(cx, b.y); ctx.stroke();
+    drawTowerBell(cx, b.y, 42, 34, b.flash > 0 ? '#fff2b0' : '#c9a14a', '#ffe6a0');
+    ctx.strokeStyle = '#3a2f2a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx + 2, b.y + 4); ctx.lineTo(cx - 2, b.y + 16); ctx.lineTo(cx + 3, b.y + 22); ctx.stroke();
+  }
+  // falling bells and their floor shadows
+  for (const d of b.drops) {
+    if (d.t < d.warn) {
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      ctx.beginPath(); ctx.ellipse(d.x, 418, 22, 6, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(232,201,106,.45)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(d.x, 418, 22, 6, 0, 0, 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(232,201,106,.18)'; ctx.fillRect(d.x - 1, 80, 2, 338);
+    } else {
+      drawTowerBell(d.x, d.y, 30, 26, '#c9a14a', '#ffe6a0');
+    }
+  }
+  // tolling waves
+  for (const w of b.waves) {
+    ctx.strokeStyle = 'rgba(232,201,106,.55)'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(w.x - w.dir * 8, w.y + 22, 16, w.dir > 0 ? -Math.PI / 2 : Math.PI / 2, w.dir > 0 ? Math.PI / 2 : Math.PI * 1.5);
+    ctx.stroke();
+  }
+  if (b.st === 'wind') glow(cx, 120, 90, .18);
   ctx.globalAlpha = 1;
 }
 

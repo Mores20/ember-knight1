@@ -399,8 +399,43 @@ export class WickSkull {
   hit() { this.hp--; this.flash = .12; return this.hp <= 0; }
 }
 
+// Peal Wraith: a bell-tower spirit that screams an expanding ring of sound.
+// The ring is a clean circle: jump clear of its height or dash through it.
+export class PealWraith {
+  constructor(o) {
+    Object.assign(this, { type: 'pealwraith', w: 24, h: 30, hp: 2, x: o.x, y: o.y, y0: o.y, t: 0, st: 'float', stT: 0, cool: 1.4, flash: 0, dir: -1, ring: null, stun: 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt; this.cool -= dt;
+    const cx = this.x + this.w / 2, cy = this.y + this.h / 2;
+    const dx = (p.x + p.w / 2) - cx, dy = (p.y + p.h / 2) - cy;
+    this.dir = dx < 0 ? -1 : 1;
+    this.y = this.y0 + Math.sin(this.t * 2.4) * 6;
+    if (this.st === 'float') {
+      if (this.cool <= 0 && Math.abs(dx) < 340 && Math.abs(dy) < 150) {
+        this.st = 'scream'; this.stT = 0; this.ring = { r: 14, max: 190, hit: 0 }; sfx.wind();
+      }
+    } else if (this.st === 'scream') {
+      if (!this.ring) { this.st = 'float'; this.stT = 0; this.cool = 3; return; }
+      this.ring.r += 210 * dt;
+      const px = p.x + p.w / 2, py = p.y + p.h / 2;
+      const d = Math.hypot(px - cx, py - cy);
+      if (!this.ring.hit && Math.abs(d - this.ring.r) < 16 && Math.abs(py - cy) < 50 && p.inv <= 0 && p.dashT <= 0) {
+        this.ring.hit = 1; p.hurt(cx, g);
+      }
+      if (this.ring.r >= this.ring.max) { this.ring = null; this.st = 'float'; this.stT = 0; this.cool = 3; }
+    }
+  }
+  hit(d) {
+    this.hp--; this.flash = .12; this.x += (d || 0) * 8;
+    this.ring = null; this.st = 'float'; this.stT = 0; this.cool = Math.max(this.cool, 1.2);
+    return this.hp <= 0;
+  }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
   : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o)
-  : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o) : new Goblin(o);
+  : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o)
+  : o.type === 'pealwraith' ? new PealWraith(o) : new Goblin(o);

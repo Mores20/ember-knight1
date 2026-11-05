@@ -63,20 +63,23 @@ export const HUB = {
   style: 'road', theme: 0,
   line: 'The one place nothing is trying to kill you.',
   spawn: [80, 386],
-  w: 2500, h: 540,
+  w: 3300, h: 540,
   darkZones: [], lights: [], hazards: [],
   solids: [
     wallL,
-    { x: 0, y: 420, w: 2500, h: 120 },                         // the street, through Market Lane
-    wallR(2500),
+    { x: 0, y: 420, w: 3300, h: 120 },                         // the street, through Market Lane to Bell Plaza
+    wallR(3300),
   ],
-  torches: [[180, 420], [980, 420], [1360, 420]],
+  torches: [[180, 420], [980, 420], [1360, 420], [2600, 420], [3050, 420]],
   coins: [], hearts: [], enemies: [],
   props: [
     { type: 'banner', x: 560, y: 150, h: 190 },
     { type: 'cart', x: 1040, y: 420 },
     { type: 'statue', x: 1200, y: 420 },
     { type: 'rubble', x: 1650, y: 420 },
+    { type: 'banner', x: 2750, y: 110, h: 200 },
+    { type: 'statue', x: 2950, y: 420 },
+    { type: 'rubble', x: 3120, y: 420 },
   ],
   hub: {
     hearth: { x: 420, y: 420 },
@@ -105,6 +108,10 @@ export const HUB = {
         closed: 'Sealed in ash. The Crypt\u2019s guardian still stands.' },
       { x: 2380, y: 330, w: 90, h: 90, to: 'b1', area: 'II', label: 'GATE II \u2014 THE SUNKEN CRYPT', short: 'THE SUNKEN CRYPT', openWhen: 'ICleared',
         closed: 'Sealed in ash. The Crypt\u2019s guardian still stands.' },
+      { x: 2580, y: 330, w: 90, h: 90, to: null, pass: true, label: 'GATE III \u2014 THE BELL TOWER', short: 'BELL PLAZA', openWhen: 'IICleared',
+        closed: 'The plaza is dark. The bells have not rung since the Matron fell silent.' },
+      { x: 3180, y: 330, w: 90, h: 90, to: 'c1', area: 'III', label: 'GATE III \u2014 THE BELL TOWER', short: 'THE BELL TOWER', openWhen: 'IICleared',
+        closed: 'The tower is sealed. The crypt has not been quieted.' },
     ],
   },
   gate: { x: 1500, y: 330, w: 90, h: 90 },
@@ -410,6 +417,185 @@ export const B4 = {
   cps: [[80, 420], [1150, 420]],
 };
 
-export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4 };
+/* ---------------- Area III: the Bell Tower ---------------- */
+export const C1 = {
+  kind: 'level', area: 'III',
+  title: '3-1  THE BELFRY STAIRS',
+  name: 'THE BELFRY STAIRS',
+  style: 'tower', theme: 2,
+  line: 'Every bell up here was rung by someone who never came back down.',
+  spawn: [80, 386],
+  w: 2000, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 760, h: 220 },                        // the belfry floor
+    { kind: 'lift', bell: 'B1', x: 600, y: 420, w: 110, h: 16, baseY: 420, rise: 100 },
+    { x: 750, y: 320, w: 260, h: 18 },                          // the ringers' landing
+    { x: 800, y: 250, w: 150, h: 14, oneway: 1 },               // the log loft
+    { x: 1050, y: 360, w: 100, h: 16, oneway: 1 },
+    { x: 1150, y: 420, w: 850, h: 220 },                        // the far gallery
+    wallR(2000),
+  ],
+  bells: [{ x: 520, y: 350, id: 'B1' }],
+  torches: [[150, 420], [400, 420], { x: 900, y: 320, lit: 0, cp: 1 }, [1150, 420]],
+  coins: [[250, 385], [290, 385], [500, 385],
+          [640, 300], [680, 300],
+          [800, 285], [840, 285],
+          [840, 215], [880, 215],
+          [1200, 385], [1240, 385], [1500, 385], [1540, 385]],
+  hearts: [[820, 285], [830, 215], [1450, 385]],
+  enemies: [
+    { type: 'goblin', x: 1250, y: 390, x0: 1180, x1: 1400, hp: 1 },
+    { type: 'bat', x0: 1150, x1: 1600, y0: 230, ay: 40, sp: .9, ph: .4 },
+    { type: 'pealwraith', x: 1550, y: 360 },
+  ],
+  props: [
+    { type: 'chain', x: 520, y: 0, h: 148 },
+    { type: 'banner', x: 980, y: 120, h: 170 },
+    { type: 'rubble', x: 1700, y: 420 },
+  ],
+  secrets: [{ x: 790, y: 210, w: 180, h: 100, name: 'THE BELL-KEEPER\u2019S LOG' }],
+  signs: [{ x: 300, y: 420, text: 'THE BELFRY STAIRS', sub: 'RING THE BELL' }],
+  gate: { x: 1880, y: 330, w: 80, h: 90 },
+  exit: { x: 1884, y: 328, w: 72, h: 92, to: 'c2', area: 'III', level: 0 },
+  cps: [[80, 420], [800, 320], [1200, 420]],
+};
+
+export const C2 = {
+  kind: 'level', area: 'III',
+  title: '3-2  THE CHIME HALL',
+  name: 'THE CHIME HALL',
+  style: 'tower', theme: 2,
+  line: 'A hundred bells, and someone has been ringing them out of order.',
+  spawn: [80, 386],
+  w: 2100, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 820, h: 220 },
+    { kind: 'lift', bell: 'B1', x: 660, y: 420, w: 110, h: 16, baseY: 420, rise: 90 },
+    { x: 810, y: 330, w: 260, h: 18 },                          // the mid gallery
+    { kind: 'lift', bell: 'B2', x: 1110, y: 330, w: 110, h: 16, baseY: 330, rise: 90 },
+    { x: 1260, y: 240, w: 220, h: 18 },                         // the high gallery
+    { x: 1310, y: 150, w: 170, h: 14, oneway: 1 },              // the codex nook
+    { x: 1530, y: 420, w: 570, h: 220 },
+    wallR(2100),
+  ],
+  bells: [{ x: 520, y: 350, id: 'B1' }, { x: 860, y: 260, id: 'B2' }],
+  torches: [[200, 420], [900, 330], { x: 1350, y: 240, lit: 0, cp: 1 }, [1600, 420]],
+  coins: [[250, 385], [290, 385],
+          [700, 295], [740, 295],
+          [850, 295], [890, 295],
+          [1300, 195], [1340, 195],
+          [1350, 115], [1390, 115],
+          [1600, 385], [1640, 385], [1800, 385]],
+  hearts: [[980, 295], [1380, 115], [1750, 385]],
+  enemies: [
+    { type: 'goblin', x: 1800, y: 390, x0: 1650, x1: 1950, hp: 1 },
+    { type: 'bat', x0: 900, x1: 1400, y0: 200, ay: 45, sp: 1.1, ph: 1.2 },
+    { type: 'pealwraith', x: 1650, y: 355 },
+  ],
+  props: [
+    { type: 'chain', x: 520, y: 0, h: 148 },
+    { type: 'chain', x: 860, y: 0, h: 174 },
+    { type: 'banner', x: 1250, y: 90, h: 170 },
+    { type: 'statue', x: 1750, y: 420 },
+  ],
+  secrets: [{ x: 1300, y: 110, w: 180, h: 100, name: 'THE CHIME CODEX' }],
+  signs: [{ x: 350, y: 420, text: 'THE CHIME HALL', sub: 'EVERY BELL ANSWERS' }],
+  gate: { x: 1980, y: 330, w: 80, h: 90 },
+  exit: { x: 1984, y: 328, w: 72, h: 92, to: 'c3', area: 'III', level: 1 },
+  cps: [[80, 420], [850, 330], [1600, 420]],
+};
+
+export const C3 = {
+  kind: 'level', area: 'III',
+  title: '3-3  THE RAFTERS',
+  name: 'THE RAFTERS',
+  style: 'tower', theme: 2,
+  line: 'The wind gets in through the broken bells. It almost sounds like music.',
+  spawn: [80, 386],
+  w: 2200, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 720, h: 220 },
+    { x: 560, y: 390, w: 120, h: 16, oneway: 1 },
+    { x: 720, y: 350, w: 120, h: 16, oneway: 1 },
+    { x: 880, y: 380, w: 120, h: 16, oneway: 1 },
+    { x: 1050, y: 420, w: 1150, h: 220 },                       // the rafter arena
+    { x: 1180, y: 300, w: 160, h: 16, oneway: 1 },
+    { x: 1480, y: 320, w: 140, h: 14, oneway: 1 },              // the rafter cache
+    wallR(2200),
+  ],
+  bells: [{ x: 380, y: 350, id: 'B1' }],
+  torches: [[150, 420], { x: 1100, y: 420, lit: 0, cp: 1 }, [1900, 420]],
+  coins: [[250, 385], [290, 385],
+          [600, 355], [760, 315], [920, 345],
+          [1220, 265], [1260, 265],
+          [1500, 285], [1540, 285],
+          [1400, 385], [1450, 385]],
+  hearts: [[1300, 265], [1520, 285], [1800, 385]],
+  enemies: [
+    { type: 'pealwraith', x: 760, y: 340 },
+    { type: 'bat', x0: 600, x1: 1100, y0: 220, ay: 40, sp: 1.0, ph: 2.2 },
+    { type: 'goblin', x: 1300, y: 390, x0: 1150, x1: 1500, hp: 1 },
+  ],
+  boss: { kind: 'clappergolem', name: 'THE CLAPPER GOLEM', x: 1600, y: 380, wake: 1250, hp: 6, sealed: 'THE GOLEM KEEPS THE RAFTERS' },
+  props: [
+    { type: 'chain', x: 380, y: 0, h: 148 },
+    { type: 'banner', x: 1000, y: 100, h: 170 },
+    { type: 'rubble', x: 2000, y: 420 },
+  ],
+  secrets: [{ x: 1470, y: 270, w: 150, h: 90, name: 'THE RAFTER CACHE' }],
+  signs: [{ x: 300, y: 420, text: 'THE RAFTERS', sub: 'MIND THE DROP' }],
+  gate: { x: 2080, y: 330, w: 80, h: 90 },
+  exit: { x: 2084, y: 328, w: 72, h: 92, to: 'c4', area: 'III', level: 2 },
+  cps: [[80, 420], [1100, 420]],
+};
+
+export const C4 = {
+  kind: 'level', area: 'III',
+  title: '3-4  THE CARILLON',
+  name: 'THE CARILLON',
+  style: 'tower', theme: 2,
+  line: 'The cracked bell has been ringing the same note for years.',
+  spawn: [80, 386],
+  w: 1800, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 720, h: 220 },
+    { x: 560, y: 380, w: 140, h: 18 },
+    { x: 760, y: 340, w: 140, h: 18 },
+    { x: 960, y: 380, w: 140, h: 18 },
+    { x: 600, y: 280, w: 160, h: 14, oneway: 1 },               // the carillon note
+    { x: 1140, y: 420, w: 660, h: 220 },                        // the carillon floor
+    wallR(1800),
+  ],
+  torches: [[150, 420], { x: 1200, y: 420, lit: 0, cp: 1 }, [1600, 420]],
+  coins: [[250, 385], [290, 385],
+          [600, 340], [800, 300], [1000, 340],
+          [640, 245], [680, 245],
+          [1250, 385], [1300, 385]],
+  hearts: [[180, 385], [660, 245], [1180, 385]],
+  enemies: [
+    { type: 'bat', x0: 550, x1: 1050, y0: 220, ay: 40, sp: 1.0, ph: .8 },
+  ],
+  boss: { kind: 'carillon', name: 'THE CRACKED CARILLON', x: 1470, y: 180, wake: 900, hp: 8, sealed: 'THE CARILLON RINGS THE LAST HOUR' },
+  props: [
+    { type: 'banner', x: 700, y: 80, h: 170 },
+    { type: 'rubble', x: 1420, y: 420 },
+    { type: 'chain', x: 1470, y: 0, h: 120 },
+  ],
+  secrets: [{ x: 600, y: 220, w: 160, h: 100, name: 'THE CARILLON NOTE' }],
+  signs: [{ x: 300, y: 420, text: 'THE CARILLON', sub: 'SHE RINGS FOR NO ONE' }],
+  gate: { x: 1660, y: 330, w: 80, h: 90 },
+  exit: { x: 1664, y: 328, w: 72, h: 92, to: 'hub', area: 'III', level: 3, complete: true },
+  cps: [[80, 420], [1200, 420]],
+};
+
+export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4, c1: C1, c2: C2, c3: C3, c4: C4 };
 export const SCENE_IDS = Object.keys(SCENES);
 export const TOTAL_COINS = SCENE_IDS.reduce((n, id) => n + SCENES[id].coins.length, 0);

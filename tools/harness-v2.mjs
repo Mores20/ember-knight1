@@ -74,7 +74,7 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
-ok(hub.l.hub.gates.length === 3, 'the hub has three gates');
+ok(hub.l.hub.gates.length === 5, 'the hub has five gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 const crowBad = [];
@@ -203,6 +203,11 @@ ok(dbg.g.p.shield === 1, 'the shield is carried across a scene load');
 const hs = dbg.g, hp0 = hs.p.hp; hs.p.inv = 0; hs.p.hurt(hs.p.x + 30, hs); frames(6);
 ok(hs.p.hp === hp0 && hs.p.shield === 0 && dbg.run.shield === 0, 'the shield eats one hit and is spent');
 
+hs.p.x = 3160; hs.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(hs.dialog && hs.dialog.pages[0].who === 'SEALED GATE', 'Gate III is sealed before Area II is cleared');
+hs.dialog = null;
+
 hs.p.x = 1980; hs.p.y = 386; frames(2);
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
 dbg.run.gold = 5; hs.p.hp = 2; hs.shop.sel = 0;
@@ -269,6 +274,77 @@ b4.p.x = matron.x - 30; b4.p.y = 386; b4.p.face = 1; b4.p.swing = .15; b4.p.hits
 ok(matron.hp === 0 && matron.st === 'dead', 'the Crypt Matron falls');
 b4.p.x = b4.l.exit.x + b4.l.exit.w / 2 - b4.p.w / 2; b4.p.y = b4.l.exit.y + b4.l.exit.h - b4.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.II === true && dbg.run.levels.II.every(Boolean), '2-4 returns to town and completes Area II');
+
+/* ================= 4d. Area III: the Bell Tower ================= */
+const bHub = dbg.g;
+ok(bHub.l.w >= 3200, 'Bell Plaza extends Cinderhaven past the crypt');
+bHub.p.x = 3160; bHub.p.y = 386; frames(2);
+ok(bHub.near && bHub.near.type === 'gate' && bHub.near.obj.area === 'III', 'the Bell Plaza gate reaches the tower');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'c1' && dbg.g.l.area === 'III', 'Gate III opens 3-1 The Belfry Stairs');
+
+const c1 = dbg.g;
+const bell1 = c1.bells.find(b => b.id === 'B1');
+const lift1 = c1.l.solids.find(s => s.kind === 'lift');
+const gob1 = c1.enemies.find(e => e.type === 'goblin');
+gob1.x = 600; gob1.y = 390; gob1.x0 = 500; gob1.x1 = 900;
+c1.p.x = bell1.x - 30; c1.p.y = 386; c1.p.face = 1; c1.p.swing = .15; c1.p.hits.clear(); frames(6);
+ok(bell1.ring > 0 && lift1.on === 1, 'striking a bell rings it and wakes its lift');
+ok(gob1.stun > 0, 'the bell ring stuns nearby enemies');
+c1.p.reset(lift1.x + 12, lift1.y - c1.p.h); c1.p.inv = 999; frames(60);
+ok(lift1.y < lift1.baseY - 40, 'the rung lift climbs toward the landing');
+
+const wraith = c1.enemies.find(e => e.type === 'pealwraith');
+wraith.x = 1600; wraith.y0 = 360; wraith.y = 360; wraith.cool = 0; wraith.st = 'float'; wraith.stT = 0;
+c1.p.reset(1720, 386); c1.p.hp = 3; c1.p.inv = 0; c1.p.dashT = 0;
+frames(140);
+ok(c1.p.hp < 3, 'the Peal Wraith\u2019s scream ring catches a standing knight');
+wraith.x = 600; wraith.y0 = 360; wraith.y = 360; wraith.cool = 2; wraith.st = 'float'; wraith.stT = 0; wraith.stun = 0;
+c1.p.reset(bell1.x - 30, 386); c1.p.face = 1; c1.p.swing = .15; c1.p.hits.clear(); frames(6);
+ok(wraith.stun > 0, 'ringing a bell dazes the Peal Wraith');
+c1.p.x = c1.l.exit.x + c1.l.exit.w / 2 - c1.p.w / 2; c1.p.y = c1.l.exit.y + c1.l.exit.h - c1.p.h; frames(40);
+ok(dbg.sceneId === 'c2' && dbg.run.levels.III[0] === true, '3-1 leads to 3-2 and is marked cleared');
+
+const c2 = dbg.g;
+const bell2 = c2.bells.find(b => b.id === 'B2');
+const lift2 = c2.l.solids.find(s => s.bell === 'B2');
+c2.p.reset(850, 330 - c2.p.h); c2.p.face = 1; c2.p.swing = .15; c2.p.hits.clear(); frames(6);
+ok(bell2.ring > 0 && lift2.on === 1, 'the Chime Hall\u2019s second bell raises its lift');
+c2.p.x = c2.l.exit.x + c2.l.exit.w / 2 - c2.p.w / 2; c2.p.y = c2.l.exit.y + c2.l.exit.h - c2.p.h; frames(40);
+ok(dbg.sceneId === 'c3' && dbg.run.levels.III[1] === true, '3-2 leads to 3-3 and is marked cleared');
+
+const c3 = dbg.g, golem = c3.boss;
+ok(golem && golem.kind === 'clappergolem' && golem.st === 'dormant', 'the Clapper Golem waits in the rafters');
+c3.p.x = 1300; c3.p.y = 386; c3.p.inv = 999; frames(40);
+ok(golem.st !== 'dormant', 'the Golem wakes when the knight reaches the arena');
+golem.hp = 6; golem.st = 'idle'; golem.stT = 0;
+c3.p.x = golem.x - 30; c3.p.y = 386; c3.p.face = 1; c3.p.swing = .15; c3.p.hits.clear(); frames(8);
+ok(golem.hp === 6, 'the Golem\u2019s shell turns the blade outside its opening');
+golem.st = 'recover'; golem.stT = 0; golem.hp = 1;
+c3.p.x = golem.x - 30; c3.p.y = 386; c3.p.face = 1; c3.p.swing = .15; c3.p.hits.clear(); frames(8);
+ok(golem.hp === 0 && golem.st === 'dead', 'striking the glowing core kills the Golem');
+c3.p.x = c3.l.exit.x + c3.l.exit.w / 2 - c3.p.w / 2; c3.p.y = c3.l.exit.y + c3.l.exit.h - c3.p.h; frames(40);
+ok(dbg.sceneId === 'c4' && dbg.run.levels.III[2] === true, '3-3 leads to the Carillon and is marked cleared');
+
+const c4 = dbg.g, carillon = c4.boss;
+ok(carillon && carillon.kind === 'carillon' && carillon.st === 'dormant', 'the Cracked Carillon waits above the arena');
+c4.p.x = 950; c4.p.y = 386; c4.p.inv = 999; frames(40);
+ok(carillon.st !== 'dormant', 'the Carillon wakes when the arena is entered');
+carillon.st = 'idle'; carillon.y = carillon.baseY;
+ok(carillon.takeHit() === 2 && carillon.hp === 8, 'the Carillon is closed outside its opening');
+carillon.st = 'open'; carillon.stT = 0; carillon.y = carillon.openY;
+c4.p.x = carillon.x - 30; c4.p.y = 386; c4.p.face = 1; c4.p.swing = .15; c4.p.hits.clear(); frames(8);
+ok(carillon.hp === 7, 'the cracked bell opens and takes a hit');
+carillon.st = 'open'; carillon.stT = 0; carillon.hp = 5;
+c4.p.x = carillon.x - 30; c4.p.y = 386; c4.p.face = 1; c4.p.swing = .15; c4.p.hits.clear(); frames(8);
+ok(carillon.hp === 4 && carillon.phase === 2, 'the Carillon shifts to phase two at half health');
+ok(Math.abs(carillon.interval() - .48) < .001, 'phase two shortens the beat');
+carillon.st = 'open'; carillon.stT = 0; carillon.hp = 1;
+c4.p.x = carillon.x - 30; c4.p.y = 386; c4.p.face = 1; c4.p.swing = .15; c4.p.hits.clear(); frames(8);
+ok(carillon.hp === 0 && carillon.st === 'dead', 'the Carillon cracks and falls');
+c4.p.x = c4.l.exit.x + c4.l.exit.w / 2 - c4.p.w / 2; c4.p.y = c4.l.exit.y + c4.l.exit.h - c4.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.III === true && dbg.run.levels.III.every(Boolean), '3-4 returns to town and completes Area III');
+ok(dbg.g.stageMsg > 0 && dbg.g.stageMsgKind === 'bells', 'the town rings a clean note after Area III');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);

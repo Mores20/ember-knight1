@@ -52,6 +52,10 @@ export const sfx = {
   block: () => { tone(240, .06, 'square', .34, -70); noise(.05, .28); },       // shield clang
   crumble: () => noise(.32, .2),                                               // stone giving way
   // --- Bell Tower ---
+  bell: () => { tone(880, .5, 'triangle', .3, -40); tone(1320, .4, 'triangle', .16, -30, .02); tone(1760, .3, 'triangle', .08, -20, .04); },
+  bellLow: () => { tone(220, .8, 'triangle', .3, -20); tone(330, .6, 'triangle', .14, -15, .02); },
+  toll: () => { tone(110, .9, 'square', .22, -15); tone(220, .7, 'triangle', .2, -10); noise(.2, .12); },
+  clang: () => { noise(.12, .26); tone(760, .18, 'square', .18, -120); },
   dash: () => { noise(.22, .24); tone(420, .2, 'sawtooth', .2, 620); },        // ember surge
   grant: () => [392, 523, 659, 880].forEach((f, i) => tone(f, .18, 'triangle', .26, 0, i * .09)),
   // --- The Throne ---
