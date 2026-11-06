@@ -631,6 +631,63 @@ export class RustWisp {
   hit(d) { this.hp--; this.flash = .12; return this.hp <= 0; }
 }
 
+// Page Moth: drawn toward a burning spark or lamp; otherwise it flutters toward
+// the knight. A soft distraction, not a chaser.
+export class PageMoth {
+  constructor(o) {
+    Object.assign(this, { type: 'pagemoth', w: 18, h: 14, hp: 1, x: o.x, y: o.y, x0: o.x, y0: o.y,
+      t: 0, flash: 0, dir: -1 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt;
+    const cx = this.x + this.w / 2, cy = this.y + this.h / 2;
+    let tx = p.x + p.w / 2, ty = p.y + p.h / 2, best = 420;
+    for (const s of g.sparks || []) { const d = Math.hypot(s.x - cx, s.y - cy); if (d < best) { best = d; tx = s.x; ty = s.y; } }
+    for (const l of g.lamps || []) { const d = Math.hypot(l.x - cx, l.y - cy); if (d < best) { best = d; tx = l.x; ty = l.y; } }
+    const dx = tx - cx, dy = ty - cy, d = Math.hypot(dx, dy) || 1;
+    const sp = best < 420 ? 92 : 26;
+    this.x += dx / d * sp * dt;
+    this.y += dy / d * sp * dt + Math.sin(this.t * 3) * 10 * dt;
+    this.dir = dx < 0 ? -1 : 1;
+  }
+  hit(d) { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
+// Stack Sentinel: a stone reader that freezes while lit and lunges in the dark.
+export class StackSentinel {
+  constructor(o) {
+    Object.assign(this, { type: 'sentinel', w: 28, h: 36, hp: 2, x: o.x, y: o.y, y0: o.y,
+      t: 0, flash: 0, dir: -1, st: 'still', stT: 0, cool: .6, vx: 0, lit: 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, dx = px - cx, dist = Math.abs(dx);
+    this.lit = !!(g && g.litAt && g.litAt(cx, this.y + this.h / 2));
+    if (this.lit) { this.st = 'still'; this.stT = 0; this.cool = Math.max(this.cool, .4); return; }
+    if (this.st === 'still') {
+      this.dir = dx < 0 ? -1 : 1;
+      this.cool -= dt;
+      if (dist < 280 && this.cool <= 0) { this.st = 'wind'; this.stT = 0; sfx.wind(); }
+      return;
+    }
+    if (this.st === 'wind') {
+      this.dir = dx < 0 ? -1 : 1;
+      if (this.stT > .5) { this.st = 'lunge'; this.stT = 0; this.vx = this.dir * 360; }
+      return;
+    }
+    if (this.st === 'lunge') {
+      this.x += this.vx * dt;
+      this.x = Math.max(this.x0 ?? this.x, Math.min(this.x1 ?? this.x, this.x));
+      if (this.stT > .35) { this.st = 'recover'; this.stT = 0; }
+      return;
+    }
+    if (this.st === 'recover') {
+      if (this.stT > .9) { this.st = 'still'; this.stT = 0; this.cool = 1.2; }
+    }
+  }
+  hit(d) { this.hp--; this.flash = .12; this.x += (d || 0) * 6; this.st = 'recover'; this.stT = 0; return this.hp <= 0; }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
@@ -638,4 +695,5 @@ export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield
   : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o)
   : o.type === 'pealwraith' ? new PealWraith(o) : o.type === 'revenant' ? new RoyalRevenant(o)
   : o.type === 'ashbloom' ? new AshBloom(o) : o.type === 'creeper' ? new ThornCreeper(o)
-  : o.type === 'slagsmith' ? new SlagSmith(o) : o.type === 'rustwisp' ? new RustWisp(o) : new Goblin(o);
+  : o.type === 'slagsmith' ? new SlagSmith(o) : o.type === 'rustwisp' ? new RustWisp(o)
+  : o.type === 'pagemoth' ? new PageMoth(o) : o.type === 'sentinel' ? new StackSentinel(o) : new Goblin(o);

@@ -91,7 +91,7 @@ pipelines, how to add a phase/mob/boss/ability, and the gotchas. `npm test` runs
 
 ## V2 vertical slice
 
-The v2 slice (on `main`) contains a separate tutorial → Cinderhaven → three-level Area I → Market Lane → four-level Sunken Crypt → Bell Plaza → four-level Bell Tower → Throne Approach → five-level Throne → Garden Steps → four-level Ashen Gardens → Forge Row → three-level Drowned Forge slice. Open
+The v2 slice (on `main`) contains a separate tutorial → Cinderhaven → three-level Area I → Market Lane → four-level Sunken Crypt → Bell Plaza → four-level Bell Tower → Throne Approach → five-level Throne → Garden Steps → four-level Ashen Gardens → Forge Row → three-level Drowned Forge → Archive Steps → three-level Silent Archive slice. Open
 `v2.html` (or `npm start:v2`) and run `npm run test:v2`. See
 [`docs/Ember_Knight_V2_Slice.md`](docs/Ember_Knight_V2_Slice.md) for scope, controls and what is
 deferred. It has its own save (`emberknight.v2`) and imports a v1 save once without touching it.

@@ -9,7 +9,7 @@ export const freshRun = () => ({
   scene: 'tutorial',
   hp: 2, coins: 0, gold: 0, time: 0, shield: 0,
   abil: { dash: false, lantern: false },
-  got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false, II: false, III: false, IV: false, V: false, VI: false }, levels: { I: [false, false, false], II: [false, false, false, false], III: [false, false, false, false], IV: [false, false, false, false, false], V: [false, false, false, false], VI: [false, false, false] },
+  got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false, II: false, III: false, IV: false, V: false, VI: false, VII: false }, levels: { I: [false, false, false], II: [false, false, false, false], III: [false, false, false, false], IV: [false, false, false, false, false], V: [false, false, false, false], VI: [false, false, false], VII: [false, false, false] },
   herbPatch: false,
   skin: 'iron', emberSword: false, titled: false,
 });
@@ -39,6 +39,7 @@ export function loadRun() {
   if (!Array.isArray(out.levels.IV)) out.levels.IV = [false, false, false, false, false];
   if (!Array.isArray(out.levels.V)) out.levels.V = [false, false, false, false];
   if (!Array.isArray(out.levels.VI)) out.levels.VI = [false, false, false];
+  if (!Array.isArray(out.levels.VII)) out.levels.VII = [false, false, false];
   if (typeof out.herbPatch !== 'boolean') out.herbPatch = false;
   out.cleared = { ...freshRun().cleared, ...(out.cleared && typeof out.cleared === 'object' ? out.cleared : {}) };
   if (typeof out.shield !== 'number') out.shield = 0;

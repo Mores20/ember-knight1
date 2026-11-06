@@ -1,8 +1,38 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11)
 
 The v2 slice now lives on `main` alongside the shipped game and proves the shape of the world-design document:
-**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV → Garden Steps → Area V → Forge Row → Area VI**. The shipped v1 game is
+**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV → Garden Steps → Area V → Forge Row → Area VI → Archive Steps → Area VII**. The shipped v1 game is
 still available at `index.html` and is untouched.
+
+## V11 - Area VII: The Silent Archive
+
+Gate VII opens at the end of **Archive Steps**, past Forge Row, once Area VI is cleared. The area is
+the first one built around darkness and light management.
+
+| Level | Name | Shape |
+|---|---|---|
+| 7-1 | The Reading Room | The merchant, the first cold bowl and light bridge, a Page Moth |
+| 7-2 | The Stacks | Two light bridges, the bowl-switch seal, Shades, a Hexer |
+| 7-3 | The Reading Ledge | Stack Sentinel, the Lampless Curator, the Trapped Spirit and the Margin Note |
+
+- **Darkness.** The archive is drawn under a dark veil with warm pools around the knight, lit bowls,
+  torches, lamps and sparks. The HUD stays readable.
+- **Light rules.** **E** still throws the lantern spark; a sword swing lights a **cold bowl**, and a
+  spark or lamp also lights one. Two **light bridges** are only solid while their bowl burns; a
+  third way is a **sealed gate** that opens with its bowl switch.
+- **Shades** cannot be cut in shadow; light makes them solid and vulnerable (they recoil from it).
+  **Hexers** cast three-orb hex volleys (smother shrinks your light, snuff stops the lantern, heavy
+  slows you); hex orbs and debuff badges are now fully wired into v2.
+- **Page Moth** drifts toward the nearest spark or lamp. **Stack Sentinel** freezes in light and
+  lunges in the dark.
+- **The Lampless Curator** (8 HP) is a mini-boss that is untouchable in shadow and only takes hits
+  while lit. It recoils from light and lunges when the light fades.
+- **The merchant** waits in the Reading Room with the same gold shop as Cinderhaven.
+- **The Trapped Spirit** speaks of the king's last night, and **the Margin Note** secret above the
+  reading ledge shows his handwriting: *“I did not mean to smother it.”*
+- The Archive Steps sign tracks **0/3 → 3/3**. 7-3 returns to Cinderhaven, completes Area VII, lights
+  the **Zafra Archive** and opens the preview of Gate VIII.
+- The v2 coin total is now **253** across the tutorial and all seven areas.
 
 ## V10 - Area VI: The Drowned Forge
 
@@ -27,7 +57,7 @@ Gate VI opens at the end of **Forge Row**, past the Garden Steps, once Area V is
   chain-driven platform that moves under the fight.
 - The Forge Row sign tracks **0/3 → 3/3**. 6-3 returns to Cinderhaven, completes Area VI and lights
   the Forge Row chimneys (**THE FORGE BURNS AGAIN**).
-- The v2 coin total is now **232** across the tutorial and all six areas.
+- The v2 coin total is now **232** across the tutorial and all six areas (253 with Area VII).
 
 ## V9 - Area V: The Ashen Gardens
 
@@ -299,8 +329,10 @@ guarded too; a perfect guard on the charge stuns him.
    Gardener Golem) → 5-4 (Mother Blight) → Cinderhaven, `cleared.V = true`.
 8. Forge Row opens Gate VI after Area V: 6-1 → 6-2 → 6-3 (the Slag Foreman) on the rising tide →
    Cinderhaven, `cleared.VI = true`.
-9. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
-   to the hub.
+9. Archive Steps open Gate VII after Area VI: 7-1 → 7-2 → 7-3 (the Lampless Curator and the Margin
+   Note) → Cinderhaven, `cleared.VII = true`. The preview of Gate VIII opens.
+10. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
+    to the hub.
 
 ## Deliberately deferred
 
@@ -320,7 +352,10 @@ guarded too; a perfect guard on the charge stuns him.
   Bloom, Thorn Creeper, Gardener Golem, Mother Blight and Patino's Herb Patch.
 - V10 done: the Forge Row, the three Drowned Forge climbs, the vertical camera and ember tide, Slag
   Smith, Rust Wisp, chain lifts and the Slag Foreman.
-- Beyond the slice: Areas VII-VIII (the Silent Archive and the Ember Heart), Gate VII, the next
+- V11 done: Archive Steps, the three Silent Archive levels, darkness/light bridges, cold bowls, the
+  Page Moth, Stack Sentinel, Hexer orb integration, the Lampless Curator, the merchant, the Trapped
+  Spirit and the Margin Note.
+- Beyond the slice: Area VIII (the Ember Heart and the Ash King), the full Gate VIII, the next
   merchant stock, hub rooftops, district stages S3-S5 and the full unlock map for the shop.
 
 ## Known placeholders

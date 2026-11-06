@@ -74,7 +74,7 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
-ok(hub.l.hub.gates.length === 11, 'the hub has eleven gates');
+ok(hub.l.hub.gates.length === 14, 'the hub has fourteen gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 const crowBad = [];
@@ -515,7 +515,11 @@ ok(dbg.g.stageMsgKind === 'garden', 'the Garden Steps stir after Area V');
 
 /* ================= 4g. Area VI: The Drowned Forge ================= */
 const forgeHub = dbg.g;
-ok(forgeHub.l.w >= 5700, 'Forge Row reaches Gate VI');
+ok(forgeHub.l.w >= 7000, 'Forge Row and Archive Steps extend Cinderhaven');
+forgeHub.p.x = 6360; forgeHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(forgeHub.dialog && forgeHub.dialog.pages[0].who === 'SEALED GATE', 'Gate VII is sealed before Area VI is cleared');
+forgeHub.dialog = null;
 forgeHub.p.x = 5560; forgeHub.p.y = 386; frames(2);
 ok(forgeHub.near && forgeHub.near.type === 'gate' && forgeHub.near.obj.area === 'VI', 'Gate VI reaches the Drowned Forge');
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
@@ -564,6 +568,71 @@ ok(foreman.hp === 0 && foreman.st === 'dead', 'the Slag Foreman falls');
 f3.p.x = f3.l.exit.x + f3.l.exit.w / 2 - f3.p.w / 2; f3.p.y = f3.l.exit.y + f3.l.exit.h - f3.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.VI === true && dbg.run.levels.VI.every(Boolean), '6-3 returns to town and completes Area VI');
 ok(dbg.g.stageMsgKind === 'forge', 'the Forge Row burns again after Area VI');
+
+/* ================= 4h. Area VII: The Silent Archive ================= */
+const archHub = dbg.g;
+ok(archHub.l.w >= 7000, 'Archive Steps reach Gate VII');
+archHub.p.x = 6360; archHub.p.y = 386; frames(2);
+ok(archHub.near && archHub.near.type === 'gate' && archHub.near.obj.area === 'VII', 'Gate VII reaches the Silent Archive');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'g1' && dbg.g.l.area === 'VII', 'Gate VII opens 7-1 The Reading Room');
+
+const g1 = dbg.g;
+ok(g1.l.dark && g1.bowls.length > 0, 'the Reading Room is dark and holds a bowl');
+const bridge = g1.l.solids.find(s => s.lightBridge);
+ok(bridge && bridge.off === 1, 'the first light bridge is out');
+const bowl1 = g1.bowls[0];
+g1.p.x = bowl1.x - 30; g1.p.y = 386; g1.p.face = 1; g1.p.swing = .15; g1.p.hits.clear(); frames(6);
+ok(bowl1.lit === 1 && bridge.off === 0, 'a sword swing lights the bowl and the bridge');
+g1.p.x = 180; g1.p.y = 386; frames(2);
+ok(g1.near && g1.near.type === 'merchant', 'the Sketchy Merchant waits in the Reading Room');
+fire('keydown', 'KeyF'); frames(3); fire('keyup', 'KeyF'); frames(2);
+ok(!!g1.shop, 'the Reading Room merchant opens the shop');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(!g1.shop, 'the shop closes again');
+g1.p.x = g1.l.exit.x + g1.l.exit.w / 2 - g1.p.w / 2; g1.p.y = g1.l.exit.y + g1.l.exit.h - g1.p.h; frames(40);
+ok(dbg.sceneId === 'g2' && dbg.run.levels.VII[0] === true, '7-1 leads to 7-2 and is marked cleared');
+
+const g2 = dbg.g;
+ok(g2.l.solids.filter(s => s.lightBridge).length === 2 && g2.l.solids.some(s => s.seal), 'the Stacks has two light bridges and a sealed way');
+const seal = g2.l.solids.find(s => s.seal);
+ok(seal.off === 0, 'the bowl seal starts shut');
+const shade = g2.enemies.find(e => e.type === 'shade');
+g2.lamps = []; g2.p.x = shade.x - 28; g2.p.y = 386; g2.p.inv = 999; g2.p.face = 1; g2.p.swing = .15; g2.p.hits.clear(); frames(6);
+ok(shade.hp === 2, 'a Shade shrugs off the blade in shadow');
+g2.lamps.push({ x: shade.x + 12, y: shade.y + 15, t: 4 });
+g2.p.x = shade.x - 28; g2.p.y = 386; g2.p.face = 1; g2.p.swing = .15; g2.p.hits.clear(); frames(3);
+ok(shade.hp < 2, 'a lit Shade can be cut');
+g2.bowls.find(b => b.id === 'B3').lit = 1; frames(10);
+ok(seal.off === 1, 'the bowl switch opens the sealed way');
+g2.p.x = g2.l.exit.x + g2.l.exit.w / 2 - g2.p.w / 2; g2.p.y = g2.l.exit.y + g2.l.exit.h - g2.p.h; frames(40);
+ok(dbg.sceneId === 'g3' && dbg.run.levels.VII[1] === true, '7-2 leads to 7-3 and is marked cleared');
+
+const g3 = dbg.g, cur = g3.boss;
+ok(cur && cur.kind === 'curator' && cur.st === 'dormant', 'the Lampless Curator waits at the reading ledge');
+g3.p.x = 1150; g3.p.y = 386; g3.p.inv = 999; frames(40);
+ok(cur.st !== 'dormant', 'the Curator wakes');
+g3.lamps = []; cur.hp = 8; cur.st = 'float'; cur.stT = 0; cur.lit = 0; cur.cool = 99; cur.x = 1400;
+g3.p.x = cur.x - 30; g3.p.y = 386; g3.p.face = 1; g3.p.inv = 999; g3.p.swing = .15; g3.p.hits.clear(); frames(6);
+ok(cur.hp === 8, 'the Curator cannot be cut in shadow');
+g3.bowls[0].lit = 1; frames(6);
+ok(!!cur.lit, 'lit by the bowl, the Curator becomes solid');
+cur.lit = 1; cur.st = 'float'; cur.stT = 0; cur.cool = 99;
+g3.p.x = cur.x - 30; g3.p.y = 386; g3.p.face = 1; g3.p.swing = .15; g3.p.hits.clear(); frames(6);
+ok(cur.hp === 7, 'the lit Curator takes a hit');
+cur.lit = 1; cur.st = 'float'; cur.hp = 1; cur.cool = 99;
+g3.p.x = cur.x - 30; g3.p.y = 386; g3.p.face = 1; g3.p.swing = .15; g3.p.hits.clear(); frames(20);
+ok(cur.hp === 0 && cur.st === 'dead', 'the Lampless Curator falls');
+
+g3.p.x = 980; g3.p.y = 246; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(g3.dialog && g3.dialog.pages[0].who === 'THE TRAPPED SPIRIT', 'the Trapped Spirit speaks of the king');
+g3.dialog = null;
+g3.p.x = 1250; g3.p.y = 186; frames(2);
+ok(dbg.run.secrets.g3 && dbg.run.secrets.g3.includes(0), 'the Margin Note secret reveals the king\u2019s line');
+g3.p.x = g3.l.exit.x + g3.l.exit.w / 2 - g3.p.w / 2; g3.p.y = g3.l.exit.y + g3.l.exit.h - g3.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.VII === true && dbg.run.levels.VII.every(Boolean), '7-3 returns to town and completes Area VII');
+ok(dbg.g.stageMsgKind === 'archive', 'the Archive Steps remember Area VII');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);

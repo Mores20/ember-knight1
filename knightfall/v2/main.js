@@ -18,6 +18,7 @@ import { ClapperGolem, CrackedCarillon } from './tower.js';
 import { FallenCaptain, ThroneWarden } from './throne.js';
 import { GardenerGolem, MotherBlight } from './garden.js';
 import { SlagForeman } from './forge.js';
+import { LamplessCurator } from './archive.js';
 import { drawWarden as drawWardenSprite, drawMote } from '../ashwarden.js';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -60,6 +61,7 @@ function litAt(x, y) {
   for (const t of g.l.torches) if (t.lit && Math.hypot(t.x - x, (t.y - 42) - y) < 130) return true;
   for (const l of g.lamps) if (Math.hypot(l.x - x, l.y - y) < 120) return true;
   for (const s of g.sparks) if (Math.hypot(s.x - x, s.y - y) < 90) return true;
+  for (const b of g.bowls || []) if (b.lit && Math.hypot(b.x - x, (b.y - 22) - y) < 150) return true;
   return false;
 }
 
@@ -85,6 +87,8 @@ function loadScene(id) {
   for (const s of l.solids) if (s.kind === 'sink') { s.baseY = s.baseY != null ? s.baseY : s.y; s.depth = s.depth || 16; s.dy = 0; }
   for (const s of l.solids) if (s.kind === 'lift') { s.baseY = s.baseY != null ? s.baseY : s.y; s.rise = s.rise || 90; s.on = 0; s.dy = 0; }
   for (const s of l.solids) if (s.thorn) { s.burn = 0; s.off = 0; }
+  for (const s of l.solids) if (s.lightBridge) s.off = 1;
+  for (const s of l.solids) if (s.seal) s.off = 0;
   for (const s of l.solids) if (s.kind === 'move') {
     s.x0 = s.x; s.y0 = s.y;
     if (s.toX == null) s.toX = s.x;
@@ -116,15 +120,17 @@ function loadScene(id) {
     ringFx: [],
     lantern: l.lantern ? { ...l.lantern, got: run.abil.lantern ? 1 : 0 } : null,
     herb: l.herb ? { ...l.herb, got: !!run.herbPatch } : null,
+    bowls: (l.bowls || []).map(b => ({ ...b, lit: 0 })),
+    hexOrbs: [],
     lamp: run.abil.lantern ? 3 : 0, sparks: [], lamps: [], dim: 0,
     parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: camY }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
     paused: false, pauseSel: 0, dialog: null, prompt: '', near: null, shop: null,
-    shopStock: id === 'hub' ? [2, 1, 1, 1] : null,
+    shopStock: id === 'hub' || l.merchant ? [2, 1, 1, 1] : null,
     found: 0, foundName: '', grant: 0, grantKind: 'dash', healMsg: 0,
-    stageMsg: id === 'hub' && (stage === 2 || run.cleared.III || run.cleared.IV || run.cleared.V || run.cleared.VI) ? 3.2 : 0,
-    stageMsgKind: run.cleared.VI ? 'forge' : run.cleared.V ? 'garden' : run.cleared.IV ? 'throne' : run.cleared.III ? 'bells' : 'wake',
+    stageMsg: id === 'hub' && (stage === 2 || run.cleared.III || run.cleared.IV || run.cleared.V || run.cleared.VI || run.cleared.VII) ? 3.2 : 0,
+    stageMsgKind: run.cleared.VII ? 'archive' : run.cleared.VI ? 'forge' : run.cleared.V ? 'garden' : run.cleared.IV ? 'throne' : run.cleared.III ? 'bells' : 'wake',
     dummyT: 0, parryMsg: 0, state: 'play', blockEnabled: true,
     tutStep: 0, wardHp: l.ward ? (l.ward.hp || 3) : 0, wardBroken: !l.ward,
     wardBlocks: 0, dummyHits: 0, kills: 0, cpT: 0, wardMsg: 0, blockMsg: 0, sealMsg: 0,
@@ -132,6 +138,7 @@ function loadScene(id) {
     stop: t => { g.stopT = Math.max(g.stopT, t); },
   };
   g.litAt = litAt;
+  g.lightAt = litAt;
   persist(run);
 }
 
@@ -163,7 +170,7 @@ const gateOpen = gate => {
   return m ? !!run.cleared[m[1]] : false;
 };
 
-const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'], III: ['c1', 'c2', 'c3', 'c4'], IV: ['d1', 'd2', 'd3', 'd4', 'd5'], V: ['e1', 'e2', 'e3', 'e4'], VI: ['f1', 'f2', 'f3'] };
+const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'], III: ['c1', 'c2', 'c3', 'c4'], IV: ['d1', 'd2', 'd3', 'd4', 'd5'], V: ['e1', 'e2', 'e3', 'e4'], VI: ['f1', 'f2', 'f3'], VII: ['g1', 'g2', 'g3'] };
 function areaStart(area) {
   const ids = AREA_LEVELS[area] || [];
   const arr = run.levels[area] || [];
@@ -185,6 +192,7 @@ const makeBoss = o => !o ? null
   : o.kind === 'gardenergolem' ? new GardenerGolem(o)
   : o.kind === 'motherblight' ? new MotherBlight(o)
   : o.kind === 'slagforeman' ? new SlagForeman(o)
+  : o.kind === 'curator' ? new LamplessCurator(o)
   : new GatekeeperBrute(o);
 
 /* ---- the Sketchy Merchant: the D2 shop, paid from the gold purse ---- */
@@ -239,9 +247,9 @@ function drawShop() {
 
 function nearest() {
   const p = g.p, cx = p.x + p.w / 2;
+  const near = (x, y, r = 72) => Math.abs(cx - x) < r && Math.abs((p.y + p.h) - y) < 70;
   if (g.l.hub) {
     const h = g.l.hub;
-    const near = (x, y, r = 72) => Math.abs(cx - x) < r && Math.abs((p.y + p.h) - y) < 70;
     for (const gate of h.gates) if (!gate.pass && near(gate.x + gate.w / 2, gate.y + gate.h)) return { type: 'gate', obj: gate, label: gateOpen(gate) ? 'F  ENTER' : 'F  GATE' };
     if (near(h.hearth.x, h.hearth.y, 64)) return { type: 'hearth', obj: h.hearth, label: 'F  REST' };
     for (const npc of h.npcs) if (near(npc.x, npc.y, 56)) return { type: 'npc', obj: npc, label: 'F  TALK' };
@@ -249,7 +257,10 @@ function nearest() {
       const m = h.market.merchant;
       if (near(m.x, m.y, 60)) return { type: 'merchant', obj: m, label: 'F  TRADE' };
     }
+    return null;
   }
+  if (g.l.merchant && near(g.l.merchant.x, g.l.merchant.y, 60)) return { type: 'merchant', obj: g.l.merchant, label: 'F  TRADE' };
+  for (const npc of g.l.npcs || []) if (near(npc.x, npc.y, 60)) return { type: 'npc', obj: npc, label: 'F  TALK' };
   return null;
 }
 
@@ -463,7 +474,7 @@ function update(dt) {
   }
 
   // hub interaction
-  g.near = g.l.hub ? nearest() : null;
+  g.near = nearest();
   if (g.near && pressed.talk) useNear();
 
   // practice dummy
@@ -494,6 +505,11 @@ function update(dt) {
       A.sfx.torch(); spark(t.x, t.y - 56, 12, C.ember); g.shake(2); save();
     }
     for (const e of g.enemies) if (!p.hits.has(e) && hit(s, { x: e.x - 4, y: e.y - 4, w: e.w + 8, h: e.h + 8 })) {
+      if (e.needLight && !litAt(e.x + e.w / 2, e.y + e.h / 2)) {
+        p.hits.add(e); A.sfx.block(); spark(e.x + e.w / 2, e.y + e.h / 2, 6, '#cfd8ee');
+        g.blockMsg = 1; g.shake(2);
+        continue;
+      }
       p.hits.add(e);
       const dead = e.hit(p.face);
       if (dead && e.type === 'scavenger') e.drop(g);
@@ -502,6 +518,10 @@ function update(dt) {
     }
     for (const b of g.bells) if (!p.hits.has(b) && hit(s, { x: b.x - 16, y: b.y, w: 32, h: 50 })) {
       p.hits.add(b); ringBell(b);
+    }
+    for (const b of g.bowls) if (!b.lit && !p.hits.has(b) && hit(s, { x: b.x - 14, y: b.y - 28, w: 28, h: 34 })) {
+      p.hits.add(b); b.lit = 1; A.sfx.torch();
+      spark(b.x, b.y - 22, 12, '#ffd479'); g.shake(2);
     }
     if (g.boss && g.boss.hp > 0 && !p.hits.has(g.boss)
       && hit(s, { x: g.boss.x - 4, y: g.boss.y - 4, w: g.boss.w + 8, h: g.boss.h + 8 })) {
@@ -544,7 +564,7 @@ function update(dt) {
     if (p.hp < 3) p.hp++;
     g.healMsg = 2.6; A.sfx.heart(); spark(g.herb.x, g.herb.y, 18, '#7fc47a'); save();
   }
-  if (pressed.lamp && run.abil.lantern && g.lamp > 0) {
+  if (pressed.lamp && run.abil.lantern && g.lamp > 0 && p.debuffs.snuff <= 0) {
     g.lamp--;
     g.sparks.push({ x: p.x + p.w / 2 + p.face * 8, y: p.y + 10, vx: p.face * 250, vy: -300, t: 0 });
     A.sfx.lamp();
@@ -569,6 +589,30 @@ function update(dt) {
   g.sparks = g.sparks.filter(s => !s.done);
   for (const l of g.lamps) l.t -= dt;
   g.lamps = g.lamps.filter(l => l.t > 0);
+  for (const b of g.bowls) if (!b.lit) {
+    const nearLamp = g.lamps.some(l => Math.hypot(l.x - b.x, l.y - (b.y - 20)) < 64);
+    const nearSpark = g.sparks.some(s => Math.hypot(s.x - b.x, s.y - (b.y - 20)) < 54);
+    if (nearLamp || nearSpark) {
+      b.lit = 1; A.sfx.torch(); spark(b.x, b.y - 22, 12, '#ffd479');
+    }
+  }
+  for (const s of g.l.solids) {
+    if (s.lightBridge) s.off = g.bowls.some(b => b.id === s.bowl && b.lit) ? 0 : 1;
+    if (s.seal) s.off = g.bowls.some(b => b.id === s.bowl && b.lit) ? 1 : 0;
+  }
+  for (const o of g.hexOrbs) {
+    o.spin = (o.spin || 0) + dt * 6;
+    o.t -= dt; o.x += o.vx * dt; o.y += o.vy * dt;
+    if (o.t <= 0) { o.done = 1; continue; }
+    const ob = { x: o.x - 7, y: o.y - 7, w: 14, h: 14 };
+    if (p.inv <= 0 && hit(p, ob)) {
+      o.done = 1;
+      p.debuffs[o.hex] = Math.max(p.debuffs[o.hex] || 0, o.dur);
+      A.sfx.block(); spark(o.x, o.y, 8, o.hex === 'snuff' ? '#cfd8ee' : '#ffd479'); g.shake(3);
+    }
+    if (!o.pierce) for (const s of g.l.solids) if (!s.pass && !s.off && hit(ob, s)) { o.done = 1; break; }
+  }
+  g.hexOrbs = g.hexOrbs.filter(o => !o.done);
   for (const o of g.l.solids) if (o.thorn) {
     if (g.lamps.some(l => Math.hypot(l.x - (o.x + o.w / 2), l.y - (o.y + o.h / 2)) < 110)) o.burn = Math.max(o.burn, 4);
     if (o.burn > 0) { o.burn -= dt; o.off = 1; }
@@ -673,6 +717,70 @@ function drawThorns(s) {
     ctx.moveTo(s.x + s.w, y + 4); ctx.lineTo(s.x + s.w - 8, y); ctx.lineTo(s.x + s.w - 4, y + 8); ctx.closePath(); ctx.fill();
   }
   if (s.burn > 0) glow(s.x + s.w / 2, s.y + s.h / 2, 70, .18);
+}
+
+function drawBowl(b, t) {
+  const cx = b.x, base = b.y;
+  ctx.fillStyle = '#3a4262'; ctx.fillRect(cx - 13, base, 26, 5);
+  ctx.fillStyle = '#5a6585'; ctx.fillRect(cx - 9, base - 5, 18, 4);
+  if (b.lit) {
+    glow(cx, base - 22, 120, .28);
+    ctx.fillStyle = '#ffd479';
+    ctx.beginPath();
+    ctx.moveTo(cx, base - 34 - Math.sin(t * 9) * 3);
+    ctx.quadraticCurveTo(cx - 9, base - 18, cx, base - 8);
+    ctx.quadraticCurveTo(cx + 9, base - 18, cx, base - 34 - Math.sin(t * 9) * 3);
+    ctx.fill();
+    ctx.fillStyle = '#fff2b0'; ctx.fillRect(cx - 2, base - 20, 4, 10);
+  } else {
+    ctx.fillStyle = '#202844'; ctx.fillRect(cx - 7, base - 4, 14, 3);
+    ctx.strokeStyle = 'rgba(143,155,184,.35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, base - 2, 11, 0, 7); ctx.stroke();
+  }
+}
+
+function drawLightBridge(s, on) {
+  if (on) {
+    glow(s.x + s.w / 2, s.y, Math.max(80, s.w * .5), .10);
+    ctx.fillStyle = '#cfd8ee'; ctx.fillRect(s.x, s.y, s.w, 4);
+    ctx.fillStyle = '#7f8fb8'; ctx.fillRect(s.x, s.y + 4, s.w, 3);
+    for (let x = s.x + 10; x < s.x + s.w; x += 34) {
+      ctx.fillStyle = 'rgba(255,242,176,.55)'; ctx.fillRect(x, s.y - 2, 6, 2);
+    }
+  } else {
+    ctx.strokeStyle = 'rgba(127,143,184,.22)'; ctx.lineWidth = 1;
+    ctx.setLineDash([10, 12]);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y + 2); ctx.lineTo(s.x + s.w, s.y + 2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawSeal(s, open) {
+  if (open) {
+    ctx.fillStyle = 'rgba(58,66,98,.35)';
+    ctx.fillRect(s.x, s.y, 6, s.h); ctx.fillRect(s.x + s.w - 6, s.y, 6, s.h);
+    return;
+  }
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(s.x, s.y, s.w, s.h);
+  ctx.fillStyle = '#454f70';
+  for (let y = s.y + 6; y < s.y + s.h; y += 14) ctx.fillRect(s.x + 4, y, s.w - 8, 5);
+  ctx.strokeStyle = 'rgba(183,156,255,.55)'; ctx.lineWidth = 2;
+  ctx.strokeRect(s.x + 1.5, s.y + 1.5, s.w - 3, s.h - 3);
+  glow(s.x + s.w / 2, s.y + s.h / 2, 40, .12);
+}
+
+function drawSpirit(x, y, t) {
+  glow(x, y - 30, 44, .18);
+  ctx.fillStyle = 'rgba(207,216,238,.75)';
+  ctx.beginPath();
+  ctx.arc(x, y - 46, 8, 0, 7); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 38); ctx.lineTo(x + 10, y - 38); ctx.lineTo(x + 7, y);
+  ctx.lineTo(x + 2, y - 7); ctx.lineTo(x - 3, y); ctx.lineTo(x - 7, y - 6);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(x - 3, y - 49, 2, 3); ctx.fillRect(x + 1, y - 49, 2, 3);
+  ctx.fillStyle = 'rgba(255,242,176,' + (.4 + .2 * Math.sin(t * 2)) + ')';
+  ctx.fillRect(x - 2, y - 36, 4, 4);
 }
 
 function drawTowerBell(x, top, w, h, col, rim) {
@@ -1107,6 +1215,25 @@ function drawHubWorld(h, p, stage) {
   }
   T('FORGE ROW', 5339, 94, 11, 'center', run.cleared.VI ? '#ff8a3d' : '#5d6a8a');
 
+  // Archive Steps: the Zafra Archive at the end of the street
+  ctx.fillStyle = '#12141f'; ctx.fillRect(6510, 160, 320, 260);
+  ctx.fillStyle = '#1c2130'; ctx.fillRect(6530, 140, 280, 26);
+  ctx.fillStyle = '#0a0c14';
+  ctx.fillRect(6550, 190, 220, 210);
+  for (let row = 0; row < 5; row++) {
+    ctx.fillStyle = '#2a2f45'; ctx.fillRect(6550, 220 + row * 36, 220, 4);
+    for (let k = 0; k < 14; k++) {
+      const bh = 12 + ((row * 7 + k * 3) % 14);
+      ctx.fillStyle = run.cleared.VII ? ['#6b5a8a', '#8a7ab0', '#c9b06b'][k % 3] : ['#2a2f45', '#242a3c', '#3a4257'][k % 3];
+      ctx.fillRect(6558 + k * 15, 220 + row * 36 - bh, 9, bh);
+    }
+  }
+  if (run.cleared.VII) {
+    goldGlow(6670, 300, 100, .14);
+    ctx.fillStyle = 'rgba(183,156,255,.35)'; ctx.fillRect(6640, 400, 60, 6);
+  }
+  T('ZAFRA ARCHIVE', 6670, 122, 11, 'center', run.cleared.VII ? '#b79cff' : '#5d6a8a');
+
   drawLamp(300, 420, g.t, true);
   drawLamp(900, 420, g.t, warm);
   drawLamp(1300, 420, g.t, warm);
@@ -1125,6 +1252,11 @@ function drawHubWorld(h, p, stage) {
   drawLamp(5050, 420, g.t, run.cleared.V);
   drawLamp(5300, 420, g.t, run.cleared.VI);
   drawLamp(5550, 420, g.t, run.cleared.VI);
+  drawLamp(5850, 420, g.t, run.cleared.VI);
+  drawLamp(6100, 420, g.t, run.cleared.VI);
+  drawLamp(6420, 420, g.t, run.cleared.VII);
+  drawLamp(6700, 420, g.t, run.cleared.VII);
+  drawLamp(6900, 420, g.t, run.cleared.VII);
 
   drawSign(1545, 292, 'I  THE EMBER ROAD', '#ffd27a', `${(run.levels.I || []).filter(Boolean).length}/3`);
   drawSign(1795, 292, 'MARKET LANE', warm ? '#ffd27a' : '#8f9bb8', warm ? 'OPEN' : '');
@@ -1138,6 +1270,9 @@ function drawHubWorld(h, p, stage) {
   if (warm) drawSign(4820, 246, 'V  THE ASHEN GARDENS', '#7fc47a', `${(run.levels.V || []).filter(Boolean).length}/4`);
   drawSign(5020, 292, 'VI  FORGE ROW', run.cleared.V ? '#ff8a3d' : '#8f9bb8', run.cleared.V ? 'OPEN' : '');
   if (warm) drawSign(5580, 246, 'VI  THE DROWNED FORGE', '#ff8a3d', `${(run.levels.VI || []).filter(Boolean).length}/3`);
+  drawSign(5820, 292, 'VII  ARCHIVE STEPS', run.cleared.VI ? '#b79cff' : '#8f9bb8', run.cleared.VI ? 'OPEN' : '');
+  if (warm) drawSign(6380, 246, 'VII  THE SILENT ARCHIVE', '#b79cff', `${(run.levels.VII || []).filter(Boolean).length}/3`);
+  drawSign(6760, 292, 'VIII  EMBER HEART', run.cleared.VII ? '#b79cff' : '#8f9bb8', run.cleared.VII ? 'OPEN' : '');
   if (!warm && h.barrier) drawBarrier(h.barrier.x, h.barrier.y, h.barrier.w, h.barrier.h, g.t);
   if (warm) {
     ctx.fillStyle = 'rgba(255,210,122,.10)'; ctx.fillRect(1680, 300, 120, 120);
@@ -1162,8 +1297,11 @@ function drawWorld() {
   ctx.beginPath(); ctx.rect(0, BAR, VW, VH - BAR - BARB); ctx.clip();
 
   ctx.setTransform(1, 0, 0, 1, -g.cam.x + (Math.random() - .5) * g.shk * 2, BAR - g.cam.y + (Math.random() - .5) * g.shk * 2);
-  for (const s of g.l.solids) if (!s.off && !s.pass && !s.barrier && !s.thorn) drawSolid(ctx, s, g.l.style || 'road', s.broken);
+  for (const s of g.l.solids) if (!s.off && !s.pass && !s.barrier && !s.thorn && !s.lightBridge && !s.seal) drawSolid(ctx, s, g.l.style || 'road', s.broken);
   for (const s of g.l.solids) if (s.thorn) drawThorns(s);
+  for (const s of g.l.solids) if (s.lightBridge) drawLightBridge(s, !s.off);
+  for (const s of g.l.solids) if (s.seal) drawSeal(s, s.off);
+  for (const b of g.bowls) drawBowl(b, g.t);
   for (const s of g.sparks) {
     glow(s.x, s.y, 34, .45);
     ctx.fillStyle = '#ffd479'; ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, 7); ctx.fill();
@@ -1249,6 +1387,14 @@ function drawWorld() {
     const open = (!g.l.ward || g.wardHp <= 0) && (!g.boss || g.boss.hp <= 0);
     drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, open);
   }
+  if (g.l.merchant) {
+    const m = g.l.merchant;
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(m.x - 38, m.y - 30, 76, 7);
+    ctx.fillStyle = '#5b3d22'; ctx.fillRect(m.x - 42, m.y - 34, 84, 4);
+    drawMerchant(m.x, m.y, g.t, true);
+    T('SHOP', m.x, m.y - 150, 10, 'center', '#ffd27a');
+  }
+  for (const npc of g.l.npcs || []) drawSpirit(npc.x, npc.y, g.t);
   if (g.l.ward) drawWard(g.l.ward.x, g.l.ward.y, g.t, g.wardT, g.wardHp, g.kills > 0);
 
   for (const c of g.coins) if (!c.got && !c.taken) drawCoin(ctx, c.x, c.y + Math.sin(g.t * 3 + c.x) * 2, g.t + c.x * .11);
@@ -1308,6 +1454,7 @@ function drawWorld() {
     else if (g.boss.kind === 'gardenergolem') drawGardenerGolem(g.boss);
     else if (g.boss.kind === 'motherblight') drawMotherBlight(g.boss);
     else if (g.boss.kind === 'slagforeman') drawSlagForeman(g.boss);
+    else if (g.boss.kind === 'curator') drawCurator(g.boss);
     else drawBrute(g.boss);
   }
   for (const o of g.orbs) {
@@ -1316,10 +1463,39 @@ function drawWorld() {
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 7); ctx.stroke();
     ctx.fillStyle = o.reflected ? '#fff2b0' : C.ember; ctx.beginPath(); ctx.arc(o.x, o.y, o.r - 3, 0, 7); ctx.fill();
   }
+  for (const o of g.hexOrbs) {
+    const col = o.hex === 'snuff' ? '#cfd8ee' : '#ff8a3d';
+    glow(o.x, o.y, 22, .3);
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(o.x, o.y, 7, 0, 7); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(o.x, o.y, 2.5, 0, 7); ctx.fill();
+  }
   drawPlayer(p);
   for (const q of g.parts) { ctx.globalAlpha = Math.min(1, q.l * 2); ctx.fillStyle = q.col; ctx.fillRect(q.x, q.y, 3, 3); }
   ctx.globalAlpha = 1;
   ctx.restore();
+
+  if (g.l.dark) {
+    ctx.setTransform(1, 0, 0, 1, 0, BAR);
+    const playH = VH - BAR - BARB;
+    ctx.fillStyle = 'rgba(2,4,10,.62)';
+    ctx.fillRect(0, 0, VW, playH);
+    ctx.globalCompositeOperation = 'lighter';
+    const light = (wx, wy, r, a) => {
+      const sx = wx - g.cam.x, sy = wy - g.cam.y;
+      if (sx < -r || sx > VW + r || sy < -r || sy > playH + r) return;
+      const gr = ctx.createRadialGradient(sx, sy, 4, sx, sy, r);
+      gr.addColorStop(0, 'rgba(255,226,160,' + a + ')');
+      gr.addColorStop(1, 'rgba(255,190,110,0)');
+      ctx.fillStyle = gr; ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+    };
+    light(p.x + p.w / 2, p.y + p.h / 2, p.debuffs.smother > 0 ? 72 : 128, .34);
+    for (const b of g.bowls) if (b.lit) light(b.x, b.y - 20, 158, .4);
+    for (const t of g.l.torches) if (t.lit) light(t.x, t.y - 44, 126, .3);
+    for (const l of g.lamps) light(l.x, l.y, 116, .3);
+    for (const s of g.sparks) light(s.x, s.y, 90, .3);
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   drawHud();
   if (g.boss) drawBossBar(g.boss);
@@ -1347,10 +1523,12 @@ function drawWorld() {
     ctx.globalAlpha = 1;
   }
   if (g.found > 0) {
+    const note = g.foundName === 'THE MARGIN NOTE';
     ctx.globalAlpha = Math.min(1, g.found / .5) * Math.min(1, (3.4 - g.found) * 2.5);
-    ctx.fillStyle = 'rgba(5,7,15,.74)'; ctx.fillRect(VW / 2 - 230, 406, 460, 54);
-    T('A HIDDEN ALCOVE', VW / 2, 432, 22, 'center', C.ember);
-    T(g.foundName, VW / 2, 451, 12, 'center', '#cfd8ee');
+    ctx.fillStyle = 'rgba(5,7,15,.74)'; ctx.fillRect(VW / 2 - 230, note ? 398 : 406, 460, note ? 68 : 54);
+    T(note ? 'THE KING\u2019S HAND' : 'A HIDDEN ALCOVE', VW / 2, 424, 20, 'center', C.ember);
+    T(g.foundName, VW / 2, 443, 12, 'center', '#cfd8ee');
+    if (note) T('"I DID NOT MEAN TO SMOTHER IT."', VW / 2, 460, 11, 'center', '#ffd479');
     ctx.globalAlpha = 1;
   }
   if (g.parryMsg > 0) {
@@ -1402,7 +1580,7 @@ function drawWorld() {
   }
   if (g.stageMsg > 0 && g.l.kind === 'hub') {
     ctx.globalAlpha = Math.min(1, g.stageMsg) * Math.min(1, (3.2 - g.stageMsg) * 4 + .4);
-    T(g.stageMsgKind === 'forge' ? 'THE FORGE BURNS AGAIN' : g.stageMsgKind === 'garden' ? 'THE GARDEN STIRS' : g.stageMsgKind === 'throne' ? 'THE THRONE IS QUIET' : g.stageMsgKind === 'bells' ? 'THE BELLS RING CLEAN' : 'THE TOWN IS WAKING', VW / 2, 160, 22, 'center', '#ffd27a');
+    T(g.stageMsgKind === 'archive' ? 'THE ARCHIVE REMEMBERS' : g.stageMsgKind === 'forge' ? 'THE FORGE BURNS AGAIN' : g.stageMsgKind === 'garden' ? 'THE GARDEN STIRS' : g.stageMsgKind === 'throne' ? 'THE THRONE IS QUIET' : g.stageMsgKind === 'bells' ? 'THE BELLS RING CLEAN' : 'THE TOWN IS WAKING', VW / 2, 160, 22, 'center', '#ffd27a');
     ctx.globalAlpha = 1;
   }
   if (g.msg > 0 && g.l.kind !== 'hub') {
@@ -1624,6 +1802,60 @@ function drawEnemy(e) {
       ctx.fillStyle = k % 2 ? '#ffd479' : '#c96a3a';
       ctx.fillRect(cx + Math.cos(a) * 11 - 1, cy + Math.sin(a) * 7, 2, 2);
     }
+  } else if (e.type === 'pagemoth') {
+    const cx = e.x + e.w / 2, cy = e.y + e.h / 2, flap = .5 + .5 * Math.sin(e.t * 22);
+    ctx.fillStyle = e.flash > 0 ? '#e4ecff' : '#cfd8ee';
+    ctx.beginPath(); ctx.ellipse(cx - 5, cy, 7, 3 + flap * 4, -.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 5, cy, 7, 3 + flap * 4, .5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#8f9bb8'; ctx.fillRect(cx - 1, cy - 4, 2, 8);
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 2, cy - 5, 1, 2); ctx.fillRect(cx + 1, cy - 5, 1, 2);
+    ctx.fillStyle = '#c9b06b'; ctx.fillRect(cx - 1, cy - 7, 2, 2);
+  } else if (e.type === 'sentinel') {
+    const cx = e.x + e.w / 2, by = e.y + e.h;
+    if (e.lit) { glow(cx, by - 22, 34, .16); }
+    ctx.fillStyle = e.flash > 0 ? '#e4ecff' : '#3a4262';
+    ctx.fillRect(cx - 12, by - 30, 24, 30);
+    ctx.fillStyle = '#566079'; ctx.fillRect(cx - 12, by - 30, 24, 4);
+    ctx.fillStyle = '#2a3348'; ctx.fillRect(cx - 14, by - 12, 28, 5);
+    ctx.fillStyle = '#8f9bb8'; ctx.fillRect(cx - 8, by - 40, 16, 12);
+    ctx.fillStyle = e.lit ? '#7f8fb8' : C.ember;
+    ctx.fillRect(cx - 5, by - 36, 3, 3); ctx.fillRect(cx + 2, by - 36, 3, 3);
+    if (e.st === 'wind') {
+      const p = .55 + .45 * Math.abs(Math.sin(e.t * 9));
+      ctx.strokeStyle = 'rgba(255,190,110,' + (.85 * p) + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx, by - 20); ctx.lineTo(cx + e.dir * 120, by - 20); ctx.stroke();
+    }
+    if (e.st === 'lunge') {
+      ctx.strokeStyle = 'rgba(207,216,238,.25)'; ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) ctx.fillRect(cx - e.dir * (14 + k * 10), by - 24 + k * 6, 8, 2);
+    }
+  } else if (e.type === 'shade') {
+    const cx = e.x + e.w / 2, by = e.y + e.h;
+    if (e.lit) { glow(cx, by - 16, 34, .18); }
+    ctx.fillStyle = e.lit ? 'rgba(207,216,238,.55)' : 'rgba(30,36,56,.85)';
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, by - 4); ctx.lineTo(cx - 8, by - 26);
+    ctx.lineTo(cx + 8, by - 26); ctx.lineTo(cx + 12, by - 4);
+    ctx.lineTo(cx + 5, by - 10); ctx.lineTo(cx, by - 2); ctx.lineTo(cx - 5, by - 10);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = e.flash > 0 ? '#fff2b0' : e.lit ? '#e4ecff' : '#8f9bb8';
+    ctx.beginPath(); ctx.arc(cx, by - 30, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 4, by - 32, 3, 3); ctx.fillRect(cx + 1, by - 32, 3, 3);
+    if (e.stun > 0) { /* the shared dazed stars follow */ }
+  } else if (e.type === 'hexer') {
+    const cx = e.x + e.w / 2, by = e.y + e.h;
+    ctx.fillStyle = e.flash > 0 ? '#e4ecff' : '#2a2436';
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, by); ctx.lineTo(cx - 9, by - 28); ctx.lineTo(cx + 9, by - 28);
+    ctx.lineTo(cx + 12, by); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1a1420'; ctx.beginPath(); ctx.arc(cx, by - 32, 7, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = e.st === 'cast' ? '#fff2b0' : '#ff8a3d';
+    ctx.fillRect(cx - 3, by - 30, 2, 2); ctx.fillRect(cx + 1, by - 30, 2, 2);
+    ctx.strokeStyle = '#5b3d22'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + 12, by - 2); ctx.lineTo(cx + 16, by - 34); ctx.stroke();
+    const orb = e.st === 'cast' ? '#fff2b0' : '#b79cff';
+    glow(cx + 16, by - 36, e.st === 'cast' ? 24 : 12, .3);
+    ctx.fillStyle = orb; ctx.beginPath(); ctx.arc(cx + 16, by - 36, 4, 0, 7); ctx.fill();
   } else if (e.type === 'shield') {
     drawMob(ctx, 'shield', e.st === 'down' ? 'open' : 'guard', Math.floor(e.t * 6), e.x + e.w / 2, e.y + e.h, e.dir, flash);
   } else {
@@ -2294,6 +2526,49 @@ function drawSlagForeman(b) {
   ctx.globalAlpha = 1;
 }
 
+function drawCurator(b) {
+  const dead = b.st === 'dead';
+  const alpha = dead ? Math.max(0, 1 - b.deadT / 2.4) : 1;
+  if (alpha <= 0) return;
+  const cx = b.x + b.w / 2, by = b.y + b.h;
+  ctx.globalAlpha = alpha;
+  if (b.lit) {
+    glow(cx, by - 28, 70, .3);
+    ctx.strokeStyle = 'rgba(255,242,176,.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, by - 28, 26 + Math.sin(b.t * 5) * 2, 0, 7); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(10,14,26,.45)';
+  ctx.beginPath(); ctx.ellipse(cx, by - 6, 20, 8, 0, 0, 7); ctx.fill();
+  const sway = Math.sin(b.t * 1.7) * 3;
+  ctx.fillStyle = b.lit ? '#3a4262' : '#1c2336';
+  ctx.beginPath();
+  ctx.moveTo(cx - 15, by - 8); ctx.lineTo(cx - 10 + sway, by - 46);
+  ctx.lineTo(cx + 10 + sway, by - 46); ctx.lineTo(cx + 15, by - 8);
+  ctx.lineTo(cx + 6, by - 16); ctx.lineTo(cx, by - 6); ctx.lineTo(cx - 6, by - 16);
+  ctx.closePath(); ctx.fill();
+  // mask
+  ctx.fillStyle = b.flash > 0 ? '#fff2b0' : b.lit ? '#cfd8ee' : '#8f9bb8';
+  ctx.fillRect(cx - 8 + sway, by - 58, 16, 14);
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 5 + sway, by - 54, 4, 4); ctx.fillRect(cx + 1 + sway, by - 54, 4, 4);
+  ctx.fillStyle = b.lit ? '#fff2b0' : C.ember;
+  ctx.fillRect(cx - 4 + sway, by - 53, 2, 2); ctx.fillRect(cx + 2 + sway, by - 53, 2, 2);
+  // tendrils
+  ctx.strokeStyle = b.lit ? 'rgba(207,216,238,.5)' : 'rgba(58,66,98,.6)'; ctx.lineWidth = 2;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath(); ctx.moveTo(cx + i * 8, by - 44); ctx.quadraticCurveTo(cx + i * 18, by - 20, cx + i * 10, by - 2); ctx.stroke();
+  }
+  if (b.st === 'wind') {
+    const p = .55 + .45 * Math.abs(Math.sin(b.t * 9));
+    ctx.strokeStyle = 'rgba(255,190,110,' + (.8 * p) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, by - 22); ctx.lineTo(cx + b.dir * 160, by - 22); ctx.stroke();
+  }
+  if (b.st === 'lunge') {
+    ctx.strokeStyle = 'rgba(207,216,238,.2)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 3; k++) ctx.fillRect(cx - b.dir * (16 + k * 12), by - 34 + k * 8, 10, 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawBossBar(b) {
   if (!b || b.st === 'dormant' || b.st === 'dead') return;
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
@@ -2356,6 +2631,13 @@ function drawHud() {
     ctx.fillStyle = g.lamp > 0 ? '#ffd27a' : '#3a4257'; ctx.fillRect(lx + 2, 9, 7, 7);
     ctx.fillStyle = '#8a6a2a'; ctx.fillRect(lx - 1, 5, 13, 2);
     T('x ' + g.lamp, lx + 15, 16, 12, 'left', g.lamp > 0 ? '#ffd27a' : '#5d6a8a');
+  }
+  let bx = run.abil.lantern ? 298 : 242;
+  for (const k of ['smother', 'heavy', 'snuff']) if (p.debuffs[k] > 0) {
+    ctx.fillStyle = k === 'snuff' ? '#cfd8ee' : k === 'heavy' ? '#b79cff' : '#ff8a3d';
+    ctx.fillRect(bx, 7, 14, 11);
+    T(k[0].toUpperCase(), bx + 7, 16, 10, 'center', '#05070f');
+    bx += 20;
   }
   T(g.l.title, VW / 2, 16, 12, 'center', '#8f9bb8');
   T(`${g.time.toFixed(1)}s`, VW - 20, 16, 13, 'right', '#cfd8ee');

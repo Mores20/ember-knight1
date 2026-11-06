@@ -63,14 +63,14 @@ export const HUB = {
   style: 'road', theme: 0,
   line: 'The one place nothing is trying to kill you.',
   spawn: [80, 386],
-  w: 5700, h: 540,
+  w: 7000, h: 540,
   darkZones: [], lights: [], hazards: [],
   solids: [
     wallL,
-    { x: 0, y: 420, w: 5700, h: 120 },                         // Ash Square -> Market -> Bell -> Throne -> Garden -> Forge Row
-    wallR(5700),
+    { x: 0, y: 420, w: 7000, h: 120 },                         // Ash Square -> ... -> Forge Row -> Archive Steps
+    wallR(7000),
   ],
-  torches: [[180, 420], [980, 420], [1360, 420], [2600, 420], [3050, 420], [3500, 420], [3900, 420], [4350, 420], [4750, 420], [5100, 420], [5450, 420]],
+  torches: [[180, 420], [980, 420], [1360, 420], [2600, 420], [3050, 420], [3500, 420], [3900, 420], [4350, 420], [4750, 420], [5100, 420], [5450, 420], [5950, 420], [6450, 420], [6850, 420]],
   coins: [], hearts: [], enemies: [],
   props: [
     { type: 'banner', x: 560, y: 150, h: 190 },
@@ -91,6 +91,10 @@ export const HUB = {
     { type: 'chain', x: 5280, y: 130, h: 220 },
     { type: 'anvil', x: 5400, y: 420 },
     { type: 'rubble', x: 5650, y: 420 },
+    { type: 'shelf', x: 6100, y: 420 },
+    { type: 'banner', x: 6300, y: 80, h: 220 },
+    { type: 'shelf', x: 6600, y: 420 },
+    { type: 'rubble', x: 6900, y: 420 },
   ],
   hub: {
     hearth: { x: 420, y: 420 },
@@ -135,6 +139,12 @@ export const HUB = {
         closed: 'The forge is cold. The garden has not stirred.' },
       { x: 5580, y: 330, w: 90, h: 90, to: 'f1', area: 'VI', label: 'GATE VI \u2014 THE DROWNED FORGE', short: 'THE DROWNED FORGE', openWhen: 'VCleared',
         closed: 'The forge is sealed. The garden has not stirred.' },
+      { x: 5780, y: 330, w: 90, h: 90, to: null, pass: true, label: 'GATE VII \u2014 THE SILENT ARCHIVE', short: 'ARCHIVE STEPS', openWhen: 'VICleared',
+        closed: 'The archive steps are dark. The forge has not burned again.' },
+      { x: 6380, y: 330, w: 90, h: 90, to: 'g1', area: 'VII', label: 'GATE VII \u2014 THE SILENT ARCHIVE', short: 'THE SILENT ARCHIVE', openWhen: 'VICleared',
+        closed: 'The archive is sealed. Something is still reading.' },
+      { x: 6860, y: 330, w: 90, h: 90, to: null, pass: true, label: 'GATE VIII \u2014 THE EMBER HEART', short: 'THE EMBER HEART', openWhen: 'VIICleared',
+        closed: 'The last gate is dark. The archive has not spoken.' },
     ],
   },
   gate: { x: 1500, y: 330, w: 90, h: 90 },
@@ -1118,6 +1128,144 @@ export const F3 = {
   cps: [[80, 1400], [760, 1020], [500, 780], [1100, 620]],
 };
 
-export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4, c1: C1, c2: C2, c3: C3, c4: C4, d1: D1, d2: D2, d3: D3, d4: D4, d5: D5, e1: E1, e2: E2, e3: E3, e4: E4, f1: F1, f2: F2, f3: F3 };
+/* ---------------- Area VII: the Silent Archive ---------------- */
+export const G1 = {
+  kind: 'level', area: 'VII',
+  title: '7-1  THE READING ROOM',
+  name: 'THE READING ROOM',
+  style: 'archive', theme: 6, dark: true,
+  line: 'The archive went dark the night the flame did.',
+  spawn: [80, 386],
+  w: 2000, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 900, h: 220 },
+    { x: 1100, y: 420, w: 900, h: 220 },
+    { x: 690, y: 420, w: 420, h: 16, lightBridge: 1, bowl: 'B1' },
+    wallR(2000),
+  ],
+  bowls: [{ x: 600, y: 390, id: 'B1' }],
+  merchant: { x: 180, y: 420 },
+  torches: [[150, 420], { x: 1150, y: 420, lit: 0, cp: 1 }, [1800, 420]],
+  coins: [[300, 385], [340, 385], [1180, 385], [1220, 385], [1500, 385], [1540, 385]],
+  hearts: [[200, 385], [1600, 385]],
+  enemies: [
+    { type: 'pagemoth', x: 900, y: 320 },
+    { type: 'bat', x0: 1000, x1: 1500, y0: 220, ay: 40, sp: 1.0, ph: .6 },
+  ],
+  props: [
+    { type: 'shelf', x: 400, y: 420 },
+    { type: 'banner', x: 1000, y: 90, h: 200 },
+    { type: 'shelf', x: 1300, y: 420 },
+    { type: 'rubble', x: 1900, y: 420 },
+  ],
+  signs: [{ x: 420, y: 420, text: 'THE READING ROOM', sub: 'LIGHT THE BOWL' }],
+  gate: { x: 1880, y: 330, w: 80, h: 90 },
+  exit: { x: 1884, y: 328, w: 72, h: 92, to: 'g2', area: 'VII', level: 0 },
+  cps: [[80, 420], [1150, 420]],
+};
+
+export const G2 = {
+  kind: 'level', area: 'VII',
+  title: '7-2  THE STACKS',
+  name: 'THE STACKS',
+  style: 'archive', theme: 6, dark: true,
+  line: 'Some of these books were never meant to be read by the living.',
+  spawn: [80, 386],
+  w: 2200, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 800, h: 220 },
+    { x: 590, y: 420, w: 420, h: 16, lightBridge: 1, bowl: 'B1' },
+    { x: 1000, y: 420, w: 400, h: 220 },
+    { x: 1390, y: 420, w: 420, h: 16, lightBridge: 1, bowl: 'B2' },
+    { x: 1800, y: 420, w: 400, h: 220 },
+    { x: 1940, y: 330, w: 40, h: 90, seal: 1, bowl: 'B3' },
+    wallR(2200),
+  ],
+  bowls: [
+    { x: 520, y: 390, id: 'B1' },
+    { x: 1120, y: 390, id: 'C1' },
+    { x: 1320, y: 390, id: 'B2' },
+    { x: 1620, y: 390, id: 'C2' },
+    { x: 1860, y: 390, id: 'B3' },
+  ],
+  torches: [[150, 420], { x: 1050, y: 420, lit: 0, cp: 1 }, [2000, 420]],
+  coins: [[300, 385], [340, 385], [1080, 385], [1120, 385], [1450, 385], [1490, 385], [1850, 385], [1980, 385]],
+  hearts: [[200, 385], [1600, 385], [2050, 385]],
+  enemies: [
+    { type: 'pagemoth', x: 860, y: 320 },
+    { type: 'shade', x: 1100, y: 390, needLight: 1, x0: 1020, x1: 1380 },
+    { type: 'hexer', x: 1250, y: 390, x0: 1120, x1: 1380 },
+    { type: 'shade', x: 1600, y: 390, needLight: 1, x0: 1500, x1: 1780 },
+    { type: 'bat', x0: 1000, x1: 1700, y0: 220, ay: 50, sp: 1.1, ph: 1.4 },
+  ],
+  props: [
+    { type: 'shelf', x: 300, y: 420 },
+    { type: 'shelf', x: 850, y: 420 },
+    { type: 'banner', x: 1200, y: 80, h: 220 },
+    { type: 'shelf', x: 1500, y: 420 },
+    { type: 'shelf', x: 2000, y: 420 },
+    { type: 'rubble', x: 2150, y: 420 },
+  ],
+  signs: [{ x: 320, y: 420, text: 'THE STACKS', sub: 'SOME BOOKS BITE' }],
+  gate: { x: 2080, y: 330, w: 80, h: 90 },
+  exit: { x: 2084, y: 328, w: 72, h: 92, to: 'g3', area: 'VII', level: 1 },
+  cps: [[80, 420], [1050, 420], [2000, 420]],
+};
+
+export const G3 = {
+  kind: 'level', area: 'VII',
+  title: '7-3  THE READING LEDGE',
+  name: 'THE READING LEDGE',
+  style: 'archive', theme: 6, dark: true,
+  line: 'The king wrote one line here, then burned the rest.',
+  spawn: [80, 386],
+  w: 2000, h: 640,
+  darkZones: [], lights: [], hazards: [],
+  solids: [
+    wallL,
+    { x: -200, y: 420, w: 2400, h: 220 },
+    { x: 600, y: 340, w: 160, h: 16 },
+    { x: 900, y: 280, w: 200, h: 16 },
+    { x: 1180, y: 220, w: 160, h: 14, oneway: 1 },
+    { x: 1450, y: 300, w: 160, h: 16 },
+    wallR(2000),
+  ],
+  bowls: [{ x: 1550, y: 390, id: 'C1' }],
+  torches: [[150, 420], { x: 1000, y: 420, lit: 0, cp: 1 }, [1800, 420]],
+  coins: [[300, 385], [340, 385], [640, 305], [940, 245], [1220, 175], [1260, 175], [1500, 265]],
+  hearts: [[200, 385], [1240, 175], [1700, 385]],
+  enemies: [
+    { type: 'pagemoth', x: 800, y: 300 },
+    { type: 'sentinel', x: 700, y: 384, x0: 400, x1: 1000 },
+    { type: 'shade', x: 500, y: 390, needLight: 1, x0: 300, x1: 900 },
+  ],
+  boss: { kind: 'curator', name: 'THE LAMPLESS CURATOR', x: 1400, y: 370, wake: 1100, hp: 8, sealed: 'THE CURATOR KEEPS THE READING LEDGE' },
+  npcs: [
+    { id: 'spirit', name: 'THE TRAPPED SPIRIT', x: 980, y: 280,
+      lines: {
+        1: ['The king came here the night the flame went out. He wrote one line, then burned the rest.',
+            'I did not mean to smother it. That is what he wrote. I have had a long time to think about it.'],
+        2: ['You carry a spark. He carried one too, once. Then he buried it in iron.',
+            'The archive kept the note. The flame kept the rest.'],
+      } },
+  ],
+  props: [
+    { type: 'shelf', x: 350, y: 420 },
+    { type: 'banner', x: 850, y: 70, h: 200 },
+    { type: 'shelf', x: 1650, y: 420 },
+    { type: 'rubble', x: 1950, y: 420 },
+  ],
+  secrets: [{ x: 1160, y: 140, w: 200, h: 100, name: 'THE MARGIN NOTE' }],
+  signs: [{ x: 320, y: 420, text: 'THE READING LEDGE', sub: 'LIGHT IS A KEY' }],
+  gate: { x: 1880, y: 330, w: 80, h: 90 },
+  exit: { x: 1884, y: 328, w: 72, h: 92, to: 'hub', area: 'VII', level: 2, complete: true },
+  cps: [[80, 420], [1000, 420]],
+};
+
+export const SCENES = { tutorial: TUTORIAL, hub: HUB, a1: A1_1, a2: A1_2, a3: A1_3, b1: B1, b2: B2, b3: B3, b4: B4, c1: C1, c2: C2, c3: C3, c4: C4, d1: D1, d2: D2, d3: D3, d4: D4, d5: D5, e1: E1, e2: E2, e3: E3, e4: E4, f1: F1, f2: F2, f3: F3, g1: G1, g2: G2, g3: G3 };
 export const SCENE_IDS = Object.keys(SCENES);
 export const TOTAL_COINS = SCENE_IDS.reduce((n, id) => n + SCENES[id].coins.length, 0);
