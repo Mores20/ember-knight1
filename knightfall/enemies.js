@@ -688,6 +688,28 @@ export class StackSentinel {
   hit(d) { this.hp--; this.flash = .12; this.x += (d || 0) * 6; this.st = 'recover'; this.stT = 0; return this.hp <= 0; }
 }
 
+// Ward Echo: a floating ward shard that fires slow bolts. A perfect guard
+// sends a bolt back into it; the echo is the parry lesson for the last area.
+export class WardEcho {
+  constructor(o) {
+    Object.assign(this, { type: 'wardecho', w: 26, h: 26, hp: 2, x: o.x, y: o.y, y0: o.y,
+      t: 0, flash: 0, cool: 1.4, dir: -1 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.cool -= dt;
+    this.y = this.y0 + Math.sin(this.t * 2.1) * 5;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2;
+    this.dir = px < cx ? -1 : 1;
+    if (this.cool <= 0 && Math.abs(px - cx) < 560) {
+      this.cool = 2.6;
+      const sy = this.y + 13, tx = px, ty = p.y + p.h / 2, d = Math.hypot(tx - cx, ty - sy) || 1;
+      g.orbs.push({ x: cx, y: sy, vx: (tx - cx) / d * 150, vy: (ty - sy) / d * 150, r: 8, t: 6, reflected: 0 });
+      sfx.ember();
+    }
+  }
+  hit(d) { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
@@ -696,4 +718,5 @@ export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield
   : o.type === 'pealwraith' ? new PealWraith(o) : o.type === 'revenant' ? new RoyalRevenant(o)
   : o.type === 'ashbloom' ? new AshBloom(o) : o.type === 'creeper' ? new ThornCreeper(o)
   : o.type === 'slagsmith' ? new SlagSmith(o) : o.type === 'rustwisp' ? new RustWisp(o)
-  : o.type === 'pagemoth' ? new PageMoth(o) : o.type === 'sentinel' ? new StackSentinel(o) : new Goblin(o);
+  : o.type === 'pagemoth' ? new PageMoth(o) : o.type === 'sentinel' ? new StackSentinel(o)
+  : o.type === 'wardecho' ? new WardEcho(o) : new Goblin(o);

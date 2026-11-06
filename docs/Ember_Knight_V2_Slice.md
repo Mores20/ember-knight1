@@ -1,8 +1,33 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10 + V11)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + ... + V12)
 
-The v2 slice now lives on `main` alongside the shipped game and proves the shape of the world-design document:
-**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV → Garden Steps → Area V → Forge Row → Area VI → Archive Steps → Area VII**. The shipped v1 game is
+The v2 slice now lives on `main` alongside the shipped game and covers the full shape of the world-design document: **tutorial road → Cinderhaven → Areas I through VIII → the ending**. The shipped v1 game is
 still available at `index.html` and is untouched.
+
+## V12 - Area VIII: The Ember Heart (the finale)
+
+Gate VIII opens at the end of Archive Steps after Area VII. The last three levels are the approach and
+the Ash King's arena.
+
+| Level | Name | Shape |
+|---|---|---|
+| 8-1 | The Ember Stair | Ward Echoes and perfect-guard parry practice |
+| 8-2 | The Hall of Wards | More echoes, a Hexer preview, the last walk |
+| 8-3 | The Ember Heart | The Ash King, three phases, the First Hearth |
+
+- **Ward Echo** — a floating ward shard that fires slow bolts. A perfect guard (L) reflects the bolt;
+  reflected bolts can kill the echo and other enemies.
+- **The Ash King** — reuses the shipped v1 sprite and three-phase moveset (18 HP):
+  - **Phase 1:** he floats out of sword reach. The ward turns every normal hit; reflect an Ember
+    Bolt with a perfect guard (or a timed sword swing), then cut him while he is stunned on the floor.
+  - **Phase 2:** faster casts, twin/quadruple bolts, and two **summoned Hexers** with piercing hex
+    orbs. Killing a caster clears its hex.
+  - **Phase 3 (Final Ember):** the hall goes dark and the braziers light. Only a lit King can be hit;
+    keep near a brazier or throw a spark, break the ward, and finish him. Hex management matters.
+- **The First Hearth** secret hides above the arena's one-way ledges: **STILL WARM.**
+- Beating him shows the ending card: **THE EMBER KNIGHT / THE KINGDOM REMEMBERS**, with *“A flame
+  kept is a flame lost. Share it.”* Press Enter to return to Cinderhaven, which settles into
+  **THE KINGDOM REMEMBERS**.
+- The v2 coin total is now **275** across the tutorial and all eight areas.
 
 ## V11 - Area VII: The Silent Archive
 
@@ -32,7 +57,7 @@ the first one built around darkness and light management.
   reading ledge shows his handwriting: *“I did not mean to smother it.”*
 - The Archive Steps sign tracks **0/3 → 3/3**. 7-3 returns to Cinderhaven, completes Area VII, lights
   the **Zafra Archive** and opens the preview of Gate VIII.
-- The v2 coin total is now **253** across the tutorial and all seven areas.
+- The v2 coin total is now **253** across the tutorial and all seven areas (275 with Area VIII).
 
 ## V10 - Area VI: The Drowned Forge
 
@@ -330,8 +355,10 @@ guarded too; a perfect guard on the charge stuns him.
 8. Forge Row opens Gate VI after Area V: 6-1 → 6-2 → 6-3 (the Slag Foreman) on the rising tide →
    Cinderhaven, `cleared.VI = true`.
 9. Archive Steps open Gate VII after Area VI: 7-1 → 7-2 → 7-3 (the Lampless Curator and the Margin
-   Note) → Cinderhaven, `cleared.VII = true`. The preview of Gate VIII opens.
-10. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
+   Note) → Cinderhaven, `cleared.VII = true`. Gate VIII opens.
+10. 8-1 → 8-2 → 8-3 (the Ash King, three phases) → the ending card → Cinderhaven, `cleared.VIII =
+    true`, `ending = true`. Press Enter to dismiss the ending.
+11. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
     to the hub.
 
 ## Deliberately deferred
@@ -355,8 +382,10 @@ guarded too; a perfect guard on the charge stuns him.
 - V11 done: Archive Steps, the three Silent Archive levels, darkness/light bridges, cold bowls, the
   Page Moth, Stack Sentinel, Hexer orb integration, the Lampless Curator, the merchant, the Trapped
   Spirit and the Margin Note.
-- Beyond the slice: Area VIII (the Ember Heart and the Ash King), the full Gate VIII, the next
-  merchant stock, hub rooftops, district stages S3-S5 and the full unlock map for the shop.
+- V12 done: Gate VIII, the three Ember Heart levels, Ward Echoes, the Ash King's three phases, the
+  First Hearth secret and the ending card. **The eight-area v2 slice is complete.**
+- Beyond the slice: the full ending cinematic and credits sequence, hub district NPCs (Theodore,
+  Zafra, Aldrin, the Guard), the remaining merchant stock, post-game replay and leaderboards.
 
 ## Known placeholders
 

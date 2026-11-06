@@ -634,6 +634,67 @@ g3.p.x = g3.l.exit.x + g3.l.exit.w / 2 - g3.p.w / 2; g3.p.y = g3.l.exit.y + g3.l
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.VII === true && dbg.run.levels.VII.every(Boolean), '7-3 returns to town and completes Area VII');
 ok(dbg.g.stageMsgKind === 'archive', 'the Archive Steps remember Area VII');
 
+/* ================= 4i. Area VIII: The Ember Heart ================= */
+const heartHub = dbg.g;
+heartHub.p.x = 6840; heartHub.p.y = 386; frames(2);
+ok(heartHub.near && heartHub.near.type === 'gate' && heartHub.near.obj.area === 'VIII', 'Gate VIII reaches the Ember Heart');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'h1' && dbg.g.l.area === 'VIII', 'Gate VIII opens 8-1 The Ember Stair');
+
+const h1 = dbg.g;
+const echo = h1.enemies.find(e => e.type === 'wardecho');
+ok(!!echo, 'the Ember Stair has Ward Echoes');
+h1.p.x = echo.x + 220; h1.p.y = 386; h1.p.inv = 999; frames(160);
+ok(h1.orbs.length > 0, 'a Ward Echo fires a slow bolt');
+h1.orbs.length = 0;
+h1.orbs.push({ x: h1.p.x + h1.p.w / 2 + 14, y: h1.p.y + 15, vx: 0, vy: 0, r: 8, t: 5, reflected: 0 });
+fire('keydown', 'KeyL'); frames(1);
+ok(h1.orbs.length && h1.orbs[0].reflected === 1, 'a perfect guard reflects a Ward Echo bolt');
+fire('keyup', 'KeyL');
+h1.p.x = h1.l.exit.x + h1.l.exit.w / 2 - h1.p.w / 2; h1.p.y = h1.l.exit.y + h1.l.exit.h - h1.p.h; frames(40);
+ok(dbg.sceneId === 'h2' && dbg.run.levels.VIII[0] === true, '8-1 leads to 8-2 and is marked cleared');
+
+const h2 = dbg.g;
+const hexer = h2.enemies.find(e => e.type === 'hexer');
+ok(!!hexer, 'the Hall of Wards previews a Hexer');
+hexer.cool = 0; hexer.st = 'idle'; hexer.stT = 0;
+h2.p.x = 950; h2.p.y = 386; h2.p.inv = 999; frames(90);
+ok(h2.hexOrbs.length > 0, 'the Hexer casts three-orb hex volleys');
+h2.p.x = h2.l.exit.x + h2.l.exit.w / 2 - h2.p.w / 2; h2.p.y = h2.l.exit.y + h2.l.exit.h - h2.p.h; frames(40);
+ok(dbg.sceneId === 'h3' && dbg.run.levels.VIII[1] === true, '8-2 leads to the Ember Heart and is marked cleared');
+
+const h3 = dbg.g, king = h3.boss;
+ok(king && king.kind === 'king' && king.st === 'dormant', 'the Ash King waits in the Ember Heart');
+h3.p.x = 700; h3.p.y = 386; h3.p.inv = 999; frames(40);
+ok(king.st !== 'dormant', 'the Ash King rises');
+king.y = 328; king.st = 'act'; king.atk = 'bolt'; king.t = 0; king.cool = 99; king.hp = 18; king.iframe = 0;
+h3.p.x = king.x - 30; h3.p.y = 386; h3.p.face = 1; h3.p.swing = .15; h3.p.hits.clear(); frames(8);
+ok(king.hp === 18, 'steel clangs off the King\u2019s ward');
+king.y = 328; king.st = 'stun'; king.stunT = 9; king.stT = 0; king.iframe = 0; king.hp = 18;
+h3.p.x = king.x - 30; h3.p.y = 386; h3.p.face = 1; h3.p.swing = .15; h3.p.hits.clear(); frames(8);
+ok(king.hp === 17, 'the stunned King can be cut');
+king.y = 328; king.st = 'stun'; king.stunT = 9; king.stT = 0; king.iframe = 0; king.hp = 13; king.phase = 1;
+h3.p.x = king.x - 30; h3.p.y = 386; h3.p.face = 1; h3.p.swing = .15; h3.p.hits.clear(); frames(8);
+ok(king.hp === 12 && king.phase === 2, 'the King enters phase two at two-thirds health');
+king.y = 328; king.st = 'stun'; king.stunT = 9; king.stT = 0; king.iframe = 0; king.hp = 7; king.phase = 2;
+h3.p.x = king.x - 30; h3.p.y = 386; h3.p.face = 1; h3.p.swing = .15; h3.p.hits.clear(); frames(8);
+ok(king.hp === 6 && king.phase === 3, 'the King enters the Final Ember at one-third health');
+frames(20);
+ok(h3.dark > 0 && king.fireLit === 1, 'the hall goes dark and the braziers light');
+king.y = 328; king.st = 'stun'; king.stunT = 9; king.stT = 0; king.iframe = 0; king.hp = 1; king.phase = 3; king.lit = 1;
+h3.p.x = king.x - 30; h3.p.y = 386; h3.p.face = 1; h3.p.swing = .15; h3.p.hits.clear(); frames(20);
+ok(king.hp === 0 && (king.st === 'dead' || king.st === 'gone'), 'the Ash King falls');
+ok(/flame kept is a flame lost/i.test(dbg.g.bossLineText), 'the King\u2019s last line plays');
+h3.p.x = 740; h3.p.y = 186; frames(2);
+ok(dbg.run.secrets.h3 && dbg.run.secrets.h3.includes(0), 'the First Hearth secret reveals');
+h3.p.x = h3.l.exit.x + h3.l.exit.w / 2 - h3.p.w / 2; h3.p.y = h3.l.exit.y + h3.l.exit.h - h3.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.VIII === true && dbg.run.levels.VIII.every(Boolean), '8-3 completes Area VIII');
+ok(dbg.run.ending === true && !!dbg.g.ending, 'the ending sequence begins');
+frames(120);
+fire('keydown', 'Enter'); frames(2); fire('keyup', 'Enter'); frames(2);
+ok(dbg.run.endingSeen === true && !dbg.g.ending, 'the ending card can be dismissed');
+ok(dbg.g.stageMsgKind === 'ending', 'the hub remembers the ending');
+
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);
 ok(dbg.sceneId === 'tutorial' && dbg.run.tutorialDone === false, 'New Game starts on the tutorial road');
