@@ -64,6 +64,9 @@ const { dbg } = await import(here('../knightfall/v2/main.js'));
 const MOBART = await import(here('../knightfall/mobs.js'));
 const SCENES = dbg.SCENES;
 frames(5);
+ok(dbg.title && dbg.title.view === 'main', 'the title opens on boot');
+dbg.titleContinue(); frames(2);
+ok(!dbg.title, 'Continue enters the game');
 
 /* ================= 1. v1 import and boot ================= */
 ok(dbg.sceneId === 'hub' && dbg.run.tutorialDone === true, 'a v1 save imports into Cinderhaven with the tutorial done');
@@ -274,6 +277,17 @@ b4.p.x = matron.x - 30; b4.p.y = 386; b4.p.face = 1; b4.p.swing = .15; b4.p.hits
 ok(matron.hp === 0 && matron.st === 'dead', 'the Crypt Matron falls');
 b4.p.x = b4.l.exit.x + b4.l.exit.w / 2 - b4.p.w / 2; b4.p.y = b4.l.exit.y + b4.l.exit.h - b4.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.II === true && dbg.run.levels.II.every(Boolean), '2-4 returns to town and completes Area II');
+const shopII = dbg.g;
+shopII.p.x = 1980; shopII.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+dbg.run.gold = 100; shopII.p.hp = 2; shopII.p.debuffs.smother = 2; shopII.shop.sel = 4;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(shopII.p.hp === 3 && shopII.p.debuffs.smother === 0 && dbg.run.gold === 70 && shopII.shopStock[4] === 0,
+  'Area II adds the Ember Flask');
+shopII.shop.sel = 5;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(dbg.run.gold === 70 && shopII.shop.msg.includes('Not for the likes'), 'the Vanguard\u2019s Seal stays locked until Area IV');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(1);
 
 /* ================= 4d. Area III: the Bell Tower ================= */
 const bHub = dbg.g;
@@ -349,6 +363,7 @@ ok(carillon.hp === 0 && carillon.st === 'dead', 'the Carillon cracks and falls')
 c4.p.x = c4.l.exit.x + c4.l.exit.w / 2 - c4.p.w / 2; c4.p.y = c4.l.exit.y + c4.l.exit.h - c4.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.III === true && dbg.run.levels.III.every(Boolean), '3-4 returns to town and completes Area III');
 ok(dbg.g.stageMsg > 0 && dbg.g.stageMsgKind === 'bells', 'the town rings a clean note after Area III');
+ok(dbg.g.stage === 3, 'the hub reaches stage three after Area III');
 
 /* ================= 4e. Area IV: The Throne ================= */
 const tHub = dbg.g;
@@ -423,6 +438,20 @@ ok(ward.hp === 0 && (ward.st === 'dead' || ward.st === 'gone'), 'the Ash Warden 
 ok(/hold the door/i.test(dbg.g.bossLineText), 'the Warden\u2019s dying line plays');
 d5.p.x = d5.l.exit.x + d5.l.exit.w / 2 - d5.p.w / 2; d5.p.y = d5.l.exit.y + d5.l.exit.h - d5.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.IV === true && dbg.run.levels.IV.every(Boolean), '4-5 returns to town and completes Area IV');
+ok(dbg.run.captainSeal === true, 'the Captain\u2019s Seal is recorded');
+const sealHub = dbg.g;
+sealHub.p.x = 4120; sealHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(sealHub.dialog && sealHub.dialog.pages[0].who === 'THE GUARD' && /seal|door/i.test(sealHub.dialog.pages[0].text),
+  'the Guard answers once he has the Captain\u2019s Seal');
+sealHub.dialog = null;
+sealHub.p.x = 1980; sealHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+dbg.run.gold = 100; sealHub.p.hp = 2; sealHub.p.shield = 0; dbg.run.shield = 0; sealHub.shop.sel = 5;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(sealHub.p.hp === 3 && sealHub.p.shield === 1 && dbg.run.shield === 1 && dbg.run.gold === 55 && sealHub.shopStock[5] === 0,
+  'Area IV unlocks the Vanguard\u2019s Seal');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(1);
 ok(dbg.g.stageMsgKind === 'throne', 'the hub settles into the quiet after the throne');
 
 /* ================= 4f. Area V: The Ashen Gardens ================= */
@@ -511,6 +540,15 @@ ok(mom.hp === 0 && mom.st === 'dead', 'Mother Blight falls');
 ok(/only wanted to grow/i.test(dbg.g.bossLineText), 'Mother Blight\u2019s restoration line plays');
 e4.p.x = e4.l.exit.x + e4.l.exit.w / 2 - e4.p.w / 2; e4.p.y = e4.l.exit.y + e4.l.exit.h - e4.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.V === true && dbg.run.levels.V.every(Boolean), '5-4 returns to town and completes Area V');
+ok(dbg.g.stage === 4, 'the hub reaches stage four after Area V');
+const shopV = dbg.g;
+shopV.p.x = 1980; shopV.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+dbg.run.gold = 100; shopV.shop.sel = 6;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(dbg.run.lampMax === 4 && shopV.lamp === 4 && dbg.run.gold === 80 && shopV.shopStock[6] === 1,
+  'Area V adds Lantern Oil and a larger spark pool');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(1);
 ok(dbg.g.stageMsgKind === 'garden', 'the Garden Steps stir after Area V');
 
 /* ================= 4g. Area VI: The Drowned Forge ================= */
@@ -568,6 +606,12 @@ ok(foreman.hp === 0 && foreman.st === 'dead', 'the Slag Foreman falls');
 f3.p.x = f3.l.exit.x + f3.l.exit.w / 2 - f3.p.w / 2; f3.p.y = f3.l.exit.y + f3.l.exit.h - f3.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.VI === true && dbg.run.levels.VI.every(Boolean), '6-3 returns to town and completes Area VI');
 ok(dbg.g.stageMsgKind === 'forge', 'the Forge Row burns again after Area VI');
+const forgeNpcHub = dbg.g;
+forgeNpcHub.p.x = 5270; forgeNpcHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(forgeNpcHub.dialog && forgeNpcHub.dialog.pages[0].who === 'THEODORE', 'Theodore waits at the rebuilt forge');
+ok(dbg.run.spectacles === true, 'Theodore grants the Spectacles of Theodore');
+forgeNpcHub.dialog = null;
 
 /* ================= 4h. Area VII: The Silent Archive ================= */
 const archHub = dbg.g;
@@ -632,6 +676,17 @@ g3.p.x = 1250; g3.p.y = 186; frames(2);
 ok(dbg.run.secrets.g3 && dbg.run.secrets.g3.includes(0), 'the Margin Note secret reveals the king\u2019s line');
 g3.p.x = g3.l.exit.x + g3.l.exit.w / 2 - g3.p.w / 2; g3.p.y = g3.l.exit.y + g3.l.exit.h - g3.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.VII === true && dbg.run.levels.VII.every(Boolean), '7-3 returns to town and completes Area VII');
+const zafraHub = dbg.g;
+zafraHub.p.x = 6670; zafraHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(zafraHub.dialog && zafraHub.dialog.pages[0].who === 'ZAFRA', 'Zafra keeps the reopened archive');
+zafraHub.dialog = null;
+zafraHub.p.x = 1980; zafraHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+dbg.run.gold = 100; zafraHub.shop.sel = 7;
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(dbg.run.lens === true && dbg.run.gold === 65 && zafraHub.shopStock[7] === 0, 'Area VII adds the Archive Lens');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(1);
 ok(dbg.g.stageMsgKind === 'archive', 'the Archive Steps remember Area VII');
 
 /* ================= 4i. Area VIII: The Ember Heart ================= */
@@ -690,14 +745,46 @@ ok(dbg.run.secrets.h3 && dbg.run.secrets.h3.includes(0), 'the First Hearth secre
 h3.p.x = h3.l.exit.x + h3.l.exit.w / 2 - h3.p.w / 2; h3.p.y = h3.l.exit.y + h3.l.exit.h - h3.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.VIII === true && dbg.run.levels.VIII.every(Boolean), '8-3 completes Area VIII');
 ok(dbg.run.ending === true && !!dbg.g.ending, 'the ending sequence begins');
-frames(120);
-fire('keydown', 'Enter'); frames(2); fire('keyup', 'Enter'); frames(2);
-ok(dbg.run.endingSeen === true && !dbg.g.ending, 'the ending card can be dismissed');
+ok(dbg.g.ending.phase === 0, 'the ending opens on the ember');
+dbg.g.ending.t = 7.3; frames(2);
+ok(dbg.g.ending.phase === 2, 'the ending reveals the waking town');
+dbg.g.ending.t = 11.3; frames(2);
+ok(dbg.g.ending.phase === 3, 'the ending reaches the title card');
+dbg.g.ending.t = 14.3; frames(2);
+ok(dbg.g.ending.phase === 4 && dbg.g.ending.creditT > 0, 'the credits begin to roll');
+fire('keydown', 'Enter'); frames(2); fire('keyup', 'Enter'); frames(1);
+ok(dbg.g.ending.creditsDone === true, 'Enter skips the credits');
+fire('keydown', 'Escape'); frames(2); fire('keyup', 'Escape'); frames(2);
+ok(dbg.run.endingSeen === true && !dbg.g.ending, 'Esc leaves the ending');
+ok(JSON.parse(store.get('emberknight.v2')).endingSeen === true, 'the ending is remembered in the save');
+ok(dbg.g.stage === 5, 'the hub reaches stage five after Area VIII');
+dbg.g.p.x = 6520; dbg.g.p.y = 386; frames(2);
+ok(dbg.g.near && dbg.g.near.type === 'npc' && dbg.g.near.obj.id === 'villager_a', 'the post-game gathering appears in the Archive Steps');
 ok(dbg.g.stageMsgKind === 'ending', 'the hub remembers the ending');
+
+/* ================= 4j. title, chapters and credits replay ================= */
+dbg.openTitle('main'); frames(2);
+ok(dbg.title && dbg.title.view === 'main', 'the title can be reopened');
+const topts = dbg.titleOptions();
+ok(topts.includes('CHAPTERS') && topts.includes('CREDITS'), 'the title offers chapters and credits after the ending');
+fire('keydown', 'ArrowDown'); frames(1); fire('keyup', 'ArrowDown'); frames(1);
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(dbg.title.view === 'confirm', 'New Game asks for confirmation');
+fire('keydown', 'Escape'); frames(1); fire('keyup', 'Escape'); frames(1);
+ok(dbg.title.view === 'main', 'the confirmation can be cancelled');
+ok(dbg.chaptersList().length === 9, 'all cleared chapters and the hub are listed');
+dbg.startChapter('III'); frames(2);
+ok(dbg.sceneId === 'c1', 'chapter select replays Area III');
+dbg.openTitle('main'); frames(1);
+dbg.replayEnding(); frames(2);
+ok(dbg.sceneId === 'hub' && !!dbg.g.ending, 'the credits can be replayed from the title');
+fire('keydown', 'Escape'); frames(2); fire('keyup', 'Escape'); frames(2);
+ok(!dbg.g.ending, 'the credits replay can be dismissed');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);
 ok(dbg.sceneId === 'tutorial' && dbg.run.tutorialDone === false, 'New Game starts on the tutorial road');
+ok(dbg.run.spectacles === false && dbg.run.captainSeal === false, 'a New Game clears the relic flags');
 ok(dbg.TOTAL_COINS === Object.values(SCENES).reduce((n, s) => n + s.coins.length, 0), 'the coin total is derived from the slice scenes');
 
 const tut = dbg.g;

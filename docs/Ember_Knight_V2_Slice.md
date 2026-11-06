@@ -1,7 +1,70 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + ... + V12)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + ... + V13)
 
-The v2 slice now lives on `main` alongside the shipped game and covers the full shape of the world-design document: **tutorial road → Cinderhaven → Areas I through VIII → the ending**. The shipped v1 game is
-still available at `index.html` and is untouched.
+The v2 slice now lives on `main` alongside the shipped game and covers the full shape of the world-design document: **tutorial road → Cinderhaven → Areas I through VIII → the ending → title and chapter replay**. The shipped v1 game is still available at `index.html` and is untouched.
+
+## V13 - the hub, the shop, the ending and the title
+
+### Hub stages and district NPCs
+
+Cinderhaven now has five progress stages driven by the clear flags:
+
+| Stage | Condition | Hub feel |
+|---|---|---|
+| S1 | nothing cleared | cold, dark, heavy ash |
+| S2 | Area I | lamps and the merchant return |
+| S3 | Area III | villagers, bards, warmer |
+| S4 | Area V | green touches, forge/archive reopen |
+| S5 | Area VIII | fully relit, rising gold embers, recognition gathering |
+
+- **Aldrin and Daryl** play the Bell Plaza stage from Area II; their lines follow the Carillon note and the ending.
+- **The Guard** keeps the Guardhouse between Gate IV and the Garden Steps. Defeating the Fallen Captain records **`run.captainSeal`**, which unlocks his account of the Captain's last order and the First Hearth hint.
+- **Theodore's Forge** opens after Area VI. The first conversation grants the one-time **Spectacles of Theodore** (`run.spectacles`): the player's darkness aura is larger and secret veils are readable from much farther away.
+- **Zafra** keeps the archive after Area VII, with post-Margin-Note and post-ending lines.
+- After Area VIII, three **villagers** gather by the archive brazier under the new bunting. Clint, Patino and the new cast all gain stage 3–5 dialogue.
+
+### Merchant stock expansion
+
+The Sketchy Merchant now has eight items; the panel is taller and shows the current clear-state quote. The four base items remain; the new ones unlock by milestone:
+
+| Item | Price | Stock | Unlock | Effect |
+|---|---|---|---|---|
+| Ashroot Potion | 15g | 2 | always | +1 heart |
+| Cleansing Flask | 20g | 1 | always | clears debuffs |
+| Ember Shield | 35g | 1 | Area I | eats one hit |
+| Greater Heart | 40g | 1 | Area I | +2 hearts |
+| **Ember Flask** | 30g | 1 | Area II | +1 heart and clears debuffs |
+| **Vanguard's Seal** | 45g | 1 | Area IV | Ember Shield + 1 heart |
+| **Lantern Oil** | 20g | 2 | Area V | +1 max spark (cap 5), refills |
+| **Archive Lens** | 35g | 1 | Area VII | secret veils shine from farther away |
+
+`run.lampMax` drives the HUD, torch refills and E throws (default 3, cap 5). Both the Market Lane and Reading Room merchants share the unlocks and stock rules.
+
+### The ending sequence
+
+The h3 exit now plays a skippable cinematic instead of a single card:
+
+1. a lone ember in the dark;
+2. the King's silhouette breaks apart and the **First Hearth** catches;
+3. Cinderhaven relights and gold embers rise;
+4. the **THE EMBER KNIGHT / THE KINGDOM REMEMBERS** title;
+5. scrolling credits over the lit hub (world, court, the fallen, the light, thanks).
+
+Enter advances/skips; Esc leaves immediately. The clear state and `endingSeen` are saved. Credits use in-game roles and area names only; personal names are deliberately on hold.
+
+### Title menu and post-game replay
+
+The game now opens on a title screen with a procedural ember sigil:
+
+- **CONTINUE** — enter the current hub/tutorial.
+- **NEW GAME** — confirmation prompt, then a fresh save and tutorial.
+- **CHAPTERS** — after any clear, replay any cleared area (I–VIII) or the hub. Progress, gold and unlocks are kept; hearts refill for the replay.
+- **CREDITS** — after the ending, rewatch the full sequence.
+
+The pause menu gains a **TITLE** option, so the title/chapters/credits are always reachable without refreshing. The ending can be replayed from either the title or the new run.
+
+### Save additions
+
+`captainSeal`, `spectacles`, `lampMax`, `lens`, `ending` and `endingSeen` are added with safe defaults; old v2 saves load unchanged. The coin total remains **275** because shop purchases spend gold, not the lifetime coin tally.
 
 ## V12 - Area VIII: The Ember Heart (the finale)
 
@@ -339,7 +402,8 @@ guarded too; a perfect guard on the charge stuns him.
 
 ## Flow
 
-1. New browser with no save → tutorial.
+1. New browser → **title**. CONTINUE enters the current hub/tutorial; NEW GAME (with confirmation)
+   starts the tutorial; CHAPTERS and CREDITS appear as the save unlocks them.
 2. Tutorial gate → Cinderhaven, `tutorialDone = true`.
 3. Gate I → 1-1 → 1-2 → 1-3 (the Gatekeeper Brute) → Cinderhaven, `cleared.I = true`. Gate I
    resumes at the first uncleared level if you return to town early.
@@ -356,9 +420,11 @@ guarded too; a perfect guard on the charge stuns him.
    Cinderhaven, `cleared.VI = true`.
 9. Archive Steps open Gate VII after Area VI: 7-1 → 7-2 → 7-3 (the Lampless Curator and the Margin
    Note) → Cinderhaven, `cleared.VII = true`. Gate VIII opens.
-10. 8-1 → 8-2 → 8-3 (the Ash King, three phases) → the ending card → Cinderhaven, `cleared.VIII =
-    true`, `ending = true`. Press Enter to dismiss the ending.
-11. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
+10. 8-1 → 8-2 → 8-3 (the Ash King, three phases) → the **ending sequence and credits** → Cinderhaven
+    S5, `cleared.VIII = true`, `ending = true`. Enter advances/skips; Esc leaves.
+11. The **title** is reachable from the pause menu. CHAPTERS replays any cleared area (or the hub)
+    with progress kept; CREDITS rewinds the ending.
+12. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
     to the hub.
 
 ## Deliberately deferred
@@ -383,12 +449,17 @@ guarded too; a perfect guard on the charge stuns him.
   Page Moth, Stack Sentinel, Hexer orb integration, the Lampless Curator, the merchant, the Trapped
   Spirit and the Margin Note.
 - V12 done: Gate VIII, the three Ember Heart levels, Ward Echoes, the Ash King's three phases, the
-  First Hearth secret and the ending card. **The eight-area v2 slice is complete.**
-- Beyond the slice: the full ending cinematic and credits sequence, hub district NPCs (Theodore,
-  Zafra, Aldrin, the Guard), the remaining merchant stock, post-game replay and leaderboards.
+  First Hearth secret and the first ending card.
+- V13 done: hub stages S1–S5, the district NPCs (Aldrin/Daryl, the Guard and Captain's Seal,
+  Theodore and the Spectacles, Zafra, the S5 villagers), the eight-item merchant, the full
+  cinematic/credits, the title menu and chapter/credits replay. **The v2 campaign is complete.**
+- Beyond the slice: personal credits names (on hold), a boss rush, rooftop secrets above Market Lane
+  and Garden Steps, leaderboards, and further merchant stock.
 
 ## Known placeholders
 
 - The hub uses the road backdrop plus town silhouettes; it is not the final art.
-- There is no title menu yet: the build boots into the tutorial or the imported hub.
-- The full game's later shop unlocks (Warden / Phase V) are compressed to Area I in the slice.
+- The title screen uses a procedural ember sigil; there is no external key art.
+- Credits use in-game roles, areas and cast names. Personal names are on hold.
+- The v2 slice uses a compressed milestone unlock map for the shop rather than the full game's later
+  schedule.

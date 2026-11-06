@@ -30,6 +30,7 @@ const C = { bg: '#0b1021', moon: '#dfe8ff', ember: '#ff8a3d', ink: '#05070f', go
 let run = bootRun();
 let sceneId = run.tutorialDone ? 'hub' : 'tutorial';
 let g;
+let title = null;
 setKnight(run.skin, run.emberSword);
 
 const T = (s, x, y, size, al = 'left', col = C.moon) => {
@@ -86,7 +87,7 @@ function loadScene(id) {
       return { ...o, i: k, lit: o.lit || litSet.includes(k) ? 1 : 0 };
     }),
   };
-  const stage = run.cleared.I ? 2 : 1;
+  const stage = hubStage();
   for (const s of l.solids) if (s.kind === 'sink') { s.baseY = s.baseY != null ? s.baseY : s.y; s.depth = s.depth || 16; s.dy = 0; }
   for (const s of l.solids) if (s.kind === 'lift') { s.baseY = s.baseY != null ? s.baseY : s.y; s.rise = s.rise || 90; s.on = 0; s.dy = 0; }
   for (const s of l.solids) if (s.thorn) { s.burn = 0; s.off = 0; }
@@ -126,15 +127,15 @@ function loadScene(id) {
     bowls: (l.bowls || []).map(b => ({ ...b, lit: 0 })),
     hexOrbs: [],
     dark: 0,
-    ending: id === 'hub' && run.ending && !run.endingSeen ? { t: 0 } : null,
-    lamp: run.abil.lantern ? 3 : 0, sparks: [], lamps: [], dim: 0,
+    ending: id === 'hub' && run.ending && !run.endingSeen ? { t: 0, phase: 0, creditT: 0, creditsDone: false } : null,
+    lamp: run.abil.lantern ? (run.lampMax || 3) : 0, sparks: [], lamps: [], dim: 0,
     parts: [], orbs: [], wardT: 1.2,
     cam: { x: camX, y: camY }, shk: 0, stopT: 0, t: 0, time: 0, msg: 3.2,
     cp: l.cps[0], fade: 0, fadeTo: null, fadeAfter: null,
     paused: false, pauseSel: 0, dialog: null, prompt: '', near: null, shop: null,
-    shopStock: id === 'hub' || l.merchant ? [2, 1, 1, 1] : null,
+    shopStock: id === 'hub' || l.merchant ? [...SHOP_STOCK] : null,
     found: 0, foundName: '', grant: 0, grantKind: 'dash', healMsg: 0,
-    stageMsg: id === 'hub' && (stage === 2 || run.cleared.III || run.cleared.IV || run.cleared.V || run.cleared.VI || run.cleared.VII || run.cleared.VIII) ? 3.2 : 0,
+    stageMsg: id === 'hub' && stage >= 2 ? 3.2 : 0,
     stageMsgKind: run.cleared.VIII ? 'ending' : run.cleared.VII ? 'archive' : run.cleared.VI ? 'forge' : run.cleared.V ? 'garden' : run.cleared.IV ? 'throne' : run.cleared.III ? 'bells' : 'wake',
     dummyT: 0, parryMsg: 0, state: 'play', blockEnabled: true,
     tutStep: 0, wardHp: l.ward ? (l.ward.hp || 3) : 0, wardBroken: !l.ward,
@@ -176,6 +177,7 @@ const gateOpen = gate => {
 };
 
 const AREA_LEVELS = { I: ['a1', 'a2', 'a3'], II: ['b1', 'b2', 'b3', 'b4'], III: ['c1', 'c2', 'c3', 'c4'], IV: ['d1', 'd2', 'd3', 'd4', 'd5'], V: ['e1', 'e2', 'e3', 'e4'], VI: ['f1', 'f2', 'f3'], VII: ['g1', 'g2', 'g3'], VIII: ['h1', 'h2', 'h3'] };
+const hubStage = () => run.cleared.VIII ? 5 : run.cleared.V ? 4 : run.cleared.III ? 3 : run.cleared.I ? 2 : 1;
 function areaStart(area) {
   const ids = AREA_LEVELS[area] || [];
   const arr = run.levels[area] || [];
@@ -211,7 +213,35 @@ const SHOP_ITEMS = [
     can: () => true, unlock: () => !!run.cleared.I, apply: () => { g.p.shield = 1; run.shield = 1; } },
   { name: 'GREATER HEART', price: 40, blurb: 'two hearts back', sold: 'For the truly battered.',
     can: () => g.p.hp < 3, unlock: () => !!run.cleared.I, apply: () => { g.p.hp = Math.min(3, g.p.hp + 2); } },
+  { name: 'EMBER FLASK', price: 30, blurb: 'a heart and a clean slate', sold: 'Drink it all. Even the grit.',
+    can: () => g.p.hp < 3 || ['smother', 'heavy', 'snuff'].some(k => g.p.debuffs[k] > 0),
+    unlock: () => !!run.cleared.II,
+    apply: () => { g.p.hp = Math.min(3, g.p.hp + 1); for (const k in g.p.debuffs) g.p.debuffs[k] = 0; } },
+  { name: 'VANGUARD\u2019S SEAL', price: 45, blurb: 'shield and a heart', sold: 'The Captain would have approved. Probably.',
+    can: () => g.p.shield === 0 || g.p.hp < 3,
+    unlock: () => !!run.cleared.IV,
+    apply: () => { g.p.shield = 1; run.shield = 1; g.p.hp = Math.min(3, g.p.hp + 1); } },
+  { name: 'LANTERN OIL', price: 20, blurb: '+1 max spark (cap 5)', sold: 'Do not drink it. I have to say that.',
+    can: () => (run.lampMax || 3) < 5,
+    unlock: () => !!run.cleared.V && !!run.abil.lantern,
+    apply: () => { run.lampMax = Math.min(5, (run.lampMax || 3) + 1); g.lamp = run.lampMax; } },
+  { name: 'ARCHIVE LENS', price: 35, blurb: 'secrets shine farther', sold: 'Look through it. Then look again.',
+    can: () => !run.lens,
+    unlock: () => !!run.cleared.VII,
+    apply: () => { run.lens = true; } },
 ];
+const SHOP_STOCK = [2, 1, 1, 1, 1, 1, 2, 1];
+const shopQuote = () => {
+  const c = run.cleared;
+  if (c.VIII) return '"The ash goes up now. I can retire. Buy something first."';
+  if (c.VII) return '"You have the look of someone who reads the fine print."';
+  if (c.VI) return '"Forge is warm. Coin is cold. Hand it over."';
+  if (c.V) return '"The garden changes a man. Mostly his pockets."';
+  if (c.IV) return '"You broke the Captain. He owed me money."';
+  if (c.III) return '"The bells are back. So are my prices."';
+  if (c.II) return '"You broke the Brute. He owed me money."';
+  return '"Everything has a price. Even hope."';
+};
 function openShop() { g.shop = { sel: 0, msg: '' }; A.sfx.grant(); }
 function shopUpdate() {
   const s = g.shop;
@@ -233,22 +263,22 @@ function drawShop() {
   const s = g.shop;
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   ctx.fillStyle = 'rgba(5,7,15,.55)'; ctx.fillRect(0, 0, VW, VH);
-  const w = 690, h = 310, x = (VW - w) / 2, y = 116;
+  const w = 780, h = 452, x = (VW - w) / 2, y = 54;
   ctx.fillStyle = 'rgba(5,7,15,.96)'; ctx.fillRect(x, y, w, h);
   ctx.fillStyle = '#2f3750'; ctx.fillRect(x, y, w, 2); ctx.fillRect(x, y + h - 2, w, 2);
-  T('THE SKETCHY MERCHANT', x + 24, y + 30, 20, 'left', C.ember);
-  T('"You broke the Brute. He owed me money."', x + 24, y + 54, 12, 'left', '#8f9bb8');
-  T('GOLD ' + run.gold, x + w - 24, y + 30, 16, 'right', '#ffd84a');
+  T('THE SKETCHY MERCHANT', x + 24, y + 32, 21, 'left', C.ember);
+  T(shopQuote(), x + 24, y + 56, 12, 'left', '#8f9bb8');
+  T('GOLD ' + run.gold, x + w - 24, y + 32, 16, 'right', '#ffd84a');
   SHOP_ITEMS.forEach((it, i) => {
-    const iy = y + 86 + i * 42, on = i === s.sel, locked = it.unlock && !it.unlock();
-    if (on) { ctx.fillStyle = 'rgba(127,227,255,.12)'; ctx.fillRect(x + 12, iy - 18, w - 24, 34); }
-    T(it.name, x + 24, iy, 15, 'left', locked ? '#4a5578' : on ? '#e4ecff' : '#cfd8ee');
-    T(it.blurb, x + 292, iy, 12, 'left', '#5d6a8a');
+    const iy = y + 86 + i * 36, on = i === s.sel, locked = it.unlock && !it.unlock();
+    if (on) { ctx.fillStyle = 'rgba(127,227,255,.12)'; ctx.fillRect(x + 12, iy - 16, w - 24, 31); }
+    T(it.name, x + 24, iy, 14, 'left', locked ? '#4a5578' : on ? '#e4ecff' : '#cfd8ee');
+    T(it.blurb, x + 292, iy, 11, 'left', '#5d6a8a');
     T(locked ? 'LOCKED' : g.shopStock[i] > 0 ? it.price + 'g  x' + g.shopStock[i] : 'SOLD OUT',
-      x + w - 24, iy, 14, 'right', locked ? '#4a5578' : g.shopStock[i] > 0 ? '#ffd84a' : '#5d6a8a');
+      x + w - 24, iy, 13, 'right', locked ? '#4a5578' : g.shopStock[i] > 0 ? '#ffd84a' : '#5d6a8a');
   });
-  T(s.msg || '', x + 24, y + h - 34, 13, 'left', '#8f9bb8');
-  T('\u2191\u2193 SELECT   ENTER BUY   F LEAVE', x + w - 24, y + h - 34, 11, 'right', '#4a5578');
+  T(s.msg || '', x + 24, y + h - 30, 13, 'left', '#8f9bb8');
+  T('\u2191\u2193 SELECT   ENTER BUY   F LEAVE', x + w - 24, y + h - 30, 11, 'right', '#4a5578');
 }
 
 function nearest() {
@@ -258,8 +288,8 @@ function nearest() {
     const h = g.l.hub;
     for (const gate of h.gates) if (!gate.pass && near(gate.x + gate.w / 2, gate.y + gate.h)) return { type: 'gate', obj: gate, label: gateOpen(gate) ? 'F  ENTER' : 'F  GATE' };
     if (near(h.hearth.x, h.hearth.y, 64)) return { type: 'hearth', obj: h.hearth, label: 'F  REST' };
-    for (const npc of h.npcs) if (near(npc.x, npc.y, 56)) return { type: 'npc', obj: npc, label: 'F  TALK' };
-    if (g.stage === 2 && h.market) {
+    for (const npc of h.npcs) if (npcShown(npc) && near(npc.x, npc.y, 56)) return { type: 'npc', obj: npc, label: 'F  TALK' };
+    if (g.stage >= 2 && h.market) {
       const m = h.market.merchant;
       if (near(m.x, m.y, 60)) return { type: 'merchant', obj: m, label: 'F  TRADE' };
     }
@@ -270,13 +300,28 @@ function nearest() {
   return null;
 }
 
+function linesFor(lines, stage) {
+  if (!lines) return ['...'];
+  if (lines[stage]) return lines[stage];
+  for (let s = stage - 1; s >= 1; s--) if (lines[s]) return lines[s];
+  const keys = Object.keys(lines).map(Number).sort((a, b) => a - b);
+  return (keys.length && lines[keys[0]]) || ['...'];
+}
+function npcShown(n) { return !n.showWhen || !!run.cleared[n.showWhen]; }
+
 function talkTo(npc) {
   const stage = g.stage;
-  const lines = (npc.lines && npc.lines[stage]) || (npc.lines && npc.lines[1]) || ['...'];
+  const src = (npc.sealLines && run.captainSeal) ? npc.sealLines : npc.lines;
+  const lines = linesFor(src, stage);
   const rec = run.talked[npc.id];
   const n = rec && rec.stage === stage ? (rec.n || 0) : 0;
   const pages = [{ who: npc.name, text: lines[n % lines.length] }];
   if (n === 0) pages.push({ who: 'KNIGHT', text: stage === 1 ? 'I\u2019ll have this kingdom conquered by dawn.' : 'Hm. Maybe it\u2019s harder than I thought.' });
+  if (npc.grant && !run[npc.grant.flag]) {
+    run[npc.grant.flag] = true;
+    g.grant = 3.4; g.grantKind = npc.grant.kind || 'relic';
+    A.sfx.grant(); save();
+  }
   run.talked[npc.id] = { stage, n: n + 1 };
   save();
   g.dialog = { pages, i: 0, t: 0 };
@@ -369,12 +414,26 @@ function update(dt) {
   g.t += dt; g.time += dt; g.msg -= dt;
   if (g.fade > 0) { tickFade(dt); return; }
   if (g.ending) {
-    g.ending.t += dt;
-    if (g.ending.t > 1.2 && (pressed.ok || pressed.talk || pressed.menu)) {
-      run.endingSeen = true; g.ending = null; save(); A.sfx.grant();
+    const E = g.ending;
+    E.t += dt;
+    g.msg = 0; g.stageMsg = 0; g.near = null;
+    E.phase = E.t < 3 ? 0 : E.t < 7 ? 1 : E.t < 11 ? 2 : E.t < 14 ? 3 : 4;
+    if (E.phase >= 4 && !E.creditsDone) E.creditT += dt;
+    const done = () => {
+      run.endingSeen = true; run.ending = true; g.ending = null;
+      if (g.l.kind === 'hub') { g.stageMsg = 3.2; g.stageMsgKind = 'ending'; }
+      save(); A.sfx.grant();
+    };
+    if (pressed.menu) { done(); return; }                       // Esc skips the whole sequence
+    if (pressed.ok || pressed.talk) {
+      if (E.phase < 4) { E.t = 14; E.phase = 4; E.creditT = 0; } // skip to the credits
+      else if (!E.creditsDone) { E.creditsDone = true; E.creditT = 999; } // skip the scroll
+      else { done(); return; }
     }
+    if (E.phase >= 4 && !E.creditsDone && E.creditT > 26) E.creditsDone = true;
     return;
   }
+  if (title) { updateTitle(dt); return; }
   if (g.shop) { shopUpdate(); return; }
   if (g.dialog) {
     g.dialog.t += dt;
@@ -386,13 +445,14 @@ function update(dt) {
     return;
   }
   if (g.paused) {
-    const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB'] : ['RESUME', 'REPLAY TUTORIAL'];
+    const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL', 'TITLE'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB', 'TITLE'] : ['RESUME', 'REPLAY TUTORIAL', 'TITLE'];
     if (pressed.up) { g.pauseSel = (g.pauseSel + opts.length - 1) % opts.length; A.sfx.land(); }
     if (pressed.down) { g.pauseSel = (g.pauseSel + 1) % opts.length; A.sfx.land(); }
     if (pressed.ok) {
       if (g.pauseSel === 1 && g.l.kind === 'tutorial') { run.tutorialDone = true; run.abil.dash = true; run.hp = p.hp; run.scene = 'hub'; save(); loadScene('hub'); }
       else if (g.pauseSel === 1 && g.l.kind === 'level') { run.hp = p.hp; run.scene = 'hub'; save(); loadScene('hub'); }
       else if (g.pauseSel === 1 && g.l.kind === 'hub') replayTutorial();
+      else if (g.pauseSel === 2) { g.paused = false; openTitle('main'); }
       else { g.paused = false; A.sfx.block(); }
     }
     return;
@@ -439,6 +499,7 @@ function update(dt) {
     if ((g.boss.st === 'wake' || g.boss.st === 'rise') && was !== g.boss.st && !g.bossSeen) { g.bossSeen = 1; g.bossMsg = 2.6; }
     if (g.boss.deathLine && g.boss.hp <= 0 && !g.bossLineDone) {
       g.bossLineDone = 1; g.bossLine = 5.5; g.bossLineText = g.boss.deathLine;
+      if (g.boss.kind === 'captain' && !run.captainSeal) { run.captainSeal = true; save(); }
     }
   }
   if (p.hp <= 0) { p.hp = 3; A.sfx.die(); respawn(); save(); }
@@ -576,7 +637,7 @@ function update(dt) {
 
   // ---- Ember Lantern ----
   if (g.lantern && !g.lantern.got && hit(p, { x: g.lantern.x - 12, y: g.lantern.y - 12, w: 24, h: 24 })) {
-    g.lantern.got = 1; run.abil.lantern = true; g.lamp = 3; save();
+    g.lantern.got = 1; run.abil.lantern = true; g.lamp = run.lampMax || 3; save();
     g.grant = 3.6; g.grantKind = 'lantern'; A.sfx.grant();
     spark(g.lantern.x, g.lantern.y, 26, '#ffd479'); g.shake(4);
   }
@@ -642,7 +703,7 @@ function update(dt) {
   }
   for (const t of g.l.torches) {
     if (t.lit) {
-      if (Math.hypot(t.x - (p.x + p.w / 2), (t.y - 40) - (p.y + p.h / 2)) < 54) g.lamp = 3;
+      if (Math.hypot(t.x - (p.x + p.w / 2), (t.y - 40) - (p.y + p.h / 2)) < 54) g.lamp = run.lampMax || 3;
     } else for (const l of g.lamps) if (Math.hypot(t.x - l.x, (t.y - 46) - l.y) < 46) {
       t.lit = 1; (run.lit[g.id] = run.lit[g.id] || []).push(t.i);
       save(); A.sfx.torch(); spark(t.x, t.y - 56, 12, C.ember);
@@ -843,7 +904,7 @@ function drawGate(x, y, w, h, open = true) {
   ctx.fillStyle = '#4a5578'; ctx.fillRect(x - 6, y - 24, w + 12, 8);
 }
 function drawHearth(x, y, t, stage) {
-  const warm = stage === 2;
+  const warm = stage >= 2;
   ctx.fillStyle = '#1a2030'; ctx.beginPath(); ctx.ellipse(x, y - 4, 38, 9, 0, 0, 7); ctx.fill();
   for (let i = -3; i <= 3; i++) { ctx.fillStyle = i % 2 ? '#4a5578' : '#3a4257'; ctx.fillRect(x + i * 10 - 5, y - 12, 9, 7); }
   ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 16, y - 20, 32, 6);          // logs
@@ -900,16 +961,16 @@ function drawClint(x, y, t, px, stage) {
   const blink = (t * .7) % 5 > 4.82;
   const look = Math.max(-2, Math.min(2, (px - x) * .02));
   if (!blink) {
-    ctx.fillStyle = stage === 2 ? '#ffd27a' : C.ember;
+    ctx.fillStyle = stage >= 2 ? '#ffd27a' : C.ember;
     ctx.fillRect(x - 6 + look, y - 64, 4, 3); ctx.fillRect(x + 2 + look, y - 64, 4, 3);
   } else {
     ctx.fillStyle = '#1a2030'; ctx.fillRect(x - 6 + look, y - 64, 4, 2); ctx.fillRect(x + 2 + look, y - 64, 4, 2);
   }
   ctx.fillStyle = '#3a4262'; ctx.beginPath(); ctx.moveTo(x + 12, y - 30); ctx.quadraticCurveTo(x + 28, y - 24, x + 20, y - 16); ctx.lineTo(x + 15, y - 20); ctx.fill();   // tail
-  if (stage === 2) { ctx.fillStyle = '#ffd27a'; ctx.fillRect(x - 2, y - 70, 4, 2); }
+  if (stage >= 2) { ctx.fillStyle = '#ffd27a'; ctx.fillRect(x - 2, y - 70, 4, 2); }
 }
 function drawPatino(x, y, t, stage) {
-  const warm = stage === 2;
+  const warm = stage >= 2;
   ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 10, y - 14, 20, 14);          // shoes/legs
   ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 10, y - 28, 20, 16);          // apron
   ctx.fillStyle = '#5a4030'; ctx.fillRect(x - 12, y - 34, 24, 10);          // torso
@@ -927,6 +988,93 @@ function drawPatino(x, y, t, stage) {
   ctx.restore();
   if (warm) goldGlow(x, y - 30, 30, .10);
 }
+function drawBard(x, y, t, second) {
+  const col = second ? '#3f6d4a' : '#5a4a8a';
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 9, y - 14, 18, 14);
+  ctx.fillStyle = col; ctx.fillRect(x - 11, y - 34, 22, 22);
+  ctx.fillStyle = '#c9d4e0'; ctx.beginPath(); ctx.arc(x, y - 42, 8, 0, 7); ctx.fill();
+  ctx.fillStyle = second ? '#2f4a2a' : '#3a2a5a'; ctx.fillRect(x - 10, y - 50, 20, 4);
+  ctx.fillStyle = '#ffd27a'; ctx.fillRect(x + 7, y - 54, 3, 6);
+  ctx.strokeStyle = '#5b3d22'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - 4, y - 26); ctx.lineTo(x + 15, y - 18); ctx.stroke();
+  ctx.fillStyle = '#8a6a2a'; ctx.beginPath(); ctx.ellipse(x + 16, y - 17, 7, 5, -.4, 0, 7); ctx.fill();
+  const bob = Math.sin(t * 2 + (second ? 1.5 : 0)) * 2;
+  ctx.fillStyle = 'rgba(255,210,122,.55)';
+  ctx.fillRect(x + 22, y - 48 + bob, 3, 3); ctx.fillRect(x + 30, y - 58 + bob, 2, 2);
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(x - 3, y - 44, 2, 2); ctx.fillRect(x + 2, y - 44, 2, 2);
+}
+function drawGuard(x, y, t) {
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 10, y - 18, 9, 18); ctx.fillRect(x + 2, y - 18, 9, 18);
+  ctx.fillStyle = '#454f70'; ctx.fillRect(x - 13, y - 44, 26, 27);
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(x - 13, y - 44, 26, 3);
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(x - 9, y - 58, 18, 15);
+  ctx.fillStyle = '#cfd8ee'; ctx.fillRect(x - 9, y - 58, 18, 3);
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(x - 5, y - 52, 10, 3);
+  ctx.fillStyle = C.ember; ctx.fillRect(x - 4, y - 51, 2, 2); ctx.fillRect(x + 2, y - 51, 2, 2);
+  ctx.fillStyle = '#5a2436'; ctx.fillRect(x + 14, y - 42, 4, 20);
+  ctx.strokeStyle = '#7b5530'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - 18, y); ctx.lineTo(x - 18, y - 58); ctx.stroke();
+  ctx.fillStyle = '#cfd8ee'; ctx.beginPath(); ctx.moveTo(x - 20, y - 66); ctx.lineTo(x - 16, y - 56); ctx.lineTo(x - 20, y - 58); ctx.lineTo(x - 24, y - 56); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3a4262'; ctx.beginPath(); ctx.ellipse(x - 22, y - 34, 9, 13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(x - 26, y - 38, 8, 3);
+}
+function drawSmith(x, y, t) {
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 10, y - 16, 9, 16); ctx.fillRect(x + 2, y - 16, 9, 16);
+  ctx.fillStyle = '#5a4030'; ctx.fillRect(x - 14, y - 42, 28, 26);
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 10, y - 30, 20, 14);
+  ctx.fillStyle = '#8a5a3a'; ctx.beginPath(); ctx.arc(x, y - 50, 9, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2a2030'; ctx.fillRect(x - 9, y - 56, 18, 6);
+  ctx.fillStyle = '#ff8a3d'; ctx.fillRect(x - 6, y - 53, 4, 2); ctx.fillRect(x + 2, y - 53, 4, 2);
+  const swing = Math.sin(t * 3) * .3;
+  ctx.save(); ctx.translate(x + 13, y - 34); ctx.rotate(swing);
+  ctx.strokeStyle = '#5b3d22'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -22); ctx.stroke();
+  ctx.fillStyle = '#8f9bb8'; ctx.fillRect(-9, -30, 18, 8);
+  ctx.restore();
+  goldGlow(x, y - 20, 26, .10);
+}
+function drawArchivist(x, y, t) {
+  ctx.fillStyle = '#2a2f45'; ctx.beginPath();
+  ctx.moveTo(x - 12, y); ctx.lineTo(x - 8, y - 40); ctx.lineTo(x + 8, y - 40); ctx.lineTo(x + 12, y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8a7ab0'; ctx.fillRect(x - 8, y - 40, 16, 4);
+  ctx.fillStyle = '#c9d4e0'; ctx.beginPath(); ctx.arc(x, y - 48, 8, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2a2f45'; ctx.beginPath(); ctx.arc(x, y - 50, 10, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(x - 5, y - 50, 3, 3); ctx.fillRect(x + 2, y - 50, 3, 3);
+  ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - 7, y - 51); ctx.lineTo(x - 1, y - 51); ctx.moveTo(x + 1, y - 51); ctx.lineTo(x + 7, y - 51); ctx.stroke();
+  const b = Math.sin(t * 1.4) * 1.5;
+  ctx.fillStyle = '#5a4a8a'; ctx.fillRect(x + 12, y - 34 + b, 14, 18);
+  ctx.fillStyle = '#cfd8ee'; ctx.fillRect(x + 14, y - 31 + b, 10, 2); ctx.fillRect(x + 14, y - 26 + b, 8, 2);
+}
+function drawVillager(x, y, t, seed) {
+  const cols = ['#4a5578', '#5a4030', '#3f6d4a'];
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 8, y - 14, 16, 14);
+  ctx.fillStyle = cols[seed % cols.length]; ctx.fillRect(x - 10, y - 34, 20, 22);
+  ctx.fillStyle = '#c9b06b'; ctx.fillRect(x - 10, y - 34, 20, 3);
+  ctx.fillStyle = '#8a5a3a'; ctx.beginPath(); ctx.arc(x, y - 42, 8, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2a2030'; ctx.beginPath(); ctx.arc(x, y - 44, 9, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#0a0f18'; ctx.fillRect(x - 3, y - 43, 2, 2); ctx.fillRect(x + 2, y - 43, 2, 2);
+  ctx.fillStyle = '#e4ecff'; ctx.fillRect(x - 2 + Math.sin(t + seed) * 1, y - 38, 4, 1);
+}
+function drawBardStage(x, y) {
+  ctx.fillStyle = '#2a2030'; ctx.fillRect(x - 90, y - 150, 180, 10);
+  ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 90, y - 140, 180, 4);
+  ctx.fillStyle = '#4a1c28'; ctx.fillRect(x - 78, y - 10, 156, 6);
+  ctx.fillStyle = '#6b2a3a'; ctx.fillRect(x - 78, y - 10, 156, 2);
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 70, y - 146, 5, 146); ctx.fillRect(x + 65, y - 146, 5, 146);
+  T('BELL PLAZA', x, y - 162, 9, 'center', '#e8c96a');
+}
+function drawGuardhousePost(x, y) {
+  ctx.fillStyle = '#1a2030'; ctx.fillRect(x - 54, y - 118, 108, 118);
+  ctx.fillStyle = '#2a3348'; ctx.fillRect(x - 48, y - 112, 96, 112);
+  ctx.fillStyle = '#3a4262'; ctx.fillRect(x - 54, y - 124, 108, 8);
+  ctx.fillStyle = '#5a2436'; ctx.fillRect(x - 6, y - 100, 12, 54);
+  ctx.fillStyle = '#8f9bb8'; ctx.beginPath(); ctx.moveTo(x, y - 92); ctx.lineTo(x + 14, y - 84); ctx.lineTo(x + 10, y - 64); ctx.lineTo(x, y - 54); ctx.lineTo(x - 10, y - 64); ctx.lineTo(x - 14, y - 84); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#cfd8ee'; ctx.fillRect(x - 9, y - 84, 18, 3);
+  T('GUARDHOUSE', x, y - 132, 9, 'center', '#8f9bb8');
+}
+
 function drawMerchantStall(x, y, t, warm) {
   ctx.fillStyle = '#2a2030'; ctx.fillRect(x - 80, y - 58, 160, 10);
   ctx.fillStyle = '#3a2a20'; ctx.fillRect(x - 76, y - 48, 152, 48);
@@ -982,7 +1130,7 @@ function drawWard(x, y, t, cool, hp, active) {
   if (ready) { ctx.strokeStyle = 'rgba(255,138,61,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y - 46, 13, 0, 7); ctx.stroke(); }
 }
 function drawTownBackdrop(camX, t, stage) {
-  const th = THEMES[0], warm = stage === 2;
+  const th = THEMES[0], warm = stage >= 2;
   const hz = ctx.createLinearGradient(0, 180, 0, 430);
   hz.addColorStop(0, warm ? 'rgba(255,210,122,.055)' : 'rgba(90,111,150,.04)');
   hz.addColorStop(1, 'rgba(5,7,15,0)');
@@ -1030,23 +1178,26 @@ function drawTownBackdrop(camX, t, stage) {
     }
   }
 
-  const n = warm ? 18 : 42;                                          // ash falls, embers rise once the town wakes
+  const n = stage >= 3 ? 12 : warm ? 18 : 42;                        // ash falls, embers rise once the town wakes
   for (let i = 0; i < n; i++) {
     const x = ((i * 137.7 + t * (6 + (i % 5) * 3) + Math.sin(t * .6 + i) * 12) % (VW + 40)) - 20;
     const y = ((i * 83.3 + t * (14 + (i % 4) * 5)) % (VH + 40)) - 20;
     ctx.globalAlpha = warm ? .10 + (i % 3) * .03 : .12 + (i % 4) * .04;
     ctx.fillStyle = '#cfd8ee'; ctx.fillRect(x, y, i % 7 ? 1 : 2, i % 7 ? 1 : 2);
   }
-  if (warm) for (let i = 0; i < 12; i++) {
+  const embers = stage >= 5 ? 28 : warm ? 12 : 0;
+  for (let i = 0; i < embers; i++) {
     const x = ((i * 173.1 + t * (5 + (i % 3) * 2)) % (VW + 30)) - 15;
     const y = VH + 20 - ((i * 91.7 + t * (10 + (i % 3) * 4)) % (VH + 50));
-    ctx.globalAlpha = .18 + (i % 3) * .04; ctx.fillStyle = '#ffd08a'; ctx.fillRect(x, y, 2, 2);
+    ctx.globalAlpha = (stage >= 5 ? .24 : .18) + (i % 3) * .04;
+    ctx.fillStyle = stage >= 5 && i % 4 === 0 ? '#fff2b0' : '#ffd08a';
+    ctx.fillRect(x, y, 2, 2);
   }
   ctx.globalAlpha = 1;
 }
 
 function townHouse(x, base, w, h, alpha, stage, seed, t) {
-  const th = THEMES[0], warm = stage === 2, top = base - h;
+  const th = THEMES[0], warm = stage >= 2, top = base - h;
   ctx.globalAlpha = alpha; ctx.fillStyle = th.stone;
   ctx.fillRect(x, top, w, h);
   ctx.beginPath(); ctx.moveTo(x - 14, top); ctx.lineTo(x + w / 2, top - 42); ctx.lineTo(x + w + 14, top); ctx.closePath(); ctx.fill();
@@ -1135,7 +1286,7 @@ function drawLamp(x, y, t, lit) {
   if (lit) { goldGlow(x, y - 118, 54 + Math.sin(t * 3 + x) * 4, .30); ctx.fillStyle = '#fff2b0'; ctx.fillRect(x - 2, y - 120, 4, 5); }
 }
 function drawHubWorld(h, p, stage) {
-  const warm = stage === 2;
+  const warm = stage >= 2;
   // the arrival gatehouse behind Clint
   ctx.fillStyle = '#1a2030'; ctx.fillRect(-20, 176, 300, 244);
   ctx.fillStyle = '#2a3348';
@@ -1158,6 +1309,27 @@ function drawHubWorld(h, p, stage) {
   drawStall(1380, 420, g.t, warm, 2);
   drawStall(2200, 420, g.t, warm, 2);
   drawMerchantStall(1980, 420, g.t, warm);
+  drawBardStage(2710, 420);
+  drawGuardhousePost(4120, 420);
+  if (run.cleared.VI) {
+    drawSign(5270, 246, 'THEODORE\u2019S FORGE', '#ff8a3d');
+  }
+  if (run.cleared.VII) {
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(6620, 390, 100, 8);   // the archive reading desk
+    ctx.fillStyle = '#5b3d22'; ctx.fillRect(6614, 386, 112, 5);
+    ctx.fillStyle = '#ffd27a'; ctx.fillRect(6656, 372, 6, 12);
+    goldGlow(6659, 374, 44, .16);
+  }
+  if (stage >= 5) {
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(6485, 396, 10, 24);    // the gathering brazier
+    ctx.fillStyle = '#5b3d22'; ctx.fillRect(6477, 390, 26, 8);
+    goldGlow(6490, 372, 70, .22);
+    ctx.fillStyle = '#ff8a3d'; ctx.fillRect(6485, 368, 10, 22);
+    ctx.fillStyle = '#fff2b0'; ctx.fillRect(6488, 374, 4, 12);
+    ctx.strokeStyle = 'rgba(255,210,122,.35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(6360, 220); ctx.lineTo(6560, 200); ctx.lineTo(6760, 220); ctx.stroke();
+    for (let i = 0; i < 5; i++) { ctx.fillStyle = '#ffd27a'; ctx.fillRect(6400 + i * 76, 210 + (i % 2) * 8, 4, 6); }
+  }
 
   // Bell Plaza: the belfry behind Gate III
   ctx.fillStyle = '#141a28'; ctx.fillRect(2880, 150, 300, 270);
@@ -1310,6 +1482,35 @@ function drawHubWorld(h, p, stage) {
   }
 }
 
+const ENDING_CREDITS = [
+  ['EMBER KNIGHT', 20, '#ff8a3d'],
+  ['A hand-built pixel platformer', 12, '#8f9bb8'],
+  ['', 10, '#8f9bb8'],
+  ['WORLD', 13, '#ffd27a'],
+  ['Cinderhaven  \u00b7  The Ember Road  \u00b7  The Sunken Crypt', 11, '#cfd8ee'],
+  ['The Bell Tower  \u00b7  The Throne  \u00b7  The Ashen Gardens', 11, '#cfd8ee'],
+  ['The Drowned Forge  \u00b7  The Silent Archive  \u00b7  The Ember Heart', 11, '#cfd8ee'],
+  ['', 10, '#8f9bb8'],
+  ['THE COURT', 13, '#ffd27a'],
+  ['Clint  \u00b7  Patino  \u00b7  Aldrin  \u00b7  Daryl  \u00b7  The Guard', 11, '#cfd8ee'],
+  ['Theodore  \u00b7  Zafra  \u00b7  The Sketchy Merchant', 11, '#cfd8ee'],
+  ['', 10, '#8f9bb8'],
+  ['THE FALLEN', 13, '#ffd27a'],
+  ['Gatekeeper Brute  \u00b7  Crypt Warden  \u00b7  Crypt Matron', 11, '#cfd8ee'],
+  ['Clapper Golem  \u00b7  Cracked Carillon  \u00b7  Fallen Royal Guard', 11, '#cfd8ee'],
+  ['Ash Warden  \u00b7  Gardener Golem  \u00b7  Mother Blight', 11, '#cfd8ee'],
+  ['Slag Foreman  \u00b7  Lampless Curator  \u00b7  The Ash King', 11, '#cfd8ee'],
+  ['', 10, '#8f9bb8'],
+  ['AND THE LIGHT', 13, '#ffd27a'],
+  ['The Ember Lantern  \u00b7  The First Hearth', 11, '#cfd8ee'],
+  ['', 10, '#8f9bb8'],
+  ['SPECIAL THANKS', 13, '#ffd27a'],
+  ['Everyone who kept a light on.', 11, '#cfd8ee'],
+  ['', 10, '#8f9bb8'],
+  ['THE EMBER KNIGHT', 18, '#ff8a3d'],
+  ['The kingdom remembers.', 12, '#cfd8ee'],
+];
+
 function drawWorld() {
   const p = g.p;
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
@@ -1414,14 +1615,21 @@ function drawWorld() {
     drawHearth(h.hearth.x, h.hearth.y, g.t, g.stage);
     drawDummy(h.dummy.x, h.dummy.y, g.t, g.dummyT);
     for (const npc of h.npcs) {
+      if (!npcShown(npc)) continue;
       if (npc.id === 'clint') drawClint(npc.x, npc.y, g.t, p.x + p.w / 2, g.stage);
-      else drawPatino(npc.x, npc.y, g.t, g.stage);
+      else if (npc.id === 'patino') drawPatino(npc.x, npc.y, g.t, g.stage);
+      else if (npc.id === 'aldrin') drawBard(npc.x, npc.y, g.t, false);
+      else if (npc.id === 'daryl') drawBard(npc.x, npc.y, g.t, true);
+      else if (npc.id === 'guard') drawGuard(npc.x, npc.y, g.t);
+      else if (npc.id === 'theodore') drawSmith(npc.x, npc.y, g.t);
+      else if (npc.id === 'zafra') drawArchivist(npc.x, npc.y, g.t);
+      else drawVillager(npc.x, npc.y, g.t, npc.x | 0);
       if (g.near && g.near.obj === npc) T(npc.name, npc.x, npc.y - 82, 12, 'center', C.ember);
     }
     for (const gate of h.gates) {
       drawGate(gate.x, gate.y, gate.w, gate.h, gateOpen(gate));
     }
-    if (g.stage === 2 && h.market) drawMerchant(h.market.merchant.x, h.market.merchant.y, g.t, true);
+    if (g.stage >= 2 && h.market) drawMerchant(h.market.merchant.x, h.market.merchant.y, g.t, true);
   } else if (g.l.gate) {
     const open = (!g.l.ward || g.wardHp <= 0) && (!g.boss || g.boss.hp <= 0);
     drawGate(g.l.gate.x, g.l.gate.y, g.l.gate.w, g.l.gate.h, open);
@@ -1443,7 +1651,11 @@ function drawWorld() {
     if ((run.secrets[g.id] || []).includes(sec.k)) continue;
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     const dx = Math.max(sec.x - cx, 0, cx - (sec.x + sec.w)), dy = Math.max(sec.y - cy, 0, cy - (sec.y + sec.h));
-    drawSecretVeil(ctx, sec, g.l.style || 'road', Math.max(0, Math.min(1, (Math.hypot(dx, dy) - 30) / 170)), g.t);
+    const reveal = 170 + (run.spectacles ? 150 : 0) + (run.lens ? 160 : 0);
+    drawSecretVeil(ctx, sec, g.l.style || 'road', Math.max(0, Math.min(1, (Math.hypot(dx, dy) - 30) / reveal)), g.t);
+    if ((run.spectacles || run.lens) && Math.hypot(dx, dy) < reveal + 180) {
+      goldGlow(sec.x + sec.w / 2, sec.y + sec.h / 2, 44, .14);
+    }
   }
 
   if (g.tide != null) {
@@ -1530,7 +1742,7 @@ function drawWorld() {
       gr.addColorStop(1, 'rgba(255,190,110,0)');
       ctx.fillStyle = gr; ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
     };
-    light(p.x + p.w / 2, p.y + p.h / 2, p.debuffs.smother > 0 ? 72 : 128, .34);
+    light(p.x + p.w / 2, p.y + p.h / 2, p.debuffs.smother > 0 ? 72 : (run.spectacles ? 172 : 128), .34);
     for (const b of g.bowls) if (b.lit) light(b.x, b.y - 20, 158, .4);
     for (const t of g.l.torches) if (t.lit) light(t.x, t.y - 44, 126, .3);
     for (const l of g.lamps) light(l.x, l.y, 116, .3);
@@ -1539,7 +1751,7 @@ function drawWorld() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  drawHud();
+  if (!g.ending) drawHud();
   if (g.boss) drawBossBar(g.boss);
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   if (g.l.kind === 'tutorial' && g.prompt && !g.paused && !g.dialog) {
@@ -1559,9 +1771,10 @@ function drawWorld() {
   if (g.grant > 0) {
     ctx.globalAlpha = Math.min(1, g.grant / .5) * Math.min(1, (3.4 - g.grant) * 2.5);
     ctx.fillStyle = 'rgba(5,7,15,.72)'; ctx.fillRect(VW / 2 - 220, 166, 440, 70);
-    T(g.grantKind === 'dash' ? 'EMBER DASH' : g.grantKind === 'lantern' ? 'EMBER LANTERN' : 'NEW ABILITY', VW / 2, 202, 30, 'center', C.ember);
+    T(g.grantKind === 'dash' ? 'EMBER DASH' : g.grantKind === 'lantern' ? 'EMBER LANTERN' : g.grantKind === 'spectacles' ? 'SPECTACLES OF THEODORE' : 'NEW ABILITY', VW / 2, 202, 30, 'center', C.ember);
     T(g.grantKind === 'dash' ? 'SHIFT  \u2014 one surge per jump'
-      : g.grantKind === 'lantern' ? 'E  \u2014 throw a spark into the dark' : '', VW / 2, 226, 14, 'center', '#cfd8ee');
+      : g.grantKind === 'lantern' ? 'E  \u2014 throw a spark into the dark'
+      : g.grantKind === 'spectacles' ? 'LIGHT REACHES FARTHER  \u2014  secrets shine' : '', VW / 2, 226, 14, 'center', '#cfd8ee');
     ctx.globalAlpha = 1;
   }
   if (g.found > 0) {
@@ -1650,21 +1863,86 @@ function drawWorld() {
   }
   if (g.ending) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const a = Math.min(1, g.ending.t / 1.4);
-    ctx.globalAlpha = a; ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, VW, VH);
-    T('THE EMBER KNIGHT', VW / 2, 176, 40, 'center', C.ember);
-    T('THE KINGDOM REMEMBERS', VW / 2, 214, 17, 'center', '#cfd8ee');
-    ctx.strokeStyle = 'rgba(255,138,61,.5)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(VW / 2 - 170, 236); ctx.lineTo(VW / 2 + 170, 236); ctx.stroke();
-    T('The flame was never the kingdom\u2019s to keep.', VW / 2, 282, 15, 'center', '#dfe8ff');
-    T('It was meant to be shared.', VW / 2, 306, 15, 'center', '#dfe8ff');
-    T('CINDERHAVEN  \u00b7  THE EMBER ROAD  \u00b7  THE SUNKEN CRYPT  \u00b7  THE BELL TOWER', VW / 2, 360, 10, 'center', '#5d6a8a');
-    T('THE THRONE  \u00b7  THE ASHEN GARDENS  \u00b7  THE DROWNED FORGE  \u00b7  THE SILENT ARCHIVE', VW / 2, 378, 10, 'center', '#5d6a8a');
-    T('THE EMBER HEART', VW / 2, 396, 10, 'center', '#5d6a8a');
-    ctx.globalAlpha = a * (.55 + .45 * Math.sin(g.t * 3));
-    T('PRESS ENTER', VW / 2, 462, 14, 'center', '#ffd27a');
+    const E = g.ending, ph = E.phase;
+    const k = (a, b) => Math.max(0, Math.min(1, (E.t - a) / (b - a)));
+    const veil = ph === 0 ? 1 : ph === 1 ? .95 : ph === 2 ? .40 : ph === 3 ? .78 : .96;
+    ctx.fillStyle = 'rgba(5,7,15,' + veil + ')'; ctx.fillRect(0, 0, VW, VH);
+
+    if (ph === 0) {
+      const a = k(0, 3);
+      const y = VH * .72 - a * 150;
+      glow(VW / 2, y, 40 + 18 * Math.sin(g.t * 3), .25 + a * .2);
+      ctx.fillStyle = '#ffd479'; ctx.fillRect(VW / 2 - 2, y - 3, 4, 6);
+      ctx.fillStyle = '#fff2b0'; ctx.fillRect(VW / 2 - 1, y - 1, 2, 2);
+    } else if (ph === 1) {
+      const a = k(3, 7), fade = 1 - a;
+      if (fade > 0.02) {
+        ctx.globalAlpha = fade * .55;
+        drawKingSprite(ctx, 'dead', 3, VW / 2, VH * .82, 1, { phase: 3, flash: false, scale: 2.4 });
+        ctx.globalAlpha = 1;
+      }
+      for (let i = 0; i < 26; i++) {
+        const x = VW / 2 + Math.sin(i * 6.28 / 26 + E.t * .7) * (30 + a * 220);
+        const y = VH * .72 - ((i * 37 + E.t * (40 + i % 5 * 12)) % (VH * .55));
+        ctx.globalAlpha = .25 + (i % 4) * .08;
+        ctx.fillStyle = i % 3 ? '#ff8a3d' : '#ffd479';
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      glow(VW / 2, VH * .72, 70 + a * 30, .25 * a);
+      ctx.fillStyle = '#ffd479';
+      ctx.beginPath(); ctx.moveTo(VW / 2, VH * .72 - 34 - Math.sin(g.t * 8) * 4);
+      ctx.quadraticCurveTo(VW / 2 - 12, VH * .72 - 8, VW / 2, VH * .72 + 4);
+      ctx.quadraticCurveTo(VW / 2 + 12, VH * .72 - 8, VW / 2, VH * .72 - 34 - Math.sin(g.t * 8) * 4);
+      ctx.fill();
+      T('THE FIRST HEARTH', VW / 2, VH * .80, 12, 'center', '#ffd27a');
+    } else if (ph === 2) {
+      for (let i = 0; i < 34; i++) {
+        const x = ((i * 173.1 + g.t * (14 + i % 4 * 4)) % (VW + 40)) - 20;
+        const y = VH + 20 - ((i * 91.7 + g.t * (18 + i % 3 * 6)) % (VH + 60));
+        ctx.globalAlpha = .2 + (i % 3) * .06;
+        ctx.fillStyle = i % 4 ? '#ffd08a' : '#fff2b0';
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      T('CINDERHAVEN', VW / 2, VH - 74, 14, 'center', 'rgba(255,210,122,.75)');
+    } else if (ph === 3) {
+      const a = k(11, 14);
+      ctx.globalAlpha = a;
+      T('THE EMBER KNIGHT', VW / 2, 232, 44, 'center', C.ember);
+      T('THE KINGDOM REMEMBERS', VW / 2, 272, 18, 'center', '#cfd8ee');
+      ctx.strokeStyle = 'rgba(255,138,61,.55)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(VW / 2 - 190, 294); ctx.lineTo(VW / 2 + 190, 294); ctx.stroke();
+      T('The flame was never the kingdom\u2019s to keep.', VW / 2, 340, 15, 'center', '#dfe8ff');
+      T('It was meant to be shared.', VW / 2, 364, 15, 'center', '#dfe8ff');
+      ctx.globalAlpha = .7 * a;
+      T('ENTER  \u2014  CONTINUE', VW / 2, 468, 12, 'center', '#8f9bb8');
+      ctx.globalAlpha = 1;
+    } else {
+      if (!E.creditsDone) {
+        const scroll = E.creditT * 26;
+        ENDING_CREDITS.forEach(([text, size, col], idx) => {
+          const y = VH + 40 - scroll + idx * 30;
+          if (y < -30 || y > VH + 30) return;
+          if (text) T(text, VW / 2, y, size, 'center', col);
+        });
+        ctx.globalAlpha = .55;
+        ctx.fillStyle = 'rgba(5,7,15,.78)'; ctx.fillRect(0, VH - 30, VW, 30);
+        T('ENTER SKIP   \u00b7   ESC LEAVE', VW / 2, VH - 11, 10, 'center', '#8f9bb8');
+        ctx.globalAlpha = 1;
+      } else {
+        T('THE EMBER KNIGHT', VW / 2, 232, 40, 'center', C.ember);
+        T('THE KINGDOM REMEMBERS', VW / 2, 270, 17, 'center', '#cfd8ee');
+        T('The flame was never the kingdom\u2019s to keep.', VW / 2, 330, 14, 'center', '#dfe8ff');
+        T('It was meant to be shared.', VW / 2, 352, 14, 'center', '#dfe8ff');
+        ctx.globalAlpha = .55 + .45 * Math.sin(g.t * 3);
+        T('PRESS ENTER', VW / 2, 462, 14, 'center', '#ffd27a');
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.globalAlpha = 1;
   }
+  if (title) drawTitle();
 }
 
 function drawEnemy(e) {
@@ -2863,6 +3141,65 @@ function drawHud() {
   T('A/D MOVE   SPACE JUMP   J ATTACK   SHIFT DASH   L BLOCK   E LANTERN   F USE   ESC PAUSE', VW - 20, 14, 11, 'right', '#5d6a8a');
 }
 
+function drawTitle() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, VW, VH);
+  for (let i = 0; i < 30; i++) {
+    const x = ((i * 173.1 + g.t * (10 + i % 4 * 4)) % (VW + 30)) - 15;
+    const y = VH + 20 - ((i * 97.7 + g.t * (14 + i % 3 * 6)) % (VH + 60));
+    ctx.globalAlpha = .10 + (i % 4) * .035;
+    ctx.fillStyle = i % 4 ? '#ffd08a' : '#fff2b0';
+    ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+  const cx = VW / 2;
+  glow(cx, 150, 140, .20 + Math.sin(g.t * 1.6) * .03);
+  ctx.strokeStyle = 'rgba(255,138,61,.8)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, 106); ctx.lineTo(cx + 36, 150); ctx.lineTo(cx, 194); ctx.lineTo(cx - 36, 150); ctx.closePath(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,210,122,.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx, 122); ctx.lineTo(cx + 20, 150); ctx.lineTo(cx, 178); ctx.lineTo(cx - 20, 150); ctx.closePath(); ctx.stroke();
+  T('EMBER KNIGHT', cx, 250, 46, 'center', C.ember);
+  T('A FALLEN KINGDOM', cx, 276, 12, 'center', '#8f9bb8');
+  ctx.strokeStyle = 'rgba(255,138,61,.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 200, 292); ctx.lineTo(cx + 200, 292); ctx.stroke();
+
+  if (title.view === 'main') {
+    const opts = titleOptions();
+    opts.forEach((o, i) => {
+      const y = 336 + i * 36, on = i === title.sel;
+      if (on) {
+        ctx.fillStyle = 'rgba(255,138,61,.10)'; ctx.fillRect(cx - 140, y - 18, 280, 27);
+        ctx.strokeStyle = 'rgba(255,210,122,.6)'; ctx.strokeRect(cx - 140.5, y - 18.5, 281, 28);
+        ctx.fillStyle = '#ffd27a'; ctx.fillRect(cx - 150, y - 7, 4, 4);
+      }
+      T(o, cx, y, 19, 'center', on ? '#ffd27a' : '#8f9bb8');
+    });
+    const stage = hubStage();
+    const state = stage >= 5 ? 'THE EMBER HEART CLEARED' : stage === 4 ? 'THE FORGE BURNS'
+      : stage === 3 ? 'THE BELLS RING' : stage === 2 ? 'CINDERHAVEN WAKES' : 'A NEW JOURNEY';
+    T(state, cx, 474, 11, 'center', '#5d6a8a');
+    if (hasProgress()) T(`${run.coins} COINS  \u00b7  ${run.gold} GOLD`, cx, 492, 10, 'center', '#4a5578');
+  } else if (title.view === 'confirm') {
+    T('ERASE THE SAVE?', cx, 344, 22, 'center', C.ember);
+    T('This starts a new journey. The old one is gone.', cx, 370, 11, 'center', '#8f9bb8');
+    ['YES', 'NO'].forEach((o, i) => {
+      const y = 412 + i * 34, on = i === title.confirmSel;
+      if (on) { ctx.fillStyle = 'rgba(255,138,61,.10)'; ctx.fillRect(cx - 100, y - 17, 200, 25); ctx.strokeStyle = 'rgba(255,210,122,.6)'; ctx.strokeRect(cx - 100.5, y - 17.5, 201, 26); }
+      T(o, cx, y, 18, 'center', on ? '#ffd27a' : '#8f9bb8');
+    });
+  } else if (title.view === 'chapters') {
+    T('CHAPTERS', cx, 316, 20, 'center', '#ffd27a');
+    const list = chaptersList();
+    list.forEach((ch, i) => {
+      const y = 344 + i * 20, on = i === title.chapterSel;
+      if (on) { ctx.fillStyle = 'rgba(255,138,61,.10)'; ctx.fillRect(cx - 200, y - 14, 400, 20); }
+      T(ch.label, cx, y, 11, 'center', on ? '#e4ecff' : '#8f9bb8');
+    });
+    T('PROGRESS IS KEPT', cx, 500, 10, 'center', '#5d6a8a');
+  }
+  T('UP/DOWN SELECT   \u00b7   ENTER CONFIRM   \u00b7   ESC BACK', cx, 520, 10, 'center', '#4a5578');
+}
+
 function drawPortrait(who, x, y) {
   ctx.fillStyle = '#0b1021'; ctx.fillRect(x, y, 54, 54);
   ctx.strokeStyle = '#3a4262'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, 53, 53);
@@ -2886,6 +3223,40 @@ function drawPortrait(who, x, y) {
     ctx.fillStyle = '#2a3348'; ctx.fillRect(cx - 13, cy - 4, 26, 7);
     ctx.fillStyle = '#7fe3ff'; ctx.fillRect(cx - 9, cy - 2, 4, 3); ctx.fillRect(cx + 5, cy - 2, 4, 3);
     ctx.fillStyle = '#8f9bb8'; ctx.fillRect(cx - 2, cy + 14, 4, 8);
+  } else if (who === 'ALDRIN' || who === 'DARYL') {
+    const col = who === 'DARYL' ? '#3f6d4a' : '#5a4a8a';
+    ctx.fillStyle = col; ctx.fillRect(x + 12, y + 28, 30, 24);
+    ctx.fillStyle = '#c9d4e0'; ctx.beginPath(); ctx.arc(cx, cy - 2, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy - 4, 15, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#ffd27a'; ctx.fillRect(cx + 11, cy - 20, 3, 6);
+    ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx + 6, cy + 18); ctx.lineTo(cx - 6, cy + 6); ctx.stroke();
+    ctx.fillStyle = '#8a6a2a'; ctx.beginPath(); ctx.ellipse(cx - 8, cy + 4, 7, 9, .4, 0, 7); ctx.fill();
+  } else if (who === 'THE GUARD') {
+    ctx.fillStyle = '#454f70'; ctx.fillRect(x + 12, y + 26, 30, 26);
+    ctx.fillStyle = '#8f9bb8'; ctx.fillRect(x + 15, y + 8, 24, 20);
+    ctx.fillStyle = '#cfd8ee'; ctx.fillRect(x + 15, y + 8, 24, 3);
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(x + 20, y + 17, 14, 4);
+    ctx.fillStyle = C.ember; ctx.fillRect(x + 22, y + 18, 3, 2); ctx.fillRect(x + 29, y + 18, 3, 2);
+    ctx.fillStyle = '#5a2436'; ctx.fillRect(x + 38, y + 24, 5, 24);
+  } else if (who === 'THEODORE') {
+    ctx.fillStyle = '#5a4030'; ctx.fillRect(x + 12, y + 26, 30, 26);
+    ctx.fillStyle = '#8a5a3a'; ctx.beginPath(); ctx.arc(cx, cy, 13, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a2030'; ctx.fillRect(cx - 15, cy - 9, 30, 7);
+    ctx.fillStyle = '#ff8a3d'; ctx.fillRect(cx - 9, cy - 7, 6, 3); ctx.fillRect(cx + 3, cy - 7, 6, 3);
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(cx - 4, cy + 8, 8, 2);
+    ctx.fillStyle = '#8f9bb8'; ctx.fillRect(x + 40, y + 20, 6, 16);
+  } else if (who === 'ZAFRA') {
+    ctx.fillStyle = '#2a2f45'; ctx.fillRect(x + 10, y + 24, 34, 28);
+    ctx.fillStyle = '#c9d4e0'; ctx.beginPath(); ctx.arc(cx, cy - 2, 13, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a2f45'; ctx.beginPath(); ctx.arc(cx, cy - 4, 15, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx - 9, cy - 1); ctx.lineTo(cx - 2, cy - 1); ctx.moveTo(cx + 2, cy - 1); ctx.lineTo(cx + 9, cy - 1); ctx.stroke();
+    ctx.fillStyle = '#5a4a8a'; ctx.fillRect(x + 36, y + 30, 12, 16);
+  } else if (who === 'VILLAGER') {
+    ctx.fillStyle = '#4a5578'; ctx.fillRect(x + 12, y + 28, 30, 24);
+    ctx.fillStyle = '#8a5a3a'; ctx.beginPath(); ctx.arc(cx, cy, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a2030'; ctx.beginPath(); ctx.arc(cx, cy - 3, 14, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(cx - 6, cy - 2, 3, 3); ctx.fillRect(cx + 3, cy - 2, 3, 3);
   } else {
     ctx.fillStyle = C.ember; ctx.beginPath(); ctx.moveTo(cx, cy - 14); ctx.lineTo(cx + 12, cy); ctx.lineTo(cx, cy + 14); ctx.lineTo(cx - 12, cy); ctx.closePath(); ctx.fill();
   }
@@ -2912,7 +3283,7 @@ function drawDialog() {
 function drawPause() {
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   ctx.fillStyle = 'rgba(5,7,15,.78)'; ctx.fillRect(0, 0, VW, VH);
-  const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB'] : ['RESUME', 'REPLAY TUTORIAL'];
+  const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL', 'TITLE'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB', 'TITLE'] : ['RESUME', 'REPLAY TUTORIAL', 'TITLE'];
   T('PAUSED', VW / 2, 210, 34, 'center', C.ember);
   opts.forEach((o, i) => {
     const on = i === g.pauseSel;
@@ -2923,11 +3294,89 @@ function drawPause() {
   T('L  block (perfect parry reflects)', VW / 2, 462, 13, 'center', '#8f9bb8');
 }
 
+/* ---------------- title, chapters and replay ---------------- */
+const AREA_TITLES = { I: 'THE EMBER ROAD', II: 'THE SUNKEN CRYPT', III: 'THE BELL TOWER', IV: 'THE THRONE',
+  V: 'THE ASHEN GARDENS', VI: 'THE DROWNED FORGE', VII: 'THE SILENT ARCHIVE', VIII: 'THE EMBER HEART' };
+function hasProgress() {
+  return run.tutorialDone || run.coins > 0 || run.time > 0 || run.gold > 0
+    || Object.values(run.cleared).some(Boolean) || Object.values(run.levels).some(a => a.some(Boolean));
+}
+function titleOptions() {
+  const opts = [];
+  if (hasProgress()) opts.push('CONTINUE');
+  opts.push('NEW GAME');
+  if (Object.values(run.cleared).some(Boolean)) opts.push('CHAPTERS');
+  if (run.endingSeen) opts.push('CREDITS');
+  return opts;
+}
+function openTitle(view = 'main') {
+  title = { view, sel: 0, confirmSel: 1, chapterSel: 0 };
+  if (g) { g.paused = false; g.shop = null; g.dialog = null; }
+  A.sfx.grant();
+}
+function closeTitle() { title = null; }
+function chaptersList() {
+  const list = [{ id: 'hub', label: 'CINDERHAVEN  \u2014  ASH SQUARE' }];
+  for (const a of ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']) {
+    if (run.cleared[a]) list.push({ id: a, label: a + '  ' + AREA_TITLES[a] });
+  }
+  return list;
+}
+function startChapter(area) {
+  const id = area === 'hub' ? 'hub' : (AREA_LEVELS[area] || [])[0];
+  if (!id) return;
+  run.hp = 3; run.scene = id; save();
+  closeTitle(); loadScene(id); A.sfx.grant();
+}
+function startEndingReplay() {
+  closeTitle();
+  run.hp = 3; run.scene = 'hub'; save();
+  loadScene('hub');
+  g.ending = { t: 0, phase: 0, creditT: 0, creditsDone: false };
+  A.sfx.grant();
+}
+function updateTitle(dt) {
+  if (!title) return;
+  if (title.view === 'main') {
+    const opts = titleOptions();
+    title.sel = Math.max(0, Math.min(title.sel, opts.length - 1));
+    if (pressed.up || pressed.down) {
+      title.sel = (title.sel + (pressed.down ? 1 : opts.length - 1)) % opts.length; A.sfx.land();
+    }
+    if (pressed.menu) { closeTitle(); return; }
+    if (!pressed.ok) return;
+    const pick = opts[title.sel];
+    if (pick === 'CONTINUE') closeTitle();
+    else if (pick === 'NEW GAME') { title.view = 'confirm'; title.confirmSel = 1; }
+    else if (pick === 'CHAPTERS') { title.view = 'chapters'; title.chapterSel = 0; }
+    else if (pick === 'CREDITS') startEndingReplay();
+    return;
+  }
+  if (title.view === 'confirm') {
+    if (pressed.up || pressed.down) title.confirmSel = 1 - title.confirmSel;
+    if (pressed.menu) { title.view = 'main'; title.sel = 0; }
+    if (pressed.ok) {
+      if (title.confirmSel === 0) { newGame(); closeTitle(); }
+      else { title.view = 'main'; title.sel = 0; }
+    }
+    return;
+  }
+  if (title.view === 'chapters') {
+    const list = chaptersList();
+    title.chapterSel = Math.max(0, Math.min(title.chapterSel, list.length - 1));
+    if (pressed.up || pressed.down) {
+      title.chapterSel = (title.chapterSel + (pressed.down ? 1 : list.length - 1)) % list.length; A.sfx.land();
+    }
+    if (pressed.menu) { title.view = 'main'; title.sel = 0; return; }
+    if (pressed.ok) startChapter(list[title.chapterSel].id);
+  }
+}
+
 /* ---------------- loop ---------------- */
 let last = 0;
 function frame(ts) {
   const dt = Math.min(.033, (ts - last) / 1000 || 0); last = ts;
-  if (pressed.menu && !g.dialog) {
+  if (pressed.menu && !g.dialog && !g.ending && !title) {
     if (g.shop) g.shop = null;
     else { g.paused = !g.paused; g.pauseSel = 0; }
   }
@@ -2942,6 +3391,7 @@ function newGame() {
   run = freshRun();
   setKnight(run.skin, run.emberSword);
   persist(run);
+  title = null;
   loadScene('tutorial');
 }
 function replayTutorial() {
@@ -2961,11 +3411,14 @@ function returnHub() { run.hp = g.p.hp; run.scene = 'hub'; save(); loadScene('hu
 addEventListener('keydown', () => A.init());
 addEventListener('beforeunload', save);
 loadScene(sceneId);
+openTitle('main');
 requestAnimationFrame(frame);
 
 export const dbg = {
   get g() { return g; }, get run() { return run; }, get sceneId() { return sceneId; },
   SCENES, TOTAL_COINS, loadScene, newGame, importV1: importFromV1, returnHub, save,
+  get title() { return title; }, openTitle, closeTitle, titleContinue: closeTitle, titleOptions,
+  chaptersList, startChapter, replayEnding: startEndingReplay, hubStage, hasProgress,
   start: () => { g.paused = false; g.dialog = null; },
   setKnight, SKIN_NAMES,
 };
