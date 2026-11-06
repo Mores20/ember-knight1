@@ -1,8 +1,38 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9)
 
 The v2 slice now lives on `main` alongside the shipped game and proves the shape of the world-design document:
-**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV**. The shipped v1 game is
+**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV → Garden Steps → Area V**. The shipped v1 game is
 still available at `index.html` and is untouched.
+
+## V9 - Area V: The Ashen Gardens
+
+Gate V opens at the end of the **Garden Steps**, the last district of Cinderhaven, once Area IV is
+cleared. The area uses the grey-green ash palette, bare trees, vines and pale blossoms.
+
+| Level | Name | Shape |
+|---|---|---|
+| 5-1 | The Withered Gate | The Ember Lantern, two thorn walls, a goblin guard |
+| 5-2 | The Overgrown Terraces | Terrace climbing, the Gardener's Journal secret, an Ash Bloom, a creeper, Patino's Herb Patch |
+| 5-3 | The Greenhouse | Blooms and creepers, then the Gardener Golem |
+| 5-4 | The Heartroot | Mother Blight |
+
+- **The Ember Lantern.** 5-1 grants it permanently. **E** throws a spark (3 charges) that arcs,
+  burns thorns on contact, lands as a burning lamp (6.5 s), and exposes the garden bosses. Standing
+  in torchlight refills the three charges. The HUD shows the lantern and its charges.
+- **Thorn walls.** Green vine barriers become real solids. Light makes them recoil for several
+  seconds; they regrow when the light fades (and wait if the knight is still inside).
+- **Ash Bloom.** Opens and spits seed arcs in the dark; lamplight or torchlight clamps it shut.
+- **Thorn Creeper.** Buried until the knight nears, then it rustles and crawls; jump it or cut it.
+- **Gardener Golem** (6 HP). Root slam, ground vine whip (jump) and arcing seeds. Its root cage turns
+  the blade. A lantern spark burns the cage open for a few seconds; the gold core is the opening.
+- **Mother Blight** (12 HP). Root sweeps, delayed seed bombs and thorn volleys. Her thorn armour must
+  be burned back with a spark before she can be struck. At half health she enters **phase two**: the
+  arena dims, she attacks faster and the armour regrows sooner. Her last line: *“They only wanted to
+  grow.”*
+- **Patino's Herb Patch** in 5-2 is a one-time free heart, saved under `run.herbPatch`.
+- The Garden Steps sign tracks **0/4 → 4/4**. 5-4 returns to Cinderhaven, completes Area V and gives
+  the Garden Steps their green glow.
+- The v2 coin total is now **193** across the tutorial and all five areas.
 
 ## V8 - Area IV: The Throne
 
@@ -29,7 +59,7 @@ Area III is cleared. The area uses the violet-and-gold throne theme with torn ba
   and his dying line plays after the fight.
 - The Throne Approach sign tracks **0/5 → 5/5**. 4-5 returns to Cinderhaven, completes Area IV and
   leaves the hub **THE THRONE IS QUIET**.
-- The v2 coin total is now **164** across the tutorial and all four areas.
+- The v2 coin total is now **164** across the tutorial and all four areas (193 with Area V).
 
 ## V7 - Area III: The Bell Tower
 
@@ -240,7 +270,9 @@ guarded too; a perfect guard on the charge stuns him.
    Golem) → 3-4 (the Cracked Carillon) → Cinderhaven, `cleared.III = true`.
 6. The Throne Approach opens Gate IV after Area III: 4-1 → 4-2 → 4-3 → 4-4 (the Fallen Royal
    Guard) → 4-5 (the Ash Warden) → Cinderhaven, `cleared.IV = true`.
-7. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
+7. The Garden Steps open Gate V after Area IV: 5-1 (find the Ember Lantern) → 5-2 → 5-3 (the
+   Gardener Golem) → 5-4 (Mother Blight) → Cinderhaven, `cleared.V = true`.
+8. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
 
 ## Deliberately deferred
@@ -257,8 +289,10 @@ guarded too; a perfect guard on the charge stuns him.
   Golem and Cracked Carillon.
 - V8 done: the Throne Approach, the five Throne levels, the Royal Revenant, the Fallen Royal Guard
   and the Ash Warden, plus the Captain/Warden death lines.
-- Beyond the slice: the other four areas, Gate V and the next merchant stock, hub rooftops, district
-  stages S3-S5, the Bell Plaza bard (Aldrin and Daryl) and the full unlock map for the shop.
+- V9 done: the Garden Steps, the four Ashen Gardens levels, the Ember Lantern, thorn walls, the Ash
+  Bloom, Thorn Creeper, Gardener Golem, Mother Blight and Patino's Herb Patch.
+- Beyond the slice: Areas VI-VIII (the Drowned Forge, Silent Archive and Ember Heart), Gate VI, the
+  next merchant stock, hub rooftops, district stages S3-S5 and the full unlock map for the shop.
 
 ## Known placeholders
 

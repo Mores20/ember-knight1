@@ -505,9 +505,80 @@ export class RoyalRevenant {
   }
 }
 
+// Ash Bloom: a stationary flower. It opens and spits seeds in the dark and
+// clamps shut while a lantern lamp or torch is near.
+export class AshBloom {
+  constructor(o) {
+    Object.assign(this, { type: 'ashbloom', w: 26, h: 34, hp: 2, x: o.x, y: o.y, t: 0, flash: 0,
+      st: 'open', stT: 0, cool: 1.1, seeds: [], lit: 0, shots: 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    this.lit = !!(g && g.litAt && g.litAt(this.x + this.w / 2, this.y + this.h / 2));
+    if (this.lit) {
+      this.st = 'closed'; this.stT = 0;
+    } else {
+      if (this.st === 'closed') { this.st = 'opening'; this.stT = 0; }
+      if (this.st === 'opening' && this.stT > .5) { this.st = 'open'; this.stT = 0; this.cool = .8; }
+      if (this.st === 'open') {
+        this.cool -= dt;
+        if (this.cool <= 0) { this.fire(p); this.cool = 2.2; }
+      }
+    }
+    for (const s of this.seeds) {
+      s.vy += 900 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.t += dt;
+      if (hit(p, { x: s.x - 5, y: s.y - 5, w: 10, h: 10 })) { p.hurt(s.x, g); s.done = 1; }
+      if (s.t > 2 || s.y > (g.l.h || 640)) s.done = 1;
+    }
+    this.seeds = this.seeds.filter(s => !s.done);
+  }
+  fire(p) {
+    if (!p) return;
+    const cx = this.x + this.w / 2, cy = this.y + 12;
+    const tx = p.x + p.w / 2, ty = p.y + p.h / 2, t = .9;
+    const vx = (tx - cx) / t, vy = (ty - cy - .5 * 900 * t * t) / t;
+    for (let k = -1; k <= 1; k++) this.seeds.push({ x: cx, y: cy, vx: vx + k * 36, vy, t: 0 });
+    this.shots = (this.shots || 0) + 1;
+    sfx.ember();
+  }
+  hit(d) { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
+// Thorn Creeper: lies buried until the knight gets close, rustles, then crawls.
+export class ThornCreeper {
+  constructor(o) {
+    Object.assign(this, { type: 'creeper', w: 28, h: 20, hp: 1, x: o.x, y: o.y, y0: o.y, t: 0, flash: 0,
+      dir: -1, st: 'buried', stT: 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.stT += dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, dx = px - cx, dist = Math.abs(dx);
+    if (this.st === 'buried') {
+      if (dist < 150) { this.st = 'rustle'; this.stT = 0; }
+      return;
+    }
+    if (this.st === 'rustle') {
+      if (this.stT > .45) { this.st = 'crawl'; this.stT = 0; }
+      return;
+    }
+    if (this.st === 'crawl') {
+      this.dir = dx < 0 ? -1 : 1;
+      if (dist > 24) {
+        const nx = this.x + this.dir * 78 * dt;
+        const floor = g && g.l.solids.some(s => typeof s.x === 'number' && !s.pass && !s.off
+          && nx + (this.dir > 0 ? this.w : 0) >= s.x && nx + (this.dir > 0 ? this.w : 0) <= s.x + s.w
+          && Math.abs(s.y - (this.y + this.h)) < 10);
+        if (floor || !g) this.x = nx; else this.dir *= -1;
+      }
+    }
+  }
+  hit(d) { this.hp--; this.flash = .12; this.x += (d || 0) * 8; this.st = 'crawl'; this.stT = 0; return this.hp <= 0; }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
   : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o)
   : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o)
-  : o.type === 'pealwraith' ? new PealWraith(o) : o.type === 'revenant' ? new RoyalRevenant(o) : new Goblin(o);
+  : o.type === 'pealwraith' ? new PealWraith(o) : o.type === 'revenant' ? new RoyalRevenant(o)
+  : o.type === 'ashbloom' ? new AshBloom(o) : o.type === 'creeper' ? new ThornCreeper(o) : new Goblin(o);

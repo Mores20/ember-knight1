@@ -74,7 +74,7 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
-ok(hub.l.hub.gates.length === 7, 'the hub has seven gates');
+ok(hub.l.hub.gates.length === 9, 'the hub has nine gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 const crowBad = [];
@@ -352,7 +352,11 @@ ok(dbg.g.stageMsg > 0 && dbg.g.stageMsgKind === 'bells', 'the town rings a clean
 
 /* ================= 4e. Area IV: The Throne ================= */
 const tHub = dbg.g;
-ok(tHub.l.w >= 4100, 'the Throne Approach reaches the royal gate');
+ok(tHub.l.w >= 4900, 'the Throne Approach and Garden Steps reach the royal gate');
+tHub.p.x = 4760; tHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(tHub.dialog && tHub.dialog.pages[0].who === 'SEALED GATE', 'Gate V is sealed before Area IV is cleared');
+tHub.dialog = null;
 tHub.p.x = 3960; tHub.p.y = 386; frames(2);
 ok(tHub.near && tHub.near.type === 'gate' && tHub.near.obj.area === 'IV', 'Gate IV reaches the Throne');
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
@@ -420,6 +424,90 @@ ok(/hold the door/i.test(dbg.g.bossLineText), 'the Warden\u2019s dying line play
 d5.p.x = d5.l.exit.x + d5.l.exit.w / 2 - d5.p.w / 2; d5.p.y = d5.l.exit.y + d5.l.exit.h - d5.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.IV === true && dbg.run.levels.IV.every(Boolean), '4-5 returns to town and completes Area IV');
 ok(dbg.g.stageMsgKind === 'throne', 'the hub settles into the quiet after the throne');
+
+/* ================= 4f. Area V: The Ashen Gardens ================= */
+const gHub = dbg.g;
+ok(gHub.l.w >= 4900, 'the Garden Steps extend Cinderhaven');
+gHub.p.x = 4760; gHub.p.y = 386; frames(2);
+ok(gHub.near && gHub.near.type === 'gate' && gHub.near.obj.area === 'V', 'Gate V reaches the Ashen Gardens');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'e1' && dbg.g.l.area === 'V', 'Gate V opens 5-1 The Withered Gate');
+
+dbg.run.abil.lantern = false;
+dbg.loadScene('e1'); frames(2);
+const e1 = dbg.g;
+ok(e1.lantern && e1.lantern.got === 0, '5-1 holds the Ember Lantern');
+e1.p.x = 260; e1.p.y = 386; frames(3);
+ok(dbg.run.abil.lantern === true && e1.lamp === 3 && e1.lantern.got === 1, 'the lantern grants three sparks');
+e1.p.x = 300; e1.p.y = 386; e1.p.face = 1; frames(1);
+fire('keydown', 'KeyE'); frames(1);
+ok(e1.sparks.length === 1 && e1.lamp === 2, 'E throws a lantern spark and spends a charge');
+fire('keyup', 'KeyE'); frames(50);
+ok(e1.lamps.length > 0, 'the spark lands and becomes a burning lamp');
+
+const thorn = e1.l.solids.find(s => s.thorn);
+e1.lamps.push({ x: thorn.x - 30, y: thorn.y + 60, t: 5 });
+frames(2);
+ok(thorn.off === 1 && thorn.burn > 0, 'lamplight makes a thorn wall recoil');
+e1.lamps = []; thorn.burn = 0; frames(2);
+ok(thorn.off === 0, 'the thorns regrow when the light fades');
+e1.p.x = e1.l.exit.x + e1.l.exit.w / 2 - e1.p.w / 2; e1.p.y = e1.l.exit.y + e1.l.exit.h - e1.p.h; frames(40);
+ok(dbg.sceneId === 'e2' && dbg.run.levels.V[0] === true, '5-1 leads to 5-2 and is marked cleared');
+
+const e2 = dbg.g;
+const bloom = e2.enemies.find(e => e.type === 'ashbloom');
+e2.lamps = []; e2.p.x = bloom.x + 220; e2.p.y = 386; e2.p.inv = 999;
+frames(90);
+ok(bloom.shots > 0, 'an Ash Bloom spits seeds in the dark');
+e2.lamps.push({ x: bloom.x + 4, y: bloom.y + 15, t: 4 });
+frames(2);
+ok(bloom.st === 'closed' && bloom.lit, 'lamplight clamps the Ash Bloom shut');
+const creeper = e2.enemies.find(e => e.type === 'creeper');
+e2.p.x = creeper.x + 80; e2.p.y = 386; e2.p.hp = 3; e2.p.inv = 0; frames(40);
+ok(creeper.st !== 'buried', 'the Thorn Creeper surfaces when the knight nears');
+e2.p.x = e2.l.herb.x; e2.p.y = 386; e2.p.hp = 2; frames(3);
+ok(dbg.run.herbPatch === true && e2.herb.got === 1, 'Patino\u2019s Herb Patch is a one-time pickup');
+e2.p.x = e2.l.exit.x + e2.l.exit.w / 2 - e2.p.w / 2; e2.p.y = e2.l.exit.y + e2.l.exit.h - e2.p.h; frames(40);
+ok(dbg.sceneId === 'e3' && dbg.run.levels.V[1] === true, '5-2 leads to 5-3 and is marked cleared');
+
+const e3 = dbg.g, gGolem = e3.boss;
+e3.p.x = 1300; e3.p.y = 386; e3.p.inv = 999; frames(40);
+ok(gGolem && gGolem.kind === 'gardenergolem' && gGolem.st !== 'dormant', 'the Gardener Golem wakes in the greenhouse');
+gGolem.hp = 6; gGolem.st = 'idle'; gGolem.stT = 0; gGolem.coreT = 0; gGolem.armor = 1;
+e3.p.x = gGolem.x - 30; e3.p.y = 386; e3.p.face = 1; e3.p.swing = .15; e3.p.hits.clear(); frames(8);
+ok(gGolem.hp === 6, 'the Golem\u2019s root cage turns the blade');
+e3.sparks.push({ x: gGolem.x + gGolem.w / 2, y: gGolem.y + 30, vx: 0, vy: 0, t: .5 });
+frames(1);
+ok(gGolem.coreT > 0, 'a lantern spark burns the root cage open');
+gGolem.coreT = 3; gGolem.st = 'open'; gGolem.stT = 0;
+e3.p.x = gGolem.x - 30; e3.p.y = 386; e3.p.face = 1; e3.p.swing = .15; e3.p.hits.clear(); frames(8);
+ok(gGolem.hp === 5, 'the exposed core takes a hit');
+gGolem.coreT = 3; gGolem.st = 'open'; gGolem.hp = 1;
+e3.p.x = gGolem.x - 30; e3.p.y = 386; e3.p.face = 1; e3.p.swing = .15; e3.p.hits.clear(); frames(20);
+ok(gGolem.hp === 0 && gGolem.st === 'dead', 'the Gardener Golem falls');
+e3.p.x = e3.l.exit.x + e3.l.exit.w / 2 - e3.p.w / 2; e3.p.y = e3.l.exit.y + e3.l.exit.h - e3.p.h; frames(40);
+ok(dbg.sceneId === 'e4' && dbg.run.levels.V[2] === true, '5-3 leads to the Heartroot and is marked cleared');
+
+const e4 = dbg.g, mom = e4.boss;
+e4.p.x = 950; e4.p.y = 386; e4.p.inv = 999; frames(40);
+ok(mom && mom.kind === 'motherblight' && mom.st !== 'dormant', 'Mother Blight wakes in the Heartroot');
+mom.hp = 12; mom.coreT = 0; mom.armor = 1; mom.st = 'idle'; mom.stT = 0;
+e4.p.x = mom.x - 40; e4.p.y = 386; e4.p.face = 1; e4.p.swing = .15; e4.p.hits.clear(); frames(8);
+ok(mom.hp === 12, 'the thorn armour turns the blade');
+e4.sparks.push({ x: mom.x + mom.w / 2, y: mom.y + 50, vx: 0, vy: 0, t: .5 });
+frames(1);
+ok(mom.coreT > 0, 'a lantern spark burns the thorn armour back');
+mom.coreT = 3.8; mom.hp = 7; mom.st = 'idle'; mom.stT = 0;
+e4.p.x = mom.x - 40; e4.p.y = 386; e4.p.face = 1; e4.p.swing = .15; e4.p.hits.clear(); frames(8);
+ok(mom.hp === 6 && mom.phase === 2, 'Mother Blight shifts to phase two at half health');
+ok(e4.dim > 0, 'phase two dims the Heartroot');
+mom.coreT = 3; mom.st = 'idle'; mom.hp = 1;
+e4.p.x = mom.x - 40; e4.p.y = 386; e4.p.face = 1; e4.p.swing = .15; e4.p.hits.clear(); frames(20);
+ok(mom.hp === 0 && mom.st === 'dead', 'Mother Blight falls');
+ok(/only wanted to grow/i.test(dbg.g.bossLineText), 'Mother Blight\u2019s restoration line plays');
+e4.p.x = e4.l.exit.x + e4.l.exit.w / 2 - e4.p.w / 2; e4.p.y = e4.l.exit.y + e4.l.exit.h - e4.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.V === true && dbg.run.levels.V.every(Boolean), '5-4 returns to town and completes Area V');
+ok(dbg.g.stageMsgKind === 'garden', 'the Garden Steps stir after Area V');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);
