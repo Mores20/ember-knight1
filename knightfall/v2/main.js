@@ -1,6 +1,6 @@
 // Ember Knight v2 vertical slice: tutorial road -> Cinderhaven -> Area I.
 // A separate, lean loop so the shipped game keeps its own state machine.
-import { pressed, clearPressed, keys } from '../input.js';
+import { pressed, clearPressed, keys, setBindings, captureNext, cancelCapture, keyName, codeLabel, V2_ACTIONS, V2_DEFAULT_KEYS, isReserved } from '../input.js';
 import * as A from '../audio.js';
 import { Player, hit } from '../player.js';
 import { makeEnemy } from '../enemies.js';
@@ -28,6 +28,7 @@ const VW = 960, VH = 540, BAR = 34, BARB = 18, BOT = VH - BARB;
 const C = { bg: '#0b1021', moon: '#dfe8ff', ember: '#ff8a3d', ink: '#05070f', gold: '#ffd27a' };
 
 let run = bootRun();
+setBindings(run.keys);
 let sceneId = run.tutorialDone ? 'hub' : 'tutorial';
 let g;
 let title = null;
@@ -108,7 +109,7 @@ function loadScene(id) {
   const camX = Math.max(0, Math.min(l.w - VW, p.x - 380));
   const camY = l.vertical ? Math.max(0, Math.min(l.h - VH, p.y - 300)) : 0;
   g = {
-    l, id, p, abil: run.abil, stage,
+    l, id, p, abil: run.abil, stage, tuning: { dashV: 410, dashVy: 280 },
     enemies: (l.enemies || []).map(makeEnemy),
     coins: l.coins.map(([x, y], k) => ({ x, y, ox: x, oy: y, k, taken: 0, got: got.c.includes(k) ? 1 : 0 })),
     hearts: l.hearts.map(([x, y], k) => ({ x, y, k, got: got.h.includes(k) ? 1 : 0 })),
@@ -278,7 +279,7 @@ function drawShop() {
       x + w - 24, iy, 13, 'right', locked ? '#4a5578' : g.shopStock[i] > 0 ? '#ffd84a' : '#5d6a8a');
   });
   T(s.msg || '', x + 24, y + h - 30, 13, 'left', '#8f9bb8');
-  T('\u2191\u2193 SELECT   ENTER BUY   F LEAVE', x + w - 24, y + h - 30, 11, 'right', '#4a5578');
+  T(`${keyName('up')}/${keyName('down')} SELECT   ENTER BUY   ${keyName('talk')} LEAVE`, x + w - 24, y + h - 30, 11, 'right', '#4a5578');
 }
 
 function nearest() {
@@ -445,7 +446,7 @@ function update(dt) {
     return;
   }
   if (g.paused) {
-    const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL', 'TITLE'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB', 'TITLE'] : ['RESUME', 'REPLAY TUTORIAL', 'TITLE'];
+    const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL', 'TITLE', 'CONTROLS'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB', 'TITLE', 'CONTROLS'] : ['RESUME', 'REPLAY TUTORIAL', 'TITLE', 'CONTROLS'];
     if (pressed.up) { g.pauseSel = (g.pauseSel + opts.length - 1) % opts.length; A.sfx.land(); }
     if (pressed.down) { g.pauseSel = (g.pauseSel + 1) % opts.length; A.sfx.land(); }
     if (pressed.ok) {
@@ -453,6 +454,7 @@ function update(dt) {
       else if (g.pauseSel === 1 && g.l.kind === 'level') { run.hp = p.hp; run.scene = 'hub'; save(); loadScene('hub'); }
       else if (g.pauseSel === 1 && g.l.kind === 'hub') replayTutorial();
       else if (g.pauseSel === 2) { g.paused = false; openTitle('main'); }
+      else if (g.pauseSel === 3) { g.paused = false; openTitle('controls'); }
       else { g.paused = false; A.sfx.block(); }
     }
     return;
@@ -532,8 +534,15 @@ function update(dt) {
       break;
     }
     const step = g.l.steps[Math.min(g.tutStep, g.l.steps.length - 1)];
-    g.prompt = step ? step.text : '';
-    g.promptKey = step ? step.key : '';
+    const K = keyName;
+    g.prompt = step ? (step.id === 'move' ? `${K('left')} / ${K('right')}  or  arrows  \u2014 move`
+      : step.id === 'jump' ? `${K('jump')}  \u2014 jump. Hold it for height.`
+      : step.id === 'sword' ? `${K('atk')}  \u2014 swing. Strike the straw dummy.`
+      : step.id === 'dash' ? `${K('dash')}  \u2014 dash across the gap. One surge per jump.`
+      : step.id === 'block' ? `${K('block')}  \u2014 guard the orb.`
+      : step.id === 'parry' ? `Press ${K('block')} just before impact \u2014 a perfect parry sends it back.`
+      : step.text) : '';
+    g.promptKey = step ? (step.id === 'block' || step.id === 'parry' ? K('block') : (step.key || '')) : '';
     g.promptNo = Math.min(g.tutStep + 1, g.l.steps.length);
   } else { g.prompt = ''; g.promptKey = ''; g.promptNo = 0; }
 
@@ -1772,8 +1781,8 @@ function drawWorld() {
     ctx.globalAlpha = Math.min(1, g.grant / .5) * Math.min(1, (3.4 - g.grant) * 2.5);
     ctx.fillStyle = 'rgba(5,7,15,.72)'; ctx.fillRect(VW / 2 - 220, 166, 440, 70);
     T(g.grantKind === 'dash' ? 'EMBER DASH' : g.grantKind === 'lantern' ? 'EMBER LANTERN' : g.grantKind === 'spectacles' ? 'SPECTACLES OF THEODORE' : 'NEW ABILITY', VW / 2, 202, 30, 'center', C.ember);
-    T(g.grantKind === 'dash' ? 'SHIFT  \u2014 one surge per jump'
-      : g.grantKind === 'lantern' ? 'E  \u2014 throw a spark into the dark'
+    T(g.grantKind === 'dash' ? `${keyName('dash')}  \u2014 one surge per jump`
+      : g.grantKind === 'lantern' ? `${keyName('lamp')}  \u2014 throw a spark into the dark`
       : g.grantKind === 'spectacles' ? 'LIGHT REACHES FARTHER  \u2014  secrets shine' : '', VW / 2, 226, 14, 'center', '#cfd8ee');
     ctx.globalAlpha = 1;
   }
@@ -3080,6 +3089,16 @@ function drawPlayer(p) {
   const st = p.dashT > 0 ? 'dash' : p.swing > 0 ? 'attack' : !p.ground ? 'air' : Math.abs(p.vx) > 20 ? 'run' : 'idle';
   const u = st === 'dash' ? 1 - p.dashT / .22 : st === 'attack' ? 1 - p.swing / .26 : 0;
   drawKnight(ctx, st, g.t, u, p.x + p.w / 2, p.y + p.h, p.face);
+  if (p.swing > 0) {
+    const k = Math.max(.15, Math.min(1, p.swing / .26));
+    const cx = p.x + p.w / 2;
+    ctx.strokeStyle = 'rgba(255,210,122,' + (.55 * k) + ')'; ctx.lineWidth = 3;
+    if (p.aim === 'up') {
+      ctx.beginPath(); ctx.arc(cx, p.y + 4, 22, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    } else if (p.aim === 'down' && !p.ground) {
+      ctx.beginPath(); ctx.arc(cx, p.y + p.h + 2, 22, .08 * Math.PI, .92 * Math.PI); ctx.stroke();
+    }
+  }
   if (p.block) {
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     const perfect = p.parry > 0;
@@ -3138,7 +3157,7 @@ function drawHud() {
   T(`${g.time.toFixed(1)}s`, VW - 20, 16, 13, 'right', '#cfd8ee');
   ctx.setTransform(1, 0, 0, 1, 0, BOT);
   T(g.l.kind === 'hub' ? 'CINDERHAVEN \u2014 ASH SQUARE' : g.l.name, 20, 14, 11, 'left', '#5d6a8a');
-  T('A/D MOVE   SPACE JUMP   J ATTACK   SHIFT DASH   L BLOCK   E LANTERN   F USE   ESC PAUSE', VW - 20, 14, 11, 'right', '#5d6a8a');
+  T(`${keyName('left')}/${keyName('right')} MOVE   ${keyName('jump')} JUMP   ${keyName('atk')} ATTACK   ${keyName('dash')} DASH   ${keyName('block')} BLOCK   ${keyName('lamp')} LANTERN   ${keyName('talk')} USE   ${keyName('menu')} PAUSE`, VW - 20, 14, 10, 'right', '#5d6a8a');
 }
 
 function drawTitle() {
@@ -3166,19 +3185,19 @@ function drawTitle() {
   if (title.view === 'main') {
     const opts = titleOptions();
     opts.forEach((o, i) => {
-      const y = 336 + i * 36, on = i === title.sel;
+      const y = 330 + i * 32, on = i === title.sel;
       if (on) {
-        ctx.fillStyle = 'rgba(255,138,61,.10)'; ctx.fillRect(cx - 140, y - 18, 280, 27);
-        ctx.strokeStyle = 'rgba(255,210,122,.6)'; ctx.strokeRect(cx - 140.5, y - 18.5, 281, 28);
+        ctx.fillStyle = 'rgba(255,138,61,.10)'; ctx.fillRect(cx - 140, y - 17, 280, 25);
+        ctx.strokeStyle = 'rgba(255,210,122,.6)'; ctx.strokeRect(cx - 140.5, y - 17.5, 281, 26);
         ctx.fillStyle = '#ffd27a'; ctx.fillRect(cx - 150, y - 7, 4, 4);
       }
-      T(o, cx, y, 19, 'center', on ? '#ffd27a' : '#8f9bb8');
+      T(o, cx, y, 18, 'center', on ? '#ffd27a' : '#8f9bb8');
     });
     const stage = hubStage();
     const state = stage >= 5 ? 'THE EMBER HEART CLEARED' : stage === 4 ? 'THE FORGE BURNS'
       : stage === 3 ? 'THE BELLS RING' : stage === 2 ? 'CINDERHAVEN WAKES' : 'A NEW JOURNEY';
-    T(state, cx, 474, 11, 'center', '#5d6a8a');
-    if (hasProgress()) T(`${run.coins} COINS  \u00b7  ${run.gold} GOLD`, cx, 492, 10, 'center', '#4a5578');
+    T(state, cx, 486, 11, 'center', '#5d6a8a');
+    if (hasProgress()) T(`${run.coins} COINS  \u00b7  ${run.gold} GOLD`, cx, 504, 10, 'center', '#4a5578');
   } else if (title.view === 'confirm') {
     T('ERASE THE SAVE?', cx, 344, 22, 'center', C.ember);
     T('This starts a new journey. The old one is gone.', cx, 370, 11, 'center', '#8f9bb8');
@@ -3196,8 +3215,30 @@ function drawTitle() {
       T(ch.label, cx, y, 11, 'center', on ? '#e4ecff' : '#8f9bb8');
     });
     T('PROGRESS IS KEPT', cx, 500, 10, 'center', '#5d6a8a');
+  } else if (title.view === 'controls') {
+    T('CONTROLS', cx, 314, 20, 'center', '#ffd27a');
+    const items = Object.keys(V2_ACTIONS);
+    const split = 6;
+    items.forEach((a, i) => {
+      const col = i < split ? 0 : 1;
+      const x = col ? cx + 40 : cx - 230;
+      const y = 344 + (i % split) * 23;
+      const on = i === title.ctrlSel;
+      if (on) {
+        ctx.fillStyle = 'rgba(255,138,61,.10)'; ctx.fillRect(x - 14, y - 15, 276, 20);
+        ctx.strokeStyle = 'rgba(255,210,122,.45)'; ctx.strokeRect(x - 14.5, y - 15.5, 277, 21);
+      }
+      T(V2_ACTIONS[a].label, x, y, 10, 'left', on ? '#e4ecff' : '#8f9bb8');
+      T(keyName(a), x + 246, y, 10, 'right', on ? '#ffd27a' : '#cfd8ee');
+    });
+    T(title.ctrlMsg || 'ENTER A ROW TO REBIND. ALIASES SUCH AS ARROWS AND Z STAY ACTIVE.',
+      cx, 496, 9, 'center', title.ctrlMsg.startsWith('BOUND') ? '#ffd27a' : '#8f9bb8');
   }
-  T('UP/DOWN SELECT   \u00b7   ENTER CONFIRM   \u00b7   ESC BACK', cx, 520, 10, 'center', '#4a5578');
+  const foot = title.view === 'controls'
+    ? (title.capturing ? 'PRESS A KEY   \u00b7   ESC CANCEL'
+      : `${keyName('up')}/${keyName('down')} SELECT   \u00b7   ENTER REBIND   \u00b7   ${keyName('menu')} BACK   \u00b7   R DEFAULTS`)
+    : `UP/DOWN SELECT   \u00b7   ENTER CONFIRM   \u00b7   ${keyName('menu')} BACK`;
+  T(foot, cx, 520, 10, 'center', '#4a5578');
 }
 
 function drawPortrait(who, x, y) {
@@ -3278,12 +3319,12 @@ function drawDialog() {
     return out;
   };
   wrap(page.text, 64).forEach((ln, k) => T(ln, x + 88, y + 62 + k * 22, 15, 'left', '#dfe8ff'));
-  T(`${d.i + 1}/${d.pages.length}    F / ENTER`, x + w - 20, y + h - 18, 12, 'right', '#5d6a8a');
+  T(`${d.i + 1}/${d.pages.length}    ${keyName('talk')} / ENTER`, x + w - 20, y + h - 18, 12, 'right', '#5d6a8a');
 }
 function drawPause() {
   ctx.setTransform(1, 0, 0, 1, 0, BAR);
   ctx.fillStyle = 'rgba(5,7,15,.78)'; ctx.fillRect(0, 0, VW, VH);
-  const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL', 'TITLE'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB', 'TITLE'] : ['RESUME', 'REPLAY TUTORIAL', 'TITLE'];
+  const opts = g.l.kind === 'tutorial' ? ['RESUME', 'SKIP TUTORIAL', 'TITLE', 'CONTROLS'] : g.l.kind === 'level' ? ['RESUME', 'RETURN TO HUB', 'TITLE', 'CONTROLS'] : ['RESUME', 'REPLAY TUTORIAL', 'TITLE', 'CONTROLS'];
   T('PAUSED', VW / 2, 210, 34, 'center', C.ember);
   opts.forEach((o, i) => {
     const on = i === g.pauseSel;
@@ -3307,14 +3348,15 @@ function titleOptions() {
   opts.push('NEW GAME');
   if (Object.values(run.cleared).some(Boolean)) opts.push('CHAPTERS');
   if (run.endingSeen) opts.push('CREDITS');
+  opts.push('CONTROLS');
   return opts;
 }
 function openTitle(view = 'main') {
-  title = { view, sel: 0, confirmSel: 1, chapterSel: 0 };
+  title = { view, sel: 0, confirmSel: 1, chapterSel: 0, ctrlSel: 0, ctrlMsg: '', capturing: false };
   if (g) { g.paused = false; g.shop = null; g.dialog = null; }
   A.sfx.grant();
 }
-function closeTitle() { title = null; }
+function closeTitle() { title = null; cancelCapture(); }
 function chaptersList() {
   const list = [{ id: 'hub', label: 'CINDERHAVEN  \u2014  ASH SQUARE' }];
   for (const a of ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']) {
@@ -3350,6 +3392,38 @@ function updateTitle(dt) {
     else if (pick === 'NEW GAME') { title.view = 'confirm'; title.confirmSel = 1; }
     else if (pick === 'CHAPTERS') { title.view = 'chapters'; title.chapterSel = 0; }
     else if (pick === 'CREDITS') startEndingReplay();
+    else if (pick === 'CONTROLS') { title.view = 'controls'; title.ctrlSel = 0; title.ctrlMsg = ''; }
+    return;
+  }
+  if (title.view === 'controls') {
+    if (title.capturing) return;
+    const items = Object.keys(V2_ACTIONS);
+    title.ctrlSel = Math.max(0, Math.min(title.ctrlSel, items.length - 1));
+    if (pressed.up || pressed.down) {
+      title.ctrlSel = (title.ctrlSel + (pressed.down ? 1 : items.length - 1)) % items.length;
+      title.ctrlMsg = ''; A.sfx.land();
+    }
+    if (pressed.restart) {
+      run.keys = { ...V2_DEFAULT_KEYS };
+      setBindings(run.keys); save();
+      title.ctrlMsg = 'DEFAULTS RESTORED'; A.sfx.grant();
+    }
+    if (pressed.menu) { title.view = 'main'; title.sel = 0; title.ctrlMsg = ''; return; }
+    if (!pressed.ok) return;
+    const action = items[title.ctrlSel];
+    title.capturing = true; title.ctrlMsg = 'PRESS A KEY';
+    captureNext(code => {
+      if (!title) return;
+      title.capturing = false;
+      if (code === 'Escape') { title.ctrlMsg = ''; return; }
+      if (isReserved(code)) { title.ctrlMsg = codeLabel(code) + ' IS RESERVED'; return; }
+      const used = Object.entries(V2_ACTIONS).find(([a, def]) => a !== action &&
+        (run.keys[a] === code || (def.aliases || []).includes(code)));
+      if (used) { title.ctrlMsg = codeLabel(code) + ' IS USED BY ' + used[1].label; return; }
+      run.keys[action] = code;
+      setBindings(run.keys); save();
+      title.ctrlMsg = 'BOUND TO ' + codeLabel(code);
+    });
     return;
   }
   if (title.view === 'confirm') {
@@ -3390,6 +3464,7 @@ function frame(ts) {
 function newGame() {
   run = freshRun();
   setKnight(run.skin, run.emberSword);
+  setBindings(run.keys);
   persist(run);
   title = null;
   loadScene('tutorial');
@@ -3402,6 +3477,7 @@ function replayTutorial() {
 function importFromV1() {
   run = importV1Run(readV1());
   setKnight(run.skin, run.emberSword);
+  setBindings(run.keys);
   persist(run);
   loadScene('hub');
   return run;
@@ -3419,6 +3495,9 @@ export const dbg = {
   SCENES, TOTAL_COINS, loadScene, newGame, importV1: importFromV1, returnHub, save,
   get title() { return title; }, openTitle, closeTitle, titleContinue: closeTitle, titleOptions,
   chaptersList, startChapter, replayEnding: startEndingReplay, hubStage, hasProgress,
+  applyBindings: () => { setBindings(run.keys); save(); },
+  setBinding: (a, c) => { run.keys[a] = c; setBindings(run.keys); save(); },
+  keyName,
   start: () => { g.paused = false; g.dialog = null; },
   setKnight, SKIN_NAMES,
 };

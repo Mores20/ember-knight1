@@ -10,8 +10,8 @@ export class Player {
   sword() {
     if (this.swing <= .1 || this.swing > .2) return null;
     const cx = this.x + this.w / 2;
-    if (this.aim === 'up') return { x: cx - 20, y: this.y - 34, w: 40, h: 38 };             // overhead cut
-    if (this.aim === 'down') return { x: cx - 20, y: this.y + this.h - 4, w: 40, h: 38 };    // plunge
+    if (this.aim === 'up') return { x: cx - 24, y: this.y - 46, w: 48, h: 52 };            // overhead cut
+    if (this.aim === 'down') return { x: cx - 24, y: this.y + this.h - 6, w: 48, h: 44 };   // plunge
     return { x: this.face > 0 ? this.x + this.w : this.x - 36, y: this.y + 2, w: 36, h: 28 };
   }
   // Raised guard: a small shield hitbox in front. Live only while the block key is held.
@@ -53,9 +53,12 @@ export class Player {
       if (!ax && !ay) { ax = this.face; ay = 0; }                    // neutral dash keeps the facing
       const len = Math.hypot(ax, ay) || 1; ax /= len; ay /= len;
       if (ax) this.face = Math.sign(ax);
-      const surge = this.ground && !ay ? DASH_VG : DASH_V;            // a pure ground dash is the short one
+      const tune = g && g.tuning;
+      const dashV = tune && tune.dashV != null ? tune.dashV : DASH_V;
+      const dashVy = tune && tune.dashVy != null ? tune.dashVy : DASH_V;
+      const surge = this.ground && !ay ? DASH_VG : dashV;             // a pure ground dash is the short one
       this.vx = ax * surge;
-      if (ay) this.vy = ay * surge;                                  // flat dashes keep their vertical momentum
+      if (ay) this.vy = ay * dashVy;                                  // flat dashes keep their vertical momentum
       sfx.dash();
       sfx.dash();
     }

@@ -67,6 +67,21 @@ frames(5);
 ok(dbg.title && dbg.title.view === 'main', 'the title opens on boot');
 dbg.titleContinue(); frames(2);
 ok(!dbg.title, 'Continue enters the game');
+dbg.openTitle('controls'); frames(2);
+ok(dbg.title && dbg.title.view === 'controls', 'the controls menu opens');
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+ok(dbg.title.capturing === true, 'the controls menu waits for a new key');
+fire('keydown', 'KeyQ'); frames(1); fire('keyup', 'KeyQ'); frames(1);
+ok(dbg.run.keys.left === 'KeyQ', 'a key can be rebound');
+dbg.setBinding('left', 'KeyA');
+dbg.openTitle('controls'); frames(1);
+fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
+fire('keydown', 'KeyD'); frames(1); fire('keyup', 'KeyD'); frames(1);
+ok(dbg.run.keys.left === 'KeyA' && /USED BY/.test(dbg.title.ctrlMsg), 'duplicate bindings are refused');
+fire('keydown', 'KeyR'); frames(1); fire('keyup', 'KeyR'); frames(1);
+ok(/DEFAULTS/.test(dbg.title.ctrlMsg) && dbg.run.keys.jump === 'Space', 'R restores the default bindings');
+ok(dbg.titleOptions().includes('CONTROLS'), 'the title offers the controls menu');
+dbg.titleContinue(); frames(2);
 
 /* ================= 1. v1 import and boot ================= */
 ok(dbg.sceneId === 'hub' && dbg.run.tutorialDone === true, 'a v1 save imports into Cinderhaven with the tutorial done');
@@ -184,6 +199,10 @@ hub2.p.x = 1980; hub2.p.y = 386; frames(2);
 ok(hub2.near && hub2.near.type === 'merchant', 'the Sketchy Merchant waits in Market Lane');
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
 ok(!!hub2.shop, 'F opens the merchant shop');
+hub2.shop.sel = 0;
+fire('keydown', 'ArrowUp'); frames(1); fire('keyup', 'ArrowUp'); frames(1);
+ok(hub2.shop.sel === 7, 'Up navigates the merchant list');
+hub2.shop.sel = 0;
 
 dbg.run.gold = 100; hub2.p.hp = 2; hub2.shop.sel = 0;
 fire('keydown', 'Enter'); frames(1); fire('keyup', 'Enter'); frames(1);
@@ -789,6 +808,13 @@ ok(dbg.TOTAL_COINS === Object.values(SCENES).reduce((n, s) => n + s.coins.length
 
 const tut = dbg.g;
 ok(tut.tutStep === 0 && tut.prompt.includes('move'), 'the tutorial starts on the move step');
+ok(tut.tuning && tut.tuning.dashV === 410 && tut.tuning.dashVy === 280, 'the v2 surge is tuned down');
+fire('keydown', 'KeyW'); frames(1);
+const aimY = tut.p.y;
+fire('keydown', 'KeyJ'); frames(1);
+ok(tut.p.aim === 'up' && tut.p.swing > 0, 'holding Up aims the sword upward');
+fire('keyup', 'KeyJ'); fire('keyup', 'KeyW'); frames(2);
+ok(tut.p.y >= aimY - 4, 'aiming up no longer jumps');
 tut.p.x = 160; frames(2);
 ok(tut.tutStep >= 1 && tut.prompt.includes('jump'), 'moving advances the prompt to jump');
 tut.p.x = 1070; frames(3);

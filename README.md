@@ -96,6 +96,22 @@ The v2 slice (on `main`) contains a separate tutorial → Cinderhaven → the fu
 [`docs/Ember_Knight_V2_Slice.md`](docs/Ember_Knight_V2_Slice.md) for scope, controls and what is
 deferred. It has its own save (`emberknight.v2`) and imports a v1 save once without touching it.
 
+### V2 controls
+
+| Action | Default keys |
+|---|---|
+| Move | `A` `D` or `←` `→` |
+| Aim up / down | `W` / `S` or `↑` / `↓` (hold while attacking) |
+| Jump | `Space` or `Z` |
+| Attack | `J`, `X` or `K` |
+| Dash | `Shift` |
+| Block | `L` |
+| Lantern | `E` |
+| Interact / trade | `F` |
+| Pause | `Esc` |
+
+Open **CONTROLS** from the title or the pause menu to rebind any action. `R` restores defaults. v1 keeps its original controls (including `W`/`↑` jump).
+
 ## Credits
 
 Created by **LumpiaN#1**. Thanks for playing.

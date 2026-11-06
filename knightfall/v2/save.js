@@ -1,5 +1,7 @@
 // v2 save: its own key so the shipped v1 save stays untouched. A v1 save is
 // imported once into the purse/cosmetics/abilities, with the tutorial marked done.
+import { V2_DEFAULT_KEYS } from '../input.js';
+
 export const SAVE_KEY = 'emberknight.v2';
 export const V1_KEY = 'emberknight.v1';
 
@@ -12,6 +14,7 @@ export const freshRun = () => ({
   got: {}, lit: {}, secrets: {}, talked: {}, cleared: { I: false, II: false, III: false, IV: false, V: false, VI: false, VII: false, VIII: false }, levels: { I: [false, false, false], II: [false, false, false, false], III: [false, false, false, false], IV: [false, false, false, false, false], V: [false, false, false, false], VI: [false, false, false], VII: [false, false, false], VIII: [false, false, false] },
   herbPatch: false, ending: false, endingSeen: false,
   captainSeal: false, spectacles: false, lampMax: 3, lens: false,
+  keys: { ...V2_DEFAULT_KEYS },
   skin: 'iron', emberSword: false, titled: false,
 });
 
@@ -48,6 +51,8 @@ export function loadRun() {
   if (typeof out.spectacles !== 'boolean') out.spectacles = false;
   if (typeof out.lampMax !== 'number') out.lampMax = 3;
   if (typeof out.lens !== 'boolean') out.lens = false;
+  out.keys = { ...V2_DEFAULT_KEYS, ...(out.keys && typeof out.keys === 'object' ? out.keys : {}) };
+  for (const k in V2_DEFAULT_KEYS) if (typeof out.keys[k] !== 'string' || !out.keys[k]) out.keys[k] = V2_DEFAULT_KEYS[k];
   if (typeof out.herbPatch !== 'boolean') out.herbPatch = false;
   out.cleared = { ...freshRun().cleared, ...(out.cleared && typeof out.cleared === 'object' ? out.cleared : {}) };
   if (typeof out.shield !== 'number') out.shield = 0;

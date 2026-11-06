@@ -66,6 +66,14 @@ The pause menu gains a **TITLE** option, so the title/chapters/credits are alway
 
 `captainSeal`, `spectacles`, `lampMax`, `lens`, `ending` and `endingSeen` are added with safe defaults; old v2 saves load unchanged. The coin total remains **275** because shop purchases spend gold, not the lifetime coin tally.
 
+### Controls and movement pass
+
+- **Merchant Up fixed.** The input layer now sets `pressed.up` as well as `keys.up`. The shop, pause and title menus all navigate up correctly (previously only Down worked).
+- **Editable bindings.** Title or pause → **CONTROLS**. Select a row, press Enter, then the new key. Duplicates and reserved keys are refused; **R** restores defaults. Bindings persist in `run.keys` and apply immediately; the HUD, tutorial keycaps, shop/dialog prompts and title footer show the current keys.
+- **v2 defaults:** Move `A`/`D` or arrows; Aim Up `W`/↑; Aim Down `S`/↓; Jump `Space`/`Z`; Attack `J`/`X`/`K`; Dash `Shift`; Block `L`; Lantern `E`; Interact `F`; Pause `Esc`. W/↑ no longer jump in v2 — they aim, which makes the upward slash reliable. (v1 keeps its original controls.)
+- **Upward slash.** The overhead hitbox is wider and taller (`48×52`), and a visible arc now shows above the knight during an up-swing; the down-plunge gets the same feedback.
+- **Surge tuning.** v2 dash speed is `410` horizontally and `280` vertically (was `480`), so dash-jumps no longer clear half the screen. v1 keeps the original values. The tutorial dash gap still passes.
+
 ## V12 - Area VIII: The Ember Heart (the finale)
 
 Gate VIII opens at the end of Archive Steps after Area VII. The last three levels are the approach and
