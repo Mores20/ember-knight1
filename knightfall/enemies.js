@@ -575,10 +575,67 @@ export class ThornCreeper {
   hit(d) { this.hp--; this.flash = .12; this.x += (d || 0) * 8; this.st = 'crawl'; this.stT = 0; return this.hp <= 0; }
 }
 
+// Slag Smith: a squat foundry hand who lobs slag that leaves a burning puddle.
+export class SlagSmith {
+  constructor(o) {
+    Object.assign(this, { type: 'slagsmith', w: 32, h: 36, hp: 2, x: o.x, y: o.y, t: 0, flash: 0,
+      cool: 1.2, dir: -1, shots: [], puddles: [] }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt; this.cool -= dt;
+    const cx = this.x + this.w / 2, px = p.x + p.w / 2, dx = px - cx;
+    this.dir = dx < 0 ? -1 : 1;
+    if (this.cool <= 0 && Math.abs(dx) < 460 && Math.abs((p.y + p.h / 2) - (this.y + this.h / 2)) < 300) {
+      this.throw(p); this.cool = 2.3;
+    }
+    for (const s of this.shots) {
+      s.vy += 900 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.t += dt;
+      const box = { x: s.x - 5, y: s.y - 5, w: 10, h: 10 };
+      if (hit(p, box)) { p.hurt(s.x, g); s.done = 1; this.puddles.push({ x: s.x, y: s.y + 6, t: 0, life: 2.4 }); continue; }
+      let land = null;
+      if (g) for (const o of g.l.solids) if (!o.off && !o.pass && typeof o.x === 'number'
+        && s.x > o.x && s.x < o.x + o.w && s.y >= o.y - 6 && s.y <= o.y + 12) {
+        if (!land || o.y < land.y) land = o;
+      }
+      if (land) { s.done = 1; this.puddles.push({ x: s.x, y: land.y, t: 0, life: 2.4 }); }
+      else if (s.t > 2.6 || s.y > (g ? g.l.h : 1800)) s.done = 1;
+    }
+    this.shots = this.shots.filter(s => !s.done);
+    for (const b of this.puddles) {
+      b.t += dt;
+      if (b.t < 2.2 && Math.abs((p.x + p.w / 2) - b.x) < 28 && Math.abs((p.y + p.h) - b.y) < 8) p.hurt(b.x, g);
+    }
+    this.puddles = this.puddles.filter(b => b.t < b.life);
+  }
+  throw(p) {
+    const cx = this.x + this.w / 2, cy = this.y + 8;
+    const tx = p.x + p.w / 2, ty = p.y + p.h / 2, t = 1.0;
+    const vx = (tx - cx) / t, vy = (ty - cy - .5 * 900 * t * t) / t;
+    this.shots.push({ x: cx, y: cy, vx, vy, t: 0 });
+    sfx.ember();
+  }
+  hit(d) { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
+// Rust Wisp: a drifting rust-spark that never chases, only drifts on its line.
+export class RustWisp {
+  constructor(o) {
+    Object.assign(this, { type: 'rustwisp', w: 20, h: 20, hp: 1, x: o.x, y: o.y, x0: o.x, y0: o.y,
+      t: Math.random() * 6, flash: 0, range: o.range || 90, phase: o.phase || 0 }, o);
+  }
+  update(dt, p, g) {
+    this.t += dt; this.flash -= dt;
+    this.x = this.x0 + Math.sin(this.t * .8 + this.phase) * this.range;
+    this.y = this.y0 + Math.sin(this.t * 1.7 + this.phase) * 16;
+  }
+  hit(d) { this.hp--; this.flash = .12; return this.hp <= 0; }
+}
+
 export const makeEnemy = o => o.type === 'bat' ? new Bat(o) : o.type === 'shield' ? new ShieldGoblin(o)
   : o.type === 'archer' ? new Archer(o) : o.type === 'wisp' ? new Wisp(o) : o.type === 'crawler' ? new Crawler(o)
   : o.type === 'shade' ? new Shade(o) : o.type === 'husk' ? new Husk(o) : o.type === 'hexer' ? new Hexer(o)
   : o.type === 'scavenger' ? new Scavenger(o) : o.type === 'crow' ? new Crow(o)
   : o.type === 'leech' ? new MireLeech(o) : o.type === 'skull' ? new WickSkull(o)
   : o.type === 'pealwraith' ? new PealWraith(o) : o.type === 'revenant' ? new RoyalRevenant(o)
-  : o.type === 'ashbloom' ? new AshBloom(o) : o.type === 'creeper' ? new ThornCreeper(o) : new Goblin(o);
+  : o.type === 'ashbloom' ? new AshBloom(o) : o.type === 'creeper' ? new ThornCreeper(o)
+  : o.type === 'slagsmith' ? new SlagSmith(o) : o.type === 'rustwisp' ? new RustWisp(o) : new Goblin(o);

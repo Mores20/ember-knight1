@@ -74,7 +74,7 @@ ok(texts.some(t => t === 'x 0/' + dbg.TOTAL_COINS), 'the HUD shows the v2 coin t
 
 const hub = dbg.g;
 ok(hub.l.kind === 'hub' && hub.enemies.length === 0, 'Cinderhaven is a safe hub with no enemies');
-ok(hub.l.hub.gates.length === 9, 'the hub has nine gates');
+ok(hub.l.hub.gates.length === 11, 'the hub has eleven gates');
 ok(hub.stage === 1 && hub.l.solids.some(s => s.barrier), 'Market Lane is sealed in the first town stage');
 
 const crowBad = [];
@@ -427,7 +427,11 @@ ok(dbg.g.stageMsgKind === 'throne', 'the hub settles into the quiet after the th
 
 /* ================= 4f. Area V: The Ashen Gardens ================= */
 const gHub = dbg.g;
-ok(gHub.l.w >= 4900, 'the Garden Steps extend Cinderhaven');
+ok(gHub.l.w >= 5700, 'Garden Steps and Forge Row extend Cinderhaven');
+gHub.p.x = 5560; gHub.p.y = 386; frames(2);
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(2);
+ok(gHub.dialog && gHub.dialog.pages[0].who === 'SEALED GATE', 'Gate VI is sealed before Area V is cleared');
+gHub.dialog = null;
 gHub.p.x = 4760; gHub.p.y = 386; frames(2);
 ok(gHub.near && gHub.near.type === 'gate' && gHub.near.obj.area === 'V', 'Gate V reaches the Ashen Gardens');
 fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
@@ -508,6 +512,58 @@ ok(/only wanted to grow/i.test(dbg.g.bossLineText), 'Mother Blight\u2019s restor
 e4.p.x = e4.l.exit.x + e4.l.exit.w / 2 - e4.p.w / 2; e4.p.y = e4.l.exit.y + e4.l.exit.h - e4.p.h; frames(40);
 ok(dbg.sceneId === 'hub' && dbg.run.cleared.V === true && dbg.run.levels.V.every(Boolean), '5-4 returns to town and completes Area V');
 ok(dbg.g.stageMsgKind === 'garden', 'the Garden Steps stir after Area V');
+
+/* ================= 4g. Area VI: The Drowned Forge ================= */
+const forgeHub = dbg.g;
+ok(forgeHub.l.w >= 5700, 'Forge Row reaches Gate VI');
+forgeHub.p.x = 5560; forgeHub.p.y = 386; frames(2);
+ok(forgeHub.near && forgeHub.near.type === 'gate' && forgeHub.near.obj.area === 'VI', 'Gate VI reaches the Drowned Forge');
+fire('keydown', 'KeyF'); frames(2); fire('keyup', 'KeyF'); frames(40);
+ok(dbg.sceneId === 'f1' && dbg.g.l.area === 'VI', 'Gate VI opens 6-1 The Slag Stairs');
+
+const f1 = dbg.g;
+ok(f1.l.vertical && f1.tide != null && f1.l.tide.speed === 9, 'the Slag Stairs is a vertical climb with a rising tide');
+f1.p.hp = 3; f1.p.inv = 0; f1.p.y = f1.tide - f1.p.h + 6; frames(2);
+ok(f1.p.hp === 2, 'the ember tide costs a heart');
+ok(f1.tide >= f1.cp[1] + 100, 'the tide resets below the checkpoint');
+const smith = f1.enemies.find(e => e.type === 'slagsmith');
+f1.p.x = smith.x; f1.p.y = smith.y - 2; f1.p.inv = 999; frames(90);
+ok(smith.shots.length > 0 || smith.puddles.length > 0, 'the Slag Smith hurls burning slag');
+const wisp = f1.enemies.find(e => e.type === 'rustwisp');
+const wx = wisp.x; frames(30);
+ok(Math.abs(wisp.x - wx) > 2, 'the Rust Wisp drifts on its line');
+f1.p.x = f1.l.exit.x + f1.l.exit.w / 2 - f1.p.w / 2; f1.p.y = f1.l.exit.y + f1.l.exit.h - f1.p.h; frames(40);
+ok(dbg.sceneId === 'f2' && dbg.run.levels.VI[0] === true, '6-1 leads to 6-2 and is marked cleared');
+
+const f2 = dbg.g;
+const mover = f2.l.solids.find(s => s.kind === 'move');
+const my = mover && mover.y;
+frames(40);
+ok(mover && Math.abs(mover.y - my) > 4, 'the chain lifts move under the knight');
+f2.p.x = f2.l.exit.x + f2.l.exit.w / 2 - f2.p.w / 2; f2.p.y = f2.l.exit.y + f2.l.exit.h - f2.p.h; frames(40);
+ok(dbg.sceneId === 'f3' && dbg.run.levels.VI[1] === true, '6-2 leads to 6-3 and is marked cleared');
+
+const f3 = dbg.g, foreman = f3.boss;
+ok(foreman && foreman.kind === 'slagforeman' && foreman.st === 'dormant', 'the Slag Foreman waits at the summit');
+f3.p.x = 1050; f3.p.y = 586; f3.p.inv = 999; frames(40);
+ok(foreman.st !== 'dormant', 'the Foreman wakes when the summit is reached');
+const tide0 = f3.tide; f3.tideStepT = .1; frames(20);
+ok(f3.tide < tide0 - 40 && f3.tideMsg > 0, 'the tide climbs in steps during the fight');
+foreman.hp = 12; foreman.phase = 1; foreman.st = 'act'; foreman.atk = 'chain'; foreman.stT = 0; foreman.hitDone = 1;
+f3.p.x = foreman.x - 30; f3.p.y = 586; f3.p.face = 1; f3.p.swing = .15; f3.p.hits.clear(); frames(8);
+ok(foreman.hp === 12, 'the Foreman\u2019s swing turns the blade');
+foreman.st = 'idle'; foreman.stT = 0; foreman.cool = 99;
+f3.p.x = foreman.x - 30; f3.p.y = 586; f3.p.face = 1; f3.p.swing = .15; f3.p.hits.clear(); frames(8);
+ok(foreman.hp === 11, 'the idle Foreman takes a hit');
+foreman.st = 'idle'; foreman.stT = 0; foreman.cool = 99; foreman.hp = 7;
+f3.p.x = foreman.x - 30; f3.p.y = 586; f3.p.face = 1; f3.p.swing = .15; f3.p.hits.clear(); frames(8);
+ok(foreman.hp === 6 && foreman.phase === 2, 'the Foreman stokes phase two at half health');
+foreman.st = 'idle'; foreman.stT = 0; foreman.cool = 99; foreman.hp = 1;
+f3.p.x = foreman.x - 30; f3.p.y = 586; f3.p.face = 1; f3.p.swing = .15; f3.p.hits.clear(); frames(20);
+ok(foreman.hp === 0 && foreman.st === 'dead', 'the Slag Foreman falls');
+f3.p.x = f3.l.exit.x + f3.l.exit.w / 2 - f3.p.w / 2; f3.p.y = f3.l.exit.y + f3.l.exit.h - f3.p.h; frames(40);
+ok(dbg.sceneId === 'hub' && dbg.run.cleared.VI === true && dbg.run.levels.VI.every(Boolean), '6-3 returns to town and completes Area VI');
+ok(dbg.g.stageMsgKind === 'forge', 'the Forge Row burns again after Area VI');
 
 /* ================= 5. new game -> tutorial ================= */
 dbg.newGame(); frames(3);

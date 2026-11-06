@@ -1,8 +1,33 @@
-# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9)
+# Ember Knight - V2 Vertical Slice (V0 + V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10)
 
 The v2 slice now lives on `main` alongside the shipped game and proves the shape of the world-design document:
-**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV → Garden Steps → Area V**. The shipped v1 game is
+**tutorial road → Cinderhaven → Area I → Area II → Bell Plaza → Area III → Throne Approach → Area IV → Garden Steps → Area V → Forge Row → Area VI**. The shipped v1 game is
 still available at `index.html` and is untouched.
+
+## V10 - Area VI: The Drowned Forge
+
+Gate VI opens at the end of **Forge Row**, past the Garden Steps, once Area V is cleared.
+
+| Level | Name | Shape |
+|---|---|---|
+| 6-1 | The Slag Stairs | The first vertical climb, torch checkpoints, Slag Smith, Rust Wisp |
+| 6-2 | The Chain Lifts | Moving chain platforms over the rising tide |
+| 6-3 | The Summit Foundry | The final climb and the Slag Foreman |
+
+- **The ember tide.** 6-1 introduces a burning surface that rises continuously. Falling in costs a
+  heart and returns the knight to the last checkpoint, with the tide reset just below it. The three
+  forge levels are the first **vertical** levels: the camera follows the climb up.
+- **Torch checkpoints** are the only safe places on the ascent. The mid and upper torches matter.
+- **Chain lifts** (`kind:'move'`) carry the knight between shelves in 6-2; their chains are visible.
+- **Slag Smith** lobs arcing slag that lands as a burning puddle on the shelf below.
+- **Rust Wisp** drifts on its own line, a timing hazard rather than a chaser.
+- **The Slag Foreman** (12 HP). Hammer slams send ground waves, arcing slag leaves puddles, and a
+  low chain sweep must be jumped. His swing has hyper-armour; the idle and recovery are open. At
+  half health he enters phase two and the tide starts rising in bigger steps. The arena has a
+  chain-driven platform that moves under the fight.
+- The Forge Row sign tracks **0/3 → 3/3**. 6-3 returns to Cinderhaven, completes Area VI and lights
+  the Forge Row chimneys (**THE FORGE BURNS AGAIN**).
+- The v2 coin total is now **232** across the tutorial and all six areas.
 
 ## V9 - Area V: The Ashen Gardens
 
@@ -32,7 +57,7 @@ cleared. The area uses the grey-green ash palette, bare trees, vines and pale bl
 - **Patino's Herb Patch** in 5-2 is a one-time free heart, saved under `run.herbPatch`.
 - The Garden Steps sign tracks **0/4 → 4/4**. 5-4 returns to Cinderhaven, completes Area V and gives
   the Garden Steps their green glow.
-- The v2 coin total is now **193** across the tutorial and all five areas.
+- The v2 coin total is now **193** across the tutorial and all five areas (232 with Area VI).
 
 ## V8 - Area IV: The Throne
 
@@ -272,7 +297,9 @@ guarded too; a perfect guard on the charge stuns him.
    Guard) → 4-5 (the Ash Warden) → Cinderhaven, `cleared.IV = true`.
 7. The Garden Steps open Gate V after Area IV: 5-1 (find the Ember Lantern) → 5-2 → 5-3 (the
    Gardener Golem) → 5-4 (Mother Blight) → Cinderhaven, `cleared.V = true`.
-8. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
+8. Forge Row opens Gate VI after Area V: 6-1 → 6-2 → 6-3 (the Slag Foreman) on the rising tide →
+   Cinderhaven, `cleared.VI = true`.
+9. `Esc` → pause. The tutorial can be skipped; the hub can replay the tutorial; an area can return
    to the hub.
 
 ## Deliberately deferred
@@ -291,8 +318,10 @@ guarded too; a perfect guard on the charge stuns him.
   and the Ash Warden, plus the Captain/Warden death lines.
 - V9 done: the Garden Steps, the four Ashen Gardens levels, the Ember Lantern, thorn walls, the Ash
   Bloom, Thorn Creeper, Gardener Golem, Mother Blight and Patino's Herb Patch.
-- Beyond the slice: Areas VI-VIII (the Drowned Forge, Silent Archive and Ember Heart), Gate VI, the
-  next merchant stock, hub rooftops, district stages S3-S5 and the full unlock map for the shop.
+- V10 done: the Forge Row, the three Drowned Forge climbs, the vertical camera and ember tide, Slag
+  Smith, Rust Wisp, chain lifts and the Slag Foreman.
+- Beyond the slice: Areas VII-VIII (the Silent Archive and the Ember Heart), Gate VII, the next
+  merchant stock, hub rooftops, district stages S3-S5 and the full unlock map for the shop.
 
 ## Known placeholders
 
